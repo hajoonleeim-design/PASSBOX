@@ -483,3 +483,17 @@ input, textarea, [contenteditable='true'] { cursor: text; }
 @media (max-width: 1023px) { .story-intro h1 { font-size: clamp(2.8rem, 8vw, 5rem); }.story-scroll-shell { grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 34px; padding-right: 52px; }.story-visual { min-height: 470px; }.story-chapter h2 { font-size: clamp(2.1rem, 5vw, 3.5rem); }.story-progress { right: 12px; }.story-end-grid { padding-right: 52px; } }
 @media (max-width: 767px) { .story-intro { min-height: calc(100svh - var(--header-height)); padding: 52px 16px 72px; }.story-intro::before { top: 20%; right: -24%; width: 360px; opacity: .65; }.story-intro h1 { font-size: clamp(2.6rem, 13vw, 4.2rem); }.story-intro__actions .button { width: 100%; }.story-scroll-hint { margin-top: 52px; }.story-progress { top: auto; right: 16px; bottom: 20px; display: flex; transform: none; }.story-progress button span { display: none; }.story-progress button i, .story-progress button.is-active i { width: 7px; height: 7px; border-radius: 50%; }.story-scroll-shell { display: block; padding: 0 16px; }.story-visual-column { position: sticky; top: calc(var(--header-height) + 12px); z-index: 3; height: 330px; min-height: 0; margin-bottom: 8px; }.story-visual { height: 330px; min-height: 0; padding: 16px; border-radius: 22px; }.story-visual__module { inset: 18% 7% 14%; }.visual-file-card { top: 24%; }.visual-grade { width: 128px; transform: scale(.88); transform-origin: center; }.visual-request { right: 0; }.visual-gate { width: 155px; }.visual-timeline { gap: 10px; padding: 15px 4px; }.visual-timeline span { font-size: 10px; }.story-chapter { min-height: 76vh; padding: 80px 8px; }.story-chapter h2 { font-size: clamp(2.35rem, 11vw, 3.6rem); }.story-chapter__description { font-size: .98rem; }.story-end-grid { grid-template-columns: 1fr; padding: 60px 16px 0; } }
 @media (prefers-reduced-motion: reduce) { .story-scroll-hint__wheel::after, .visual-scan-line, .visual-radar span { animation: none; }.story-chapter { transition: none; }.story-progress button i { transition: none; } }
+
+/* PASSBOX cube emblem and wordmark */
+.header__brand::before { display: none; }
+.header__brand { gap: 16px; }
+.header__logo { display: inline-flex; align-items: center; flex: 0 0 auto; height: 38px; }
+.header__logo img { display: block; width: 151px; height: auto; }
+.header__brand > span { white-space: nowrap; }
+.story-intro__logo { display: block; width: clamp(190px, 24vw, 300px); height: auto; margin-bottom: 22px; }
+@media (max-width: 767px) {
+  .header__logo { height: 32px; }
+  .header__logo img { width: 128px; }
+  .header__brand > span { display: none; }
+  .story-intro__logo { width: 210px; margin-bottom: 18px; }
+}

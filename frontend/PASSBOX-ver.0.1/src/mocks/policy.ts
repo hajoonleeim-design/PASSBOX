@@ -34,8 +34,9 @@ const base = (policyId = 'mock-current'): SecurityPolicy => ({
     oGradeRequiresApproval: false,
   },
   modelAllowlist: [
-    { modelId: 'security-ai-01', modelName: 'Security-AI-01', provider: 'Mock Provider', enabled: true, description: '기관에서 허용한 Mock 모델입니다.' },
-    { modelId: 'external-model-x', modelName: 'External-Model-X', provider: 'Mock Provider', enabled: false, description: '현재 비활성화된 Mock 모델입니다.' },
+    { modelId: 'gpt-4o-mini', modelName: 'gpt-4o-mini', provider: 'openai', enabled: true, description: '기관에서 허용한 OpenAI 모델입니다.' },
+    { modelId: '*', modelName: '*', provider: 'gemini', enabled: true, description: '기관에서 허용한 Gemini 모델입니다.' },
+    { modelId: 'external-model-x', modelName: 'External-Model-X', provider: 'unknown', enabled: false, description: '허용되지 않은 외부 모델 예시입니다.' },
   ],
   retentionPolicy: { auditDays: 365, evidenceDays: 180, incidentDays: 730 },
   detectionPatterns: [

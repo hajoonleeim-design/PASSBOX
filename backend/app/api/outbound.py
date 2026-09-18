@@ -12,7 +12,7 @@ from app.models import (
     OutboundCheck,
     User,
 )
-from app.policy import POLICY_VERSION, check_outbound_policy
+from app.policy import check_outbound_policy, get_active_policy_configuration
 
 
 router = APIRouter(prefix="/documents", tags=["Outbound Policy Gate"])
@@ -92,10 +92,12 @@ def check_outbound(
                 detail="담당자가 C/S/O 등급을 최종 확정한 뒤 전송 검사를 요청해야 합니다.",
             )
 
+        active_policy = get_active_policy_configuration(db, current_user.tenant_id)
         policy_decision = check_outbound_policy(
             confirmed_grade=decision.confirmed_grade,
             provider=payload.provider,
             model=payload.model,
+            policy=active_policy,
         )
         check = OutboundCheck(
             tenant_id=document.tenant_id,
@@ -103,7 +105,7 @@ def check_outbound(
             user_id=current_user.id,
             provider=payload.provider.strip(),
             model=payload.model.strip(),
-            policy_version=POLICY_VERSION,
+            policy_version=active_policy.version,
             confirmed_grade=decision.confirmed_grade,
             decision=policy_decision.decision,
             can_transmit=policy_decision.can_transmit,

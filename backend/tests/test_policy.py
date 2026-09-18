@@ -1,6 +1,6 @@
 import unittest
 
-from app.policy import check_outbound_policy
+from app.policy import PolicyConfiguration, check_outbound_policy
 
 
 class PolicyTests(unittest.TestCase):
@@ -43,6 +43,40 @@ class PolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(decision.decision, "BLOCKED")
+        self.assertFalse(decision.can_transmit)
+
+    def test_database_policy_can_disable_a_model(self):
+        policy = PolicyConfiguration(
+            version="POLICY-v2",
+            cso_rules=({"grade": "O", "enabled": True},),
+            approval_policy={"o_grade_requires_approval": False},
+            model_allowlist=({"provider": "openai", "model_id": "approved-model", "enabled": True},),
+        )
+        decision = check_outbound_policy(
+            confirmed_grade="O",
+            provider="openai",
+            model="gpt-4o-mini",
+            policy=policy,
+        )
+
+        self.assertEqual(decision.decision, "BLOCKED")
+        self.assertFalse(decision.can_transmit)
+
+    def test_database_policy_can_require_o_grade_approval(self):
+        policy = PolicyConfiguration(
+            version="POLICY-v2",
+            cso_rules=({"grade": "O", "enabled": True},),
+            approval_policy={"o_grade_requires_approval": True},
+            model_allowlist=({"provider": "openai", "model_id": "gpt-4o-mini", "enabled": True},),
+        )
+        decision = check_outbound_policy(
+            confirmed_grade="O",
+            provider="openai",
+            model="gpt-4o-mini",
+            policy=policy,
+        )
+
+        self.assertEqual(decision.decision, "APPROVAL_REQUIRED")
         self.assertFalse(decision.can_transmit)
 
 

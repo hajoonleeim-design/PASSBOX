@@ -18,9 +18,9 @@ from app.models import (
     User,
 )
 from app.policy import (
-    POLICY_VERSION,
     OutboundPolicyDecision,
     check_outbound_policy,
+    get_active_policy_configuration,
 )
 from app.post_inspector import inspect_response
 from app.security_scan import scan_text
@@ -136,10 +136,12 @@ def forward_to_gateway(
         if not prompt:
             raise HTTPException(status_code=422, detail="Gateway에 전달할 텍스트가 없습니다.")
 
+        active_policy = get_active_policy_configuration(db, current_user.tenant_id)
         policy_decision = check_outbound_policy(
             confirmed_grade=classification.confirmed_grade,
             provider=payload.provider,
             model=payload.model,
+            policy=active_policy,
         )
         prompt_findings = scan_text(prompt)
         hard_block_categories = {
@@ -161,6 +163,9 @@ def forward_to_gateway(
                 reason="전송 payload에서 보안 탐지 유형이 확인되었습니다: "
                 + ", ".join(sorted({finding.category for finding in prompt_findings})),
             )
+        gateway_prompt = prompt
+        if policy_decision.decision == "ALLOWED" and policy_decision.masking_required:
+            gateway_prompt = mask_text(prompt).masked_text
         transmission = GatewayTransmission(
             tenant_id=document.tenant_id,
             document_id=document.id,
@@ -168,7 +173,7 @@ def forward_to_gateway(
             provider=payload.provider.strip(),
             model=payload.model.strip(),
             payload_hash=_hash_text(prompt),
-            policy_version=POLICY_VERSION,
+            policy_version=active_policy.version,
             confirmed_grade=classification.confirmed_grade,
             policy_decision=policy_decision.decision,
             status=(
@@ -217,7 +222,7 @@ def forward_to_gateway(
             gateway_response = gateway.send(
                 provider=payload.provider.strip(),
                 model=payload.model.strip(),
-                prompt=prompt,
+                prompt=gateway_prompt,
                 safety_identifier=hashlib.sha256(
                     f"{current_user.tenant_id}:{current_user.id}".encode("utf-8")
                 ).hexdigest(),

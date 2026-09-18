@@ -126,18 +126,25 @@ DEFAULT_APPROVAL_POLICY = {
 }
 DEFAULT_MODEL_ALLOWLIST = [
     {
-        "model_id": "security-ai-01",
-        "model_name": "Security-AI-01",
-        "provider": "Local Gateway",
+        "model_id": "gpt-4o-mini",
+        "model_name": "gpt-4o-mini",
+        "provider": "openai",
         "enabled": True,
-        "description": "기관에서 허용한 안전한 내부 테스트 모델입니다.",
+        "description": "기관에서 허용한 OpenAI 모델입니다.",
+    },
+    {
+        "model_id": "*",
+        "model_name": "*",
+        "provider": "gemini",
+        "enabled": True,
+        "description": "기관에서 허용한 Gemini 모델입니다.",
     },
     {
         "model_id": "external-model-x",
         "model_name": "External-Model-X",
-        "provider": "External Provider",
+        "provider": "unknown",
         "enabled": False,
-        "description": "관리자 승인 전에는 사용할 수 없습니다.",
+        "description": "허용되지 않은 외부 모델 예시입니다.",
     },
 ]
 DEFAULT_RETENTION_POLICY = {"audit_days": 365, "evidence_days": 180, "incident_days": 730}

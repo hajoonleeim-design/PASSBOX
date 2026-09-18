@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.db import get_session_factory
@@ -63,6 +63,48 @@ def _find_job(db, job_id: int, tenant_id: int):
             AnalysisRequest.tenant_id == tenant_id,
         )
     ).first()
+
+
+def _update_latest_job_for_document(
+    db,
+    *,
+    document_id: int,
+    tenant_id: int,
+    status_value: str,
+    progress: int,
+    error_message: str | None = None,
+):
+    result = db.execute(
+        select(Job, AnalysisRequest)
+        .join(AnalysisRequest, Job.request_id == AnalysisRequest.id)
+        .where(
+            AnalysisRequest.document_id == document_id,
+            AnalysisRequest.tenant_id == tenant_id,
+        )
+        .order_by(desc(Job.created_at))
+    ).first()
+    if result is None:
+        return None
+    job, request = result
+    job.status = status_value
+    job.progress = progress
+    job.error_message = error_message
+    job.updated_at = datetime.now(timezone.utc)
+    request.status = status_value
+    return job
+
+
+def _reset_failed_job(job: Job, request: AnalysisRequest) -> None:
+    if job.status != "FAILED":
+        raise HTTPException(
+            status_code=409,
+            detail="실패한 Job만 다시 시도할 수 있습니다.",
+        )
+    job.status = "QUEUED"
+    job.progress = 0
+    job.error_message = None
+    job.updated_at = datetime.now(timezone.utc)
+    request.status = "RECEIVED"
 
 
 @router.post(
@@ -156,4 +198,26 @@ def cancel_job(
         request.status = "CANCELLED"
         db.commit()
         db.refresh(job)
+        return _to_response(job, request, document)
+
+
+@router.post(
+    "/{job_id}/retry",
+    response_model=JobResponse,
+    summary="실패한 분석 Job 재시도",
+)
+def retry_job(
+    job_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        result = _find_job(db, job_id, current_user.tenant_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="분석 Job을 찾을 수 없습니다.")
+        job, request, document = result
+        _reset_failed_job(job, request)
+        db.commit()
+        db.refresh(job)
+        db.refresh(request)
         return _to_response(job, request, document)

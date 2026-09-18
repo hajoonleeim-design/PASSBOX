@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
+from app.api.jobs import _update_latest_job_for_document
 from app.db import get_session_factory
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.masking import MASKING_VERSION, mask_text
@@ -191,6 +192,34 @@ def forward_to_gateway(
         db.add(transmission)
         db.flush()
 
+        if policy_decision.decision in {"BLOCKED", "PROMPT_BLOCKED"}:
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=document.tenant_id,
+                status_value="BLOCKED",
+                progress=100,
+                error_message=policy_decision.reason,
+            )
+        elif policy_decision.decision == "APPROVAL_REQUIRED":
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=document.tenant_id,
+                status_value="WAITING_APPROVAL",
+                progress=70,
+                error_message=policy_decision.reason,
+            )
+        else:
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=document.tenant_id,
+                status_value="TRANSMITTING",
+                progress=85,
+                error_message=None,
+            )
+
         if policy_decision.decision == "APPROVAL_REQUIRED":
             masking = mask_text(prompt)
             approval = OutboundApproval(
@@ -233,6 +262,14 @@ def forward_to_gateway(
             transmission.response_hash = _hash_text(gateway_response.content)
             transmission.status = "COMPLETED" if post_result.status == "PASSED" else "BLOCKED"
             transmission.error_message = None if post_result.status == "PASSED" else "Post-Inspector가 답변을 차단했습니다."
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=document.tenant_id,
+                status_value="COMPLETED" if post_result.status == "PASSED" else "BLOCKED",
+                progress=100,
+                error_message=transmission.error_message,
+            )
             db.commit()
             db.refresh(transmission)
             return _to_response(
@@ -242,10 +279,26 @@ def forward_to_gateway(
         except GatewayConfigurationError as exc:
             transmission.status = "FAILED"
             transmission.error_message = str(exc)
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=document.tenant_id,
+                status_value="FAILED",
+                progress=100,
+                error_message=str(exc),
+            )
             db.commit()
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except Exception as exc:
             transmission.status = "FAILED"
             transmission.error_message = "Gateway 호출에 실패했습니다."
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=document.tenant_id,
+                status_value="FAILED",
+                progress=100,
+                error_message="Gateway 호출에 실패했습니다.",
+            )
             db.commit()
             raise HTTPException(status_code=502, detail="Gateway 호출에 실패했습니다.") from exc

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
 from app.api.auth import require_roles
+from app.api.jobs import _update_latest_job_for_document
 from app.db import get_session_factory
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.models import GatewayTransmission, OutboundApproval, User
@@ -154,6 +155,14 @@ def approve_request(
         transmission.policy_decision = "APPROVED"
         transmission.status = "QUEUED"
         transmission.error_message = None
+        _update_latest_job_for_document(
+            db,
+            document_id=approval.document_id,
+            tenant_id=approval.tenant_id,
+            status_value="TRANSMITTING",
+            progress=85,
+            error_message=None,
+        )
         db.commit()
         db.refresh(approval)
         db.refresh(transmission)
@@ -179,6 +188,14 @@ def approve_request(
                 if post_result.status == "PASSED"
                 else "Post-Inspector가 응답을 차단했습니다."
             )
+            _update_latest_job_for_document(
+                db,
+                document_id=approval.document_id,
+                tenant_id=approval.tenant_id,
+                status_value="COMPLETED" if post_result.status == "PASSED" else "BLOCKED",
+                progress=100,
+                error_message=transmission.error_message,
+            )
             db.commit()
             db.refresh(approval)
             db.refresh(transmission)
@@ -190,11 +207,27 @@ def approve_request(
         except GatewayConfigurationError as exc:
             transmission.status = "FAILED"
             transmission.error_message = str(exc)
+            _update_latest_job_for_document(
+                db,
+                document_id=approval.document_id,
+                tenant_id=approval.tenant_id,
+                status_value="FAILED",
+                progress=100,
+                error_message=str(exc),
+            )
             db.commit()
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except Exception as exc:
             transmission.status = "FAILED"
             transmission.error_message = "Gateway 호출에 실패했습니다."
+            _update_latest_job_for_document(
+                db,
+                document_id=approval.document_id,
+                tenant_id=approval.tenant_id,
+                status_value="FAILED",
+                progress=100,
+                error_message="Gateway 호출에 실패했습니다.",
+            )
             db.commit()
             raise HTTPException(status_code=502, detail="Gateway 호출에 실패했습니다.") from exc
 
@@ -228,6 +261,14 @@ def reject_request(
         transmission.policy_decision = "REJECTED"
         transmission.status = "BLOCKED"
         transmission.error_message = payload.comment or "승인자가 전송을 반려했습니다."
+        _update_latest_job_for_document(
+            db,
+            document_id=approval.document_id,
+            tenant_id=approval.tenant_id,
+            status_value="BLOCKED",
+            progress=100,
+            error_message=transmission.error_message,
+        )
         db.commit()
         db.refresh(approval)
         db.refresh(transmission)

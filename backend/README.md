@@ -20,4 +20,6 @@ AI 채팅은 `POST /api/v1/chat/requests`에서 시작합니다. 실제 OpenAI �
 
 지원센터 콘텐츠는 `GET /api/v1/support/content`, 문의 접수는 `POST /api/v1/support/inquiries`, 문의 상태는 `GET /api/v1/support/inquiries/{inquiry_id}`에서 제공합니다. 문의 원문은 저장하지 않고 민감정보 탐지·해시·마스킹을 적용합니다.
 
+실패한 분석 작업은 `POST /api/v1/jobs/{job_id}/retry`로 다시 접수할 수 있습니다. Gateway가 완료·차단·실패하면 해당 Job의 상태와 진행률도 함께 갱신됩니다.
+
 Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.

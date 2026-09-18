@@ -68,5 +68,6 @@ export async function retryJob(jobId: string): Promise<RetryJobResult> {
     const { mockRetryJob } = await import('../mocks/jobs')
     return { job: await mockRetryJob(jobId) }
   }
-  throw new Error(`RETRY_API_NOT_AVAILABLE:${jobId}`)
+  const { data } = await apiClient.post<BackendJobResponse>(`/jobs/${jobId}/retry`)
+  return { job: mapJob(data) }
 }

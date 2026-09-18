@@ -14,4 +14,6 @@
 
 The Swagger UI is available at `http://127.0.0.1:8000/docs`.
 
+운영 현황은 `GET /api/v1/operations/dashboard`에서 조회합니다. `ADMIN` 또는 `OPERATOR` 권한이 필요하며, 현재 로그인한 기관의 요청·Job·Gateway·승인 데이터를 기준으로 집계합니다.
+
 Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.

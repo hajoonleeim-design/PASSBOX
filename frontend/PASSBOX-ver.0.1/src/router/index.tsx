@@ -2,7 +2,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { AuthLayout } from '../layouts/AuthLayout'
 import { ServiceLayout } from '../layouts/ServiceLayout'
 import { LoginPage } from '../pages/auth/LoginPage'
-import { HomePage } from '../pages/home/HomePage'
+import { HomePageRedesign } from '../pages/home/HomePageRedesign'
 import { UploadPage } from '../pages/upload/UploadPage'
 import { ChatPage } from '../pages/chat/ChatPage'
 import { AnalysisPage } from '../pages/analysis/AnalysisPage'
@@ -23,7 +23,7 @@ const router = createBrowserRouter([
     children: [{
       element: <ServiceLayout />,
       children: [
-        { path: '/', element: <HomePage /> },
+        { path: '/', element: <HomePageRedesign /> },
         { path: '/upload', element: <UploadPage /> },
         { path: '/analysis/:jobId', element: <AnalysisPage /> },
         { path: '/result/:requestId', element: <ResultPage /> },

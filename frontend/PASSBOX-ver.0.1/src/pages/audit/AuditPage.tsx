@@ -1,7 +1,7 @@
 // Request ID로 감사 기록을 조회하고, 조회 결과를 PDF로 내려받는 화면입니다.
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { generateAuditPdf } from '../../api/audit'
+import { generateAuditPdfSource as generateAuditPdf } from '../../api/auditSource'
 import { Alert } from '../../components/common/Alert'
 import { Badge, type BadgeVariant } from '../../components/common/Badge'
 import { Button } from '../../components/common/Button'

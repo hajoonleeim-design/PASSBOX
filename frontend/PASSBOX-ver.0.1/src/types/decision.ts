@@ -19,6 +19,7 @@ export interface ClassificationDecision {
   status: DecisionStatus
   createdAt: string
   decidedAt: string
+  approvalId?: number
   approval?: ApprovalHistoryEntry
   history: ApprovalHistoryEntry[]
 }

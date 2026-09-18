@@ -10,6 +10,7 @@ from app.api.scans import router as scans_router
 from app.api.classifications import router as classifications_router
 from app.api.outbound import router as outbound_router
 from app.api.gateway import router as gateway_router
+from app.api.decisions import router as decisions_router
 from app.db import check_database
 
 
@@ -42,6 +43,7 @@ app.include_router(scans_router, prefix="/api/v1")
 app.include_router(classifications_router, prefix="/api/v1")
 app.include_router(outbound_router, prefix="/api/v1")
 app.include_router(gateway_router, prefix="/api/v1")
+app.include_router(decisions_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")

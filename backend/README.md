@@ -4,7 +4,7 @@
 
 1. Create a Python virtual environment and install `requirements.txt`.
 2. Copy `.env.example` to `.env` and fill in the local PostgreSQL connection and JWT secret.
-3. Run `create_tables.py` to create the schema, including the S-grade outbound approval table.
+3. Run `create_tables.py` to create the schema, including the S-grade outbound approval and policy tables. If the database already existed before policy management was added, run `migrate_policy.py` once.
 4. Run `seed_demo_user.py` to create or reset a local `demo.user` account.
 5. Start the API with:
 

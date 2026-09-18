@@ -15,7 +15,7 @@ backend/                    FastAPI + PostgreSQL backend
 
 1. Create `backend/.venv` and install `backend/requirements.txt`.
 2. Copy `backend/.env.example` to `backend/.env` and fill in local PostgreSQL and JWT settings.
-3. Run `backend/create_tables.py`.
+3. Run `backend/create_tables.py`. For an existing database, run `backend/migrate_policy.py` once to add policy management tables.
 4. Run `backend/seed_demo_user.py` to create a local user.
 5. Start the API:
 

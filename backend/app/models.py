@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -271,3 +271,47 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class SecurityPolicy(Base):
+    __tablename__ = "security_policies"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_security_policies_tenant_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    version: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="ACTIVE")
+    effective_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    cso_rules: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    approval_policy: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    model_allowlist: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    retention_policy: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    detection_patterns: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+
+
+class SecurityPolicyHistory(Base):
+    __tablename__ = "security_policy_histories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    policy_id: Mapped[int] = mapped_column(
+        ForeignKey("security_policies.id", ondelete="CASCADE"), nullable=False
+    )
+    version_before: Mapped[str] = mapped_column(String(100), nullable=False)
+    version_after: Mapped[str] = mapped_column(String(100), nullable=False)
+    changed_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    actor_role: Mapped[str] = mapped_column(String(30), nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    change_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    changed_fields: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    before_value: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    after_value: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

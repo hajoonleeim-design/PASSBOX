@@ -1,0 +1,38 @@
+﻿# Shared repository scope: only the application and its documentation belong here.
+/*
+!/.gitignore
+!/README.md
+!/backend/
+!/backend/**
+!/frontend/
+!/frontend/**
+
+# Local secrets and environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/**/*.py[cod]
+backend/storage/
+backend/.pytest_cache/
+
+# Frontend
+frontend/**/node_modules/
+frontend/**/dist/
+frontend/**/.vite/
+frontend/**/*.tsbuildinfo
+frontend/**/.git-frontend-history-backup/
+
+# Local databases, logs, and editor files
+*.db
+*.sqlite
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

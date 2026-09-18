@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+pydantic-settings
+pwdlib[argon2]
+PyJWT
+python-multipart
+pypdf
+python-pptx
+openpyxl
+openai

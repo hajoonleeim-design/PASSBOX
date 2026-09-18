@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     storage_root: str = "storage"
     gateway_mode: str = "MOCK"
     openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
 
     model_config = SettingsConfigDict(
         env_file=".env",

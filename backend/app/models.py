@@ -273,6 +273,36 @@ class Job(Base):
     )
 
 
+class ChatRequest(Base):
+    __tablename__ = "chat_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(100), nullable=False, default="openai")
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    prompt_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # 재시도에 필요한 동안만 보관하며, 성공·차단 처리 후 즉시 비웁니다.
+    prompt_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING")
+    response_status: Mapped[str] = mapped_column(String(40), nullable=False, default="NOT_RECEIVED")
+    decision_status: Mapped[str] = mapped_column(String(40), nullable=False, default="UNKNOWN")
+    post_inspection_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    post_inspected_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    response_categories: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    incident_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class SecurityPolicy(Base):
     __tablename__ = "security_policies"
     __table_args__ = (

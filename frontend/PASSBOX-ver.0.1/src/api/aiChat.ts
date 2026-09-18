@@ -1,4 +1,5 @@
 import type { AIChatResponse, CreateChatRequestInput, PostInspectionResult } from '../types/aiChat'
+import { apiClient } from './client'
 
 const useMock = import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL
 
@@ -12,27 +13,83 @@ function safeForClient(response: AIChatResponse): AIChatResponse {
   return safeResponse
 }
 
+interface BackendPostInspectionResult {
+  status: PostInspectionResult['status']
+  inspected_at?: string | null
+  detection_type?: string | null
+  user_message: string
+  incident_id?: string | null
+}
+
+interface BackendChatResponse {
+  request_id: string
+  model: string
+  policy_version: string
+  payload_status: AIChatResponse['payloadStatus']
+  response_status: AIChatResponse['responseStatus']
+  decision_status: AIChatResponse['decisionStatus']
+  post_inspection?: BackendPostInspectionResult | null
+  created_at: string
+  updated_at: string
+  error_message?: string | null
+  content?: string | null
+}
+
+function mapPostInspection(value?: BackendPostInspectionResult | null): PostInspectionResult | undefined {
+  if (!value) return undefined
+  return {
+    status: value.status,
+    inspectedAt: value.inspected_at ?? undefined,
+    detectionType: value.detection_type ?? undefined,
+    userMessage: value.user_message,
+    incidentId: value.incident_id ?? undefined,
+  }
+}
+
+function mapResponse(data: BackendChatResponse): AIChatResponse {
+  return {
+    requestId: data.request_id,
+    model: data.model,
+    policyVersion: data.policy_version,
+    payloadStatus: data.payload_status,
+    responseStatus: data.response_status,
+    decisionStatus: data.decision_status,
+    postInspection: mapPostInspection(data.post_inspection),
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    errorMessage: data.error_message ?? undefined,
+    content: data.content ?? undefined,
+  }
+}
+
+const requestPath = (requestId: string) => `/chat/requests/${encodeURIComponent(requestId)}`
+
 export async function createChatRequest(input: CreateChatRequestInput): Promise<AIChatResponse> {
   if (useMock) { const { mockCreateChatRequest } = await import('../mocks/aiChat'); return safeForClient(await mockCreateChatRequest(input)) }
-  throw new Error('AI_CHAT_API_UNAVAILABLE')
+  const { data } = await apiClient.post<BackendChatResponse>('/chat/requests', input)
+  return safeForClient(mapResponse(data))
 }
 
 export async function getChatRequest(requestId: string): Promise<AIChatResponse> {
   if (useMock) { const { mockGetChatRequest } = await import('../mocks/aiChat'); return safeForClient(await mockGetChatRequest(requestId)) }
-  throw new Error('AI_CHAT_API_UNAVAILABLE')
+  const { data } = await apiClient.get<BackendChatResponse>(requestPath(requestId))
+  return safeForClient(mapResponse(data))
 }
 
 export async function sendToAI(requestId: string): Promise<AIChatResponse> {
   if (useMock) { const { mockSendToAI } = await import('../mocks/aiChat'); return safeForClient(await mockSendToAI(requestId)) }
-  throw new Error('AI_CHAT_API_UNAVAILABLE')
+  const { data } = await apiClient.post<BackendChatResponse>(`${requestPath(requestId)}/send`)
+  return safeForClient(mapResponse(data))
 }
 
 export async function getPostInspection(requestId: string): Promise<PostInspectionResult | undefined> {
   if (useMock) { const { mockGetPostInspection } = await import('../mocks/aiChat'); return mockGetPostInspection(requestId) }
-  throw new Error('AI_CHAT_API_UNAVAILABLE')
+  const { data } = await apiClient.get<BackendPostInspectionResult | null>(`${requestPath(requestId)}/post-inspection`)
+  return mapPostInspection(data)
 }
 
 export async function retryChatRequest(requestId: string): Promise<AIChatResponse> {
   if (useMock) { const { mockRetryChatRequest } = await import('../mocks/aiChat'); return safeForClient(await mockRetryChatRequest(requestId)) }
-  throw new Error('AI_CHAT_API_UNAVAILABLE')
+  const { data } = await apiClient.post<BackendChatResponse>(`${requestPath(requestId)}/retry`)
+  return safeForClient(mapResponse(data))
 }

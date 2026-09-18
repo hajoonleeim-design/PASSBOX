@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.db import get_session_factory
+from app.job_worker import process_document_job
 from app.models import Document, Job, Request as AnalysisRequest, User
 
 
@@ -35,7 +36,22 @@ class JobResponse(BaseModel):
 def _to_response(job: Job, request: AnalysisRequest, document: Document) -> JobResponse:
     # 프론트엔드의 현재 상태 모델과 맞추기 위해 DB의 QUEUED를 접수 단계로 표시합니다.
     display_status = "RECEIVED" if job.status == "QUEUED" else job.status
-    current_step = "분석 대기" if job.status == "QUEUED" else job.status
+    current_step = {
+        "QUEUED": "분석 대기",
+        "RECEIVED": "접수",
+        "INSPECTING": "안전 검사",
+        "PARSING": "텍스트 추출",
+        "DETECTING": "민감정보 탐지",
+        "CLASSIFICATION_REVIEW": "분류 검토",
+        "MASKING": "마스킹",
+        "WAITING_APPROVAL": "승인 대기",
+        "TRANSMITTING": "Gateway 전송",
+        "POST_INSPECTING": "답변 검사",
+        "COMPLETED": "완료",
+        "BLOCKED": "차단",
+        "FAILED": "실패",
+        "CANCELLED": "취소",
+    }.get(job.status, job.status)
     return JobResponse(
         job_id=job.id,
         request_id=request.id,
@@ -48,7 +64,14 @@ def _to_response(job: Job, request: AnalysisRequest, document: Document) -> JobR
         progress=job.progress,
         created_at=job.created_at,
         updated_at=job.updated_at,
-        can_cancel=job.status in {"QUEUED", "RECEIVED", "INSPECTING", "PARSING"},
+        can_cancel=job.status in {
+            "QUEUED",
+            "RECEIVED",
+            "INSPECTING",
+            "PARSING",
+            "DETECTING",
+            "CLASSIFICATION_REVIEW",
+        },
         failure_message=job.error_message,
     )
 
@@ -115,6 +138,7 @@ def _reset_failed_job(job: Job, request: AnalysisRequest) -> None:
 )
 def create_job(
     payload: CreateJobRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
 ):
     session_factory = get_session_factory()
@@ -127,7 +151,12 @@ def create_job(
         )
         if document is None:
             raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
-        if document.status not in {"READY_FOR_CLASSIFICATION", "CLASSIFICATION_CONFIRMED"}:
+        if document.status not in {
+            "READY_FOR_PARSING",
+            "TEXT_EXTRACTED",
+            "READY_FOR_CLASSIFICATION",
+            "CLASSIFICATION_CONFIRMED",
+        }:
             raise HTTPException(
                 status_code=409,
                 detail=f"분석을 시작할 수 없는 문서 상태입니다: {document.status}",
@@ -153,6 +182,7 @@ def create_job(
         db.commit()
         db.refresh(job)
         db.refresh(request)
+        background_tasks.add_task(process_document_job, job.id, current_user.tenant_id)
 
         return _to_response(job, request, document)
 
@@ -190,7 +220,14 @@ def cancel_job(
         if result is None:
             raise HTTPException(status_code=404, detail="분석 Job을 찾을 수 없습니다.")
         job, request, document = result
-        if job.status not in {"QUEUED", "RECEIVED", "INSPECTING", "PARSING"}:
+        if job.status not in {
+            "QUEUED",
+            "RECEIVED",
+            "INSPECTING",
+            "PARSING",
+            "DETECTING",
+            "CLASSIFICATION_REVIEW",
+        }:
             raise HTTPException(status_code=409, detail="현재 상태에서는 Job을 취소할 수 없습니다.")
 
         job.status = "CANCELLED"
@@ -208,6 +245,7 @@ def cancel_job(
 )
 def retry_job(
     job_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
 ):
     session_factory = get_session_factory()
@@ -220,4 +258,5 @@ def retry_job(
         db.commit()
         db.refresh(job)
         db.refresh(request)
+        background_tasks.add_task(process_document_job, job.id, current_user.tenant_id)
         return _to_response(job, request, document)

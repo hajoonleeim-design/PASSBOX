@@ -2,9 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getUploadPolicyHint, uploadDocument } from '../../api/upload'
 import { createJob } from '../../api/jobs'
-import { extractDocument } from '../../api/extraction'
-import { scanDocument } from '../../api/securityScan'
-import { recommendClassification } from '../../api/classification'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
@@ -129,13 +126,6 @@ export function UploadPage() {
     }
     try {
       setError('')
-      await extractDocument(item.documentId)
-      const scan = await scanDocument(item.documentId)
-      if (!scan.classificationReady) {
-        setError('민감정보 또는 Prompt Injection이 탐지되어 보안 검토가 필요합니다.')
-        return
-      }
-      await recommendClassification(item.documentId)
       const job = await createJob({
         documentId: item.documentId,
         file: { fileName: item.file.name, extension: item.extension, size: item.file.size },

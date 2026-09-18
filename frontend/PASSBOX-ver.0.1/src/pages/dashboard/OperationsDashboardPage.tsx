@@ -19,7 +19,7 @@ const formatDuration = (milliseconds: number | undefined) => milliseconds === un
 
 function StatusPill({ status }: { status: string }) {
   const variant: BadgeVariant = ['COMPLETED', 'ALLOWED'].includes(status) ? 'success' : ['BLOCKED', 'FAILED', 'DOWN'].includes(status) ? 'danger' : ['WAITING_APPROVAL', 'DEGRADED'].includes(status) ? 'warning' : 'info'
-  const labels: Record<string, string> = { DETECTING: '탐지 중', COMPLETED: '완료', BLOCKED: '차단', WAITING_APPROVAL: '승인 대기', FAILED: '실패' }
+  const labels: Record<string, string> = { DETECTING: '탐지 중', CLASSIFICATION_REVIEW: '분류 검토', COMPLETED: '완료', BLOCKED: '차단', WAITING_APPROVAL: '승인 대기', FAILED: '실패' }
   return <Badge variant={variant}><span aria-hidden="true">●</span> {labels[status] ?? status}</Badge>
 }
 

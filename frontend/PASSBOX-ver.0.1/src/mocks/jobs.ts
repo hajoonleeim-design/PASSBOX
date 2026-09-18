@@ -1,7 +1,7 @@
 import type { AnalysisJob, CreateJobInput, JobStatus } from '../types/security'
 
 const progressStates: Array<{ status: JobStatus; progress: number; step: string }> = [
-  { status: 'RECEIVED', progress: 5, step: '접수' }, { status: 'INSPECTING', progress: 16, step: '검사' }, { status: 'PARSING', progress: 30, step: '파싱' }, { status: 'DETECTING', progress: 45, step: '탐지' }, { status: 'MASKING', progress: 62, step: '마스킹' }, { status: 'WAITING_APPROVAL', progress: 72, step: '승인대기' }, { status: 'TRANSMITTING', progress: 82, step: '전송' }, { status: 'POST_INSPECTING', progress: 94, step: '답변검사' }, { status: 'COMPLETED', progress: 100, step: '완료' },
+  { status: 'RECEIVED', progress: 5, step: '접수' }, { status: 'INSPECTING', progress: 16, step: '검사' }, { status: 'PARSING', progress: 30, step: '파싱' }, { status: 'DETECTING', progress: 45, step: '탐지' }, { status: 'CLASSIFICATION_REVIEW', progress: 55, step: '분류 검토' }, { status: 'MASKING', progress: 62, step: '마스킹' }, { status: 'WAITING_APPROVAL', progress: 72, step: '승인대기' }, { status: 'TRANSMITTING', progress: 82, step: '전송' }, { status: 'POST_INSPECTING', progress: 94, step: '답변검사' }, { status: 'COMPLETED', progress: 100, step: '완료' },
 ]
 const jobs = new Map<string, AnalysisJob>()
 const positions = new Map<string, number>()

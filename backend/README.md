@@ -22,4 +22,6 @@ AI 채팅은 `POST /api/v1/chat/requests`에서 시작합니다. 실제 OpenAI �
 
 실패한 분석 작업은 `POST /api/v1/jobs/{job_id}/retry`로 다시 접수할 수 있습니다. Gateway가 완료·차단·실패하면 해당 Job의 상태와 진행률도 함께 갱신됩니다.
 
+문서 분석 Job은 백엔드 백그라운드 작업으로 텍스트 추출·보안 스캔·분류 추천을 처리합니다. 분류 추천이 끝나면 `CLASSIFICATION_REVIEW` 상태에서 담당자의 최종 확정을 기다립니다.
+
 Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
+from app.api.jobs import _update_latest_job_for_document
 from app.classifier import classifier
 from app.db import get_session_factory
 from app.models import (
@@ -265,6 +266,14 @@ def confirm_classification(
         )
         db.add(decision)
         document.status = "CLASSIFICATION_CONFIRMED"
+        _update_latest_job_for_document(
+            db,
+            document_id=document.id,
+            tenant_id=current_user.tenant_id,
+            status_value="COMPLETED",
+            progress=100,
+            error_message=None,
+        )
         db.commit()
         db.refresh(decision)
         return _to_decision_response(decision, recommendation)

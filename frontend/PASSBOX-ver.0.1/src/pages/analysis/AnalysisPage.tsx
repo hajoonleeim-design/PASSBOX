@@ -26,6 +26,7 @@ const statuses: Record<JobStatus, StatusLabel> = {
   INSPECTING: '검사',
   PARSING: '파싱',
   DETECTING: '탐지',
+  CLASSIFICATION_REVIEW: '분류 검토',
   MASKING: '마스킹',
   WAITING_APPROVAL: '승인대기',
   TRANSMITTING: '전송',
@@ -42,11 +43,12 @@ const stepIndex: Record<JobStatus, number> = {
   INSPECTING: 1,
   PARSING: 2,
   DETECTING: 3,
-  MASKING: 4,
-  WAITING_APPROVAL: 5,
-  TRANSMITTING: 6,
-  POST_INSPECTING: 7,
-  COMPLETED: 8,
+  CLASSIFICATION_REVIEW: 4,
+  MASKING: 5,
+  WAITING_APPROVAL: 6,
+  TRANSMITTING: 7,
+  POST_INSPECTING: 8,
+  COMPLETED: 9,
   BLOCKED: 3,
   FAILED: 0,
   CANCELLED: 0,
@@ -58,6 +60,7 @@ const detail: Record<JobStatus, string> = {
   INSPECTING: '파일 안전성과 정책 적용 범위를 검사하는 중입니다.',
   PARSING: '문서 구조를 안전하게 파싱하는 중입니다.',
   DETECTING: '민감정보와 정책 위반 패턴을 탐지하는 중입니다.',
+  CLASSIFICATION_REVIEW: '보안등급 추천이 완료되었습니다. 담당자의 최종 확정을 기다립니다.',
   MASKING: '민감정보 마스킹 처리를 준비하는 중입니다.',
   WAITING_APPROVAL: '담당자 승인을 기다리는 상태입니다.',
   TRANSMITTING: '정책에 맞는 payload 전송을 준비하는 중입니다.',
@@ -376,6 +379,14 @@ export function AnalysisPage() {
 
   const status = normalizeStatus(job.status)
   const terminal = isTerminalJob(job)
+  const classificationReady = [
+    'CLASSIFICATION_REVIEW',
+    'MASKING',
+    'WAITING_APPROVAL',
+    'TRANSMITTING',
+    'POST_INSPECTING',
+    'COMPLETED',
+  ].includes(status)
   return (
     <section aria-live="polite">
       <p className="eyebrow">ASYNC ANALYSIS JOB</p>
@@ -389,8 +400,8 @@ export function AnalysisPage() {
         <Card><p className="eyebrow">PROGRESS</p><div className="progress-value">{job.progress}%</div><div className="progress-bar" role="progressbar" aria-label="분석 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={job.progress}><span style={{ width: `${job.progress}%` }} /></div><p>{terminal ? '처리가 종료되었습니다.' : `${job.currentStep} 단계를 처리 중입니다.`}</p></Card>
       </div>
       <Card className="analysis-step-card"><h2>분석 단계</h2><Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} /></Card>
-      {job.documentId && <ClassificationCard documentId={job.documentId} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
-      {job.documentId && <GatewayCard documentId={job.documentId} refreshKey={classificationVersion} />}
+      {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
+      {job.documentId && classificationReady && <GatewayCard documentId={job.documentId} refreshKey={classificationVersion} />}
       <div className="section-gap"><Notice job={job} status={status} /></div>
       <div className="job-actions">{job.canCancel && <Button variant="danger" onClick={() => setShowCancel(true)}>분석 취소</Button>}{status === 'FAILED' && <Button onClick={() => void retry()} disabled={isActing}>다시 시도</Button>}{(status === 'COMPLETED' || status === 'BLOCKED') && job.requestId && <Button variant="secondary" onClick={() => navigate(`/result/${job.requestId}`)}>결과 확인</Button>}</div>
       {showCancel && <ConfirmDialog title="분석 작업 취소" message="현재 분석 작업을 취소하시겠습니까? 취소된 작업은 자동으로 다시 시작되지 않습니다." confirmLabel="분석 취소" isConfirming={isActing} onClose={() => setShowCancel(false)} onConfirm={() => void confirmCancel()} />}

@@ -303,6 +303,25 @@ class ChatRequest(Base):
     )
 
 
+class SupportInquiry(Base):
+    __tablename__ = "support_inquiries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    category: Mapped[str] = mapped_column(String(30), nullable=False)
+    subject: Mapped[str] = mapped_column(String(120), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    masked_content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="RECEIVED")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class SecurityPolicy(Base):
     __tablename__ = "security_policies"
     __table_args__ = (

@@ -6,4 +6,4 @@ if __name__ == "__main__":
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
     engine.dispose()
-    print("정책·채팅 관리 테이블 준비 완료: security_policies, security_policy_histories, chat_requests")
+    print("정책·채팅·지원 관리 테이블 준비 완료: security_policies, security_policy_histories, chat_requests, support_inquiries")

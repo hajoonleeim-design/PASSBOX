@@ -15,6 +15,7 @@ from app.api.audit import router as audit_router
 from app.api.policies import router as policies_router
 from app.api.operations import router as operations_router
 from app.api.chat import router as chat_router
+from app.api.support import router as support_router
 from app.db import check_database
 
 
@@ -52,6 +53,7 @@ app.include_router(audit_router, prefix="/api/v1")
 app.include_router(policies_router, prefix="/api/v1")
 app.include_router(operations_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(support_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")

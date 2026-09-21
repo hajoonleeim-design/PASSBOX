@@ -636,6 +636,8 @@ body { overflow-x: hidden; word-break: keep-all; }
 .sidebar-backdrop { display: none; }
 
 .main-content:has(.home-story) { max-width: none; padding: 0; }
+.main-content > section.home-story { animation: showroom-enter .45s ease both; }
+@keyframes showroom-enter { from { opacity: 0; } to { opacity: 1; } }
 .home-story {
   max-width: none;
   padding-bottom: 132px;

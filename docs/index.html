@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PASSBOX | 팀 공유 문서</title>
+  <style>
+    :root {
+      --ink: #102535;
+      --muted: #5f7888;
+      --line: #d8e5e9;
+      --soft: #f4f9f9;
+      --panel: #ffffff;
+      --teal: #008f73;
+      --teal-dark: #006b5a;
+      --blue: #1c6ca8;
+      --orange: #b87300;
+      --shadow: 0 18px 50px rgba(16, 37, 53, .08);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: #f7fbfb; font-family: Inter, "Noto Sans KR", "Malgun Gothic", sans-serif; line-height: 1.65; }
+    a { color: var(--teal-dark); font-weight: 700; }
+    .hero { position: relative; overflow: hidden; padding: 72px 24px 86px; background: linear-gradient(135deg, #f8fcfc 0%, #e9f5f4 100%); border-bottom: 1px solid var(--line); }
+    .hero::after { content: ""; position: absolute; width: 520px; height: 520px; right: -160px; top: -220px; border: 1px solid rgba(0, 143, 115, .18); border-radius: 50%; box-shadow: 0 0 0 28px rgba(0, 143, 115, .035), 0 0 0 64px rgba(0, 143, 115, .025); }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; position: relative; z-index: 1; }
+    .brand { display: inline-flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; letter-spacing: .04em; }
+    .cube { width: 34px; height: 34px; display: grid; place-items: center; color: white; background: #111820; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); font-size: 12px; font-weight: 900; }
+    .brand strong { font-size: 25px; letter-spacing: -.04em; }
+    .eyebrow { margin: 50px 0 12px; color: var(--teal); font-size: 12px; font-weight: 900; letter-spacing: .18em; }
+    h1, h2, h3 { line-height: 1.18; letter-spacing: -.035em; }
+    h1 { max-width: 800px; margin: 0; font-size: clamp(42px, 7vw, 78px); }
+    .hero p { max-width: 760px; margin: 22px 0 0; color: var(--muted); font-size: 18px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 17px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); text-decoration: none; }
+    .button.primary { border-color: var(--teal); background: var(--teal); color: white; }
+    .button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(16, 37, 53, .1); }
+    main { padding: 48px 0 80px; }
+    .section { margin-top: 42px; }
+    .section:first-child { margin-top: 0; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+    .section-heading h2 { margin: 0; font-size: clamp(26px, 4vw, 40px); }
+    .section-heading p { margin: 0; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); }
+    .card h3 { margin: 0 0 8px; font-size: 20px; }
+    .card p { margin: 8px 0 0; color: var(--muted); }
+    .badge { display: inline-flex; padding: 3px 9px; border-radius: 999px; background: #e5f7f1; color: var(--teal-dark); font-size: 12px; font-weight: 900; }
+    .badge.blue { background: #e8f2fb; color: var(--blue); }
+    .badge.orange { background: #fff4dc; color: var(--orange); }
+    ul, ol { padding-left: 22px; }
+    li + li { margin-top: 7px; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 18px; }
+    .flow div { min-height: 105px; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--soft); }
+    .flow b { display: block; color: var(--teal); font-size: 13px; }
+    .flow span { display: block; margin-top: 7px; font-weight: 800; }
+    pre { overflow-x: auto; margin: 14px 0 0; padding: 17px; border-radius: 12px; background: #13242d; color: #e3f3f2; font: 13px/1.7 Consolas, monospace; }
+    code { padding: 2px 5px; border-radius: 5px; background: #edf4f5; color: var(--teal-dark); font: .92em Consolas, monospace; }
+    pre code { padding: 0; background: transparent; color: inherit; }
+    .notice { padding: 18px 20px; border-left: 4px solid var(--teal); border-radius: 10px; background: #eaf8f4; }
+    .notice.warning { border-left-color: var(--orange); background: #fff8e9; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; min-width: 650px; }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--soft); color: var(--muted); font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    details { padding: 15px 0; border-bottom: 1px solid var(--line); }
+    details:last-child { border-bottom: 0; }
+    summary { cursor: pointer; font-weight: 900; }
+    footer { padding: 30px 24px 55px; border-top: 1px solid var(--line); color: var(--muted); text-align: center; }
+    @media (max-width: 800px) { .grid, .grid.two { grid-template-columns: 1fr; } .flow { grid-template-columns: repeat(2, 1fr); } .section-heading { align-items: start; flex-direction: column; } }
+    @media (max-width: 520px) { .wrap { width: min(100% - 28px, 1120px); } .hero { padding: 46px 14px 58px; } .flow { grid-template-columns: 1fr; } .card { padding: 19px; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <a class="brand" href="https://github.com/hajoonleeim-design/PASSBOX" target="_blank" rel="noreferrer"><span class="cube">P</span><strong>PASSBOX</strong></a>
+      <p class="eyebrow">TEAM HANDOFF · 2026. 09. 21.</p>
+      <h1>안전한 AI 업무를 위한<br><span style="color:var(--teal)">보안 파이프라인</span></h1>
+      <p>문서가 AI로 이동하는 모든 순간을 검사·마스킹·승인·감사하는 PASSBOX 프로젝트의 현재 구현 상태와 팀 공유용 실행 안내입니다.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/hajoonleeim-design/PASSBOX" target="_blank" rel="noreferrer">GitHub 저장소 열기</a>
+        <a class="button" href="#start">실행 방법 보기</a>
+        <a class="button" href="https://hajoonleeim-design.github.io/PASSBOX/" target="_blank" rel="noreferrer">공유 사이트 열기</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="section" id="overview">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">PROJECT STATUS</p><h2>현재까지 구현된 범위</h2></div><span class="badge">개발 완료 · MOCK 검증 가능</span></div>
+      <div class="grid">
+        <article class="card"><h3>문서 보안 파이프라인</h3><p>PDF 업로드부터 파일 검사, 텍스트 추출, 민감정보 탐지, C/S/O 분류까지 DB 기반으로 연결되어 있습니다.</p></article>
+        <article class="card"><h3>정책 기반 AI 전송</h3><p>정책 판정·마스킹·S등급 승인·Gateway 전송·Post-Inspector 검증 후에만 AI 응답을 표시합니다.</p></article>
+        <article class="card"><h3>감사·운영 관리</h3><p>메타데이터 전용 감사 PDF, 운영 대시보드, 관리자 정책, 지원 문의, 실패 전송 재시도 기능이 포함되어 있습니다.</p></article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">END-TO-END FLOW</p><h2>사용자 업무 흐름</h2></div></div>
+      <div class="flow">
+        <div><b>01 · INPUT</b><span>문서 업로드</span><small>저장·해시·격리</small></div>
+        <div><b>02 · INSPECT</b><span>안전성 검사</span><small>파일 형식·상태 확인</small></div>
+        <div><b>03 · CLASSIFY</b><span>분류·마스킹</span><small>C/S/O 정책 판정</small></div>
+        <div><b>04 · APPROVE</b><span>승인·전송</span><small>S등급 담당자 처리</small></div>
+        <div><b>05 · AUDIT</b><span>검증·기록</span><small>응답 검사·증적 PDF</small></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">IMPLEMENTED FEATURES</p><h2>구현 기능 목록</h2></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>영역</th><th>완료된 기능</th><th>접근 화면·API</th></tr></thead>
+          <tbody>
+            <tr><td>인증</td><td>JWT 로그인, 역할 권한, 세션 만료 경고, 로그인 실패 제한, 비밀번호 변경</td><td><code>/login</code> · <code>/account</code> · <code>/api/v1/auth</code></td></tr>
+            <tr><td>문서</td><td>PDF 업로드, SHA-256 해시, 격리 상태, 파일 검사, 텍스트 추출</td><td><code>/upload</code> · <code>/analysis/:jobId</code></td></tr>
+            <tr><td>분류</td><td>C/S/O 추천, 담당자 최종 확정, 정책 버전 기록</td><td><code>/analysis/:jobId</code></td></tr>
+            <tr><td>보안 정책</td><td>민감정보 탐지, 마스킹, 모델 허용 목록, 보존 기간, C등급 차단</td><td><code>/admin/policy</code></td></tr>
+            <tr><td>Gateway</td><td>MOCK Gateway, OpenAI Gateway 설정, S등급 승인, 재시도, Post-Inspector</td><td><code>/approvals</code> · <code>/chat</code> · <code>/result/:requestId</code></td></tr>
+            <tr><td>감사·운영</td><td>메타데이터 전용 PDF, Request ID 추적, 운영 대시보드, 지원센터</td><td><code>/audit/:requestId</code> · <code>/dashboard</code> · <code>/support</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="start">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">LOCAL START</p><h2>팀원 로컬 실행 방법</h2></div><span class="badge blue">각자 환경 필요</span></div>
+      <div class="grid two">
+        <article class="card">
+          <h3>1. 저장소 받기</h3>
+          <pre><code>git clone https://github.com/hajoonleeim-design/PASSBOX.git
+cd PASSBOX</code></pre>
+          <p>이미 clone한 팀원은 최신 변경사항만 받으면 됩니다.</p>
+          <pre><code>git pull origin main</code></pre>
+        </article>
+        <article class="card">
+          <h3>2. 백엔드 실행</h3>
+          <pre><code>cd backend
+Copy-Item .env.example .env
+notepad .env
+.\.venv\Scripts\python.exe create_tables.py
+.\.venv\Scripts\python.exe seed_demo_user.py
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000</code></pre>
+          <p>PostgreSQL이 실행 중이어야 합니다. 시드 계정 비밀번호는 실행 중 직접 입력합니다.</p>
+        </article>
+        <article class="card">
+          <h3>3. 프론트엔드 실행</h3>
+          <pre><code>cd frontend\PASSBOX-ver.0.1
+npm ci
+Copy-Item .env.example .env.local
+notepad .env.local
+npm run dev</code></pre>
+          <p><code>.env.local</code>에는 <code>VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1</code>을 설정합니다.</p>
+        </article>
+        <article class="card">
+          <h3>4. 확인 주소</h3>
+          <ul>
+            <li>프론트: <code>http://127.0.0.1:5173/</code></li>
+            <li>Swagger: <code>http://127.0.0.1:8000/docs</code></li>
+            <li>생존 확인: <code>/api/v1/health</code></li>
+            <li>DB 준비 확인: <code>/api/v1/health/ready</code></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">DEMO CHECKLIST</p><h2>시연·검증 순서</h2></div></div>
+      <div class="card">
+        <ol>
+          <li>시드 사용자로 로그인하고 홈 화면과 역할별 메뉴를 확인합니다.</li>
+          <li>민감하지 않은 <code>test.pdf</code>를 업로드합니다.</li>
+          <li>검사·추출·스캔 결과가 순서대로 완료되는지 확인합니다.</li>
+          <li>C/S/O 추천 결과를 확인하고 담당자 권한으로 최종 확정합니다.</li>
+          <li>S등급 문서는 <strong>승인 후 전송</strong>으로 이동합니다.</li>
+          <li>승인 화면에서 의견을 입력하고 승인하면 MOCK Gateway 응답이 표시됩니다.</li>
+          <li>Post-Inspector 통과 후에만 AI 응답이 보이는지 확인합니다.</li>
+          <li>감사 화면에서 메타데이터 전용 PDF를 다운로드합니다.</li>
+        </ol>
+        <div class="notice"><strong>현재 무료 개발 모드</strong><br>로컬에서는 <code>GATEWAY_MODE=MOCK</code>으로 실행합니다. OpenAI API 키와 결제 없이 전체 보안 흐름을 시연할 수 있습니다.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">TEAM RULES</p><h2>팀 공유 시 꼭 지킬 것</h2></div></div>
+      <div class="grid two">
+        <article class="card">
+          <h3>GitHub에 올리는 것</h3>
+          <ul><li>소스 코드, 테스트, README, <code>DEPLOYMENT.md</code></li><li>프론트 디자인과 공통 컴포넌트</li><li>API 계약과 운영 체크리스트</li></ul>
+        </article>
+        <article class="card">
+          <h3>GitHub에 올리면 안 되는 것</h3>
+          <ul><li>OpenAI API 키, JWT 비밀키, DB 비밀번호</li><li><code>.env</code>, 업로드 파일, DB 덤프</li><li><code>storage</code>, 가상환경, <code>node_modules</code></li></ul>
+        </article>
+      </div>
+      <div class="notice warning" style="margin-top:16px"><strong>OpenAI 비용 안내</strong><br>API 키 발급은 무료지만 실제 API 호출은 사용량에 따라 과금됩니다. 지금은 결제하지 않고 MOCK 모드로 개발하고, 실제 AI 연동 테스트나 운영 전환 시에만 별도로 결제합니다. ChatGPT 구독과 API 결제는 서로 별도입니다.</div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading"><div><p class="eyebrow" style="margin-top:0">QUALITY & HANDOFF</p><h2>품질 확인과 다음 단계</h2></div><span class="badge">main 반영 완료</span></div>
+      <div class="grid two">
+        <article class="card"><h3>검증 완료</h3><ul><li>백엔드 테스트 72개 통과</li><li>Python 컴파일 통과</li><li>프론트 TypeScript·Vite 빌드 통과</li><li>프론트 lint 실패 없음</li><li>커밋 <code>7d567a0</code>을 <code>origin/main</code>에 push</li></ul></article>
+        <article class="card"><h3>운영 전 필요한 외부 결정</h3><ul><li>실제 OpenAI Gateway와 결제·사용량 한도</li><li>운영 PostgreSQL·파일 저장소·백업</li><li>SSO 제공자와 조직 도메인</li><li>HTTPS 인증서와 배포 플랫폼</li></ul></article>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>관련 문서</h3>
+        <p><a href="https://github.com/hajoonleeim-design/PASSBOX/blob/main/README.md" target="_blank" rel="noreferrer">README.md</a> · <a href="https://github.com/hajoonleeim-design/PASSBOX/blob/main/DEPLOYMENT.md" target="_blank" rel="noreferrer">DEPLOYMENT.md</a> · <a href="https://github.com/hajoonleeim-design/PASSBOX/actions" target="_blank" rel="noreferrer">GitHub Actions</a></p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <details open><summary>사이트가 바로 열리지 않을 때</summary><p>GitHub Pages는 저장소의 Settings → Pages에서 Source를 <strong>GitHub Actions</strong>로 한 번 지정해야 할 수 있습니다. 설정 후 <code>main</code>에 push하면 이 문서가 <code>https://hajoonleeim-design.github.io/PASSBOX/</code>에서 공유됩니다. Pages 설정 전에는 위 GitHub 저장소 링크와 이 HTML 파일을 공유하면 됩니다.</p></details>
+        <details><summary>팀원이 최신 코드를 받는 방법</summary><pre><code>git pull origin main</code></pre></details>
+      </div>
+    </section>
+  </main>
+  <footer>PASSBOX · Secure AI Console · Team handoff document</footer>
+</body>
+</html>

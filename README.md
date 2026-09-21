@@ -4,6 +4,8 @@ PASSBOX is a document security pipeline that classifies documents as C/S/O, chec
 
 Team setup, production checks, post-deployment verification, and retention operations are documented in [DEPLOYMENT.md](DEPLOYMENT.md).
 
+For a visual team handoff summary, open [docs/index.html](docs/index.html) or the published [GitHub Pages handoff site](https://hajoonleeim-design.github.io/PASSBOX/).
+
 ## Repository layout
 
 ```text

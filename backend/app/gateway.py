@@ -96,11 +96,16 @@ class UnconfiguredOpenAIGateway:
 
 def build_gateway():
     settings = Settings()
-    if settings.gateway_mode.strip().upper() == "OPENAI":
+    mode = settings.gateway_mode.strip().upper()
+    if mode == "OPENAI":
         if settings.openai_api_key.strip():
             return OpenAIGateway(settings.openai_api_key)
         return UnconfiguredOpenAIGateway()
-    return LocalMockGateway()
+    if mode == "MOCK":
+        return LocalMockGateway()
+    raise GatewayConfigurationError(
+        "GATEWAY_MODE는 MOCK 또는 OPENAI만 사용할 수 있습니다."
+    )
 
 
 gateway = build_gateway()

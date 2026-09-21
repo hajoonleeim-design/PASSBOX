@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.db import get_session_factory
+from app.db import Settings, get_session_factory
+from app.rate_limit import login_rate_limiter
 from app.models import User
 from app.security import (
     create_access_token,
@@ -44,7 +45,22 @@ class MeResponse(BaseModel):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest):
+def login(payload: LoginRequest, request: Request):
+    settings = Settings()
+    client_host = request.client.host if request.client else "unknown"
+    rate_limit_key = f"{client_host}:{payload.tenant_id}:{payload.username.casefold()}"
+    retry_after = login_rate_limiter.retry_after_seconds(
+        rate_limit_key,
+        max_attempts=settings.login_rate_limit_attempts,
+        window_seconds=settings.login_rate_limit_window_seconds,
+    )
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     session_factory = get_session_factory()
     with session_factory() as db:
         user = db.scalar(
@@ -56,11 +72,17 @@ def login(payload: LoginRequest):
         )
 
         if user is None or not verify_password(payload.password, user.password_hash):
+            login_rate_limiter.record_failure(
+                rate_limit_key,
+                max_attempts=settings.login_rate_limit_attempts,
+                window_seconds=settings.login_rate_limit_window_seconds,
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="아이디, 기관 또는 비밀번호가 올바르지 않습니다.",
             )
 
+        login_rate_limiter.reset(rate_limit_key)
         token = create_access_token(user.id, user.tenant_id, user.role)
         return LoginResponse(
             access_token=token,

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
 from app.classifier import classifier
 from app.db import get_session_factory
@@ -221,14 +221,15 @@ def get_classification_decision(
     response_model=ClassificationDecisionResponse,
     summary="문서 C/S/O 등급 최종 확정",
     description=(
-        "AI 추천을 참고해 담당자가 C/S/O 등급을 확정합니다. 실제 운영에서는 승인 권한이 "
-        "있는 사용자만 호출할 수 있도록 역할 검사를 추가해야 합니다."
+        "AI 추천을 참고해 OPERATOR, SECURITY_ADMIN 또는 ADMIN 담당자가 C/S/O 등급을 확정합니다."
     ),
 )
 def confirm_classification(
     document_id: int,
     payload: ConfirmClassificationRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_roles("OPERATOR", "SECURITY_ADMIN", "ADMIN")
+    ),
 ):
     session_factory = get_session_factory()
     with session_factory() as db:

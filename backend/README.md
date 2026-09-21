@@ -5,7 +5,7 @@
 1. Create a Python virtual environment and install `requirements.txt`.
 2. Copy `.env.example` to `.env` and fill in the local PostgreSQL connection and JWT secret.
 3. Run `create_tables.py` to create the schema, including the S-grade outbound approval and policy tables. If the database already existed before policy management was added, run `migrate_policy.py` once.
-4. Run `seed_demo_user.py` to create or reset a local `demo.user` account.
+4. Run `seed_demo_user.py` to create or reset a local `demo.user` account. The default local role is `OPERATOR` so the full document flow can be tested; set `$env:DEMO_USER_ROLE="USER"` when you need a read-only user.
 5. Start the API with:
 
 ```powershell
@@ -23,5 +23,7 @@ AI 채팅은 `POST /api/v1/chat/requests`에서 시작합니다. 실제 OpenAI �
 실패한 분석 작업은 `POST /api/v1/jobs/{job_id}/retry`로 다시 접수할 수 있습니다. Gateway가 완료·차단·실패하면 해당 Job의 상태와 진행률도 함께 갱신됩니다.
 
 문서 분석 Job은 API 프로세스에 포함된 DB 기반 Worker가 자동으로 텍스트 추출·보안 스캔·분류 추천을 처리합니다. 분류 추천이 끝나면 `CLASSIFICATION_REVIEW` 상태에서 담당자의 최종 확정을 기다립니다. 서버가 재시작되어도 DB에 남은 `QUEUED` 작업은 다시 처리됩니다.
+
+C/S/O 최종 확정은 `OPERATOR`, `SECURITY_ADMIN`, `ADMIN` 역할만 수행할 수 있습니다. `USER` 역할은 추천 결과와 확정 결과 조회만 가능합니다.
 
 Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.

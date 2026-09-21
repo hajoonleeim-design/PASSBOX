@@ -18,6 +18,7 @@ import { ErrorState, LoadingState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
 import { Toast } from '../../components/common/Toast'
 import { Stepper } from '../../components/upload/Stepper'
+import { useAuth } from '../../hooks/useAuth'
 import { isTerminalJob, useJobPolling } from '../../hooks/useJobPolling'
 import type { AnalysisJob, JobStatus, SecurityGrade } from '../../types/security'
 
@@ -113,6 +114,7 @@ function Notice({ job, status }: { job: AnalysisJob; status: JobStatus }) {
 }
 
 function ClassificationCard({ documentId, onConfirmed }: { documentId: number; onConfirmed?: (decision: ClassificationDecision) => void }) {
+  const { session } = useAuth()
   const [recommendation, setRecommendation] = useState<ClassificationRecommendation | null>(null)
   const [decision, setDecision] = useState<ClassificationDecision | null>(null)
   const [selectedGrade, setSelectedGrade] = useState<SecurityGrade>('C')
@@ -120,6 +122,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
   const [isLoading, setIsLoading] = useState(true)
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState('')
+  const canConfirm = session !== null && ['OPERATOR', 'SECURITY_ADMIN', 'ADMIN'].includes(session.role)
 
   useEffect(() => {
     let cancelled = false
@@ -190,7 +193,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
                 {gradeNames[decision.confirmedGrade as SecurityGrade]} · 확정자 ID {decision.confirmedBy}
               </Alert>
             </div>
-          ) : (
+          ) : canConfirm ? (
             <div className="section-gap">
               <label className="form-field">
                 최종 확정 등급
@@ -209,6 +212,12 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
                   {isConfirming ? '확정 처리 중' : '등급 최종 확정'}
                 </Button>
               </div>
+            </div>
+          ) : (
+            <div className="section-gap">
+              <Alert variant="warning" title="최종 확정 권한 필요">
+                AI 추천 결과는 조회할 수 있지만, C/S/O 최종 확정은 담당자 권한이 필요합니다.
+              </Alert>
             </div>
           )}
           <small>AI 추천은 참고자료이며, 최종 등급은 담당자 확정 결과를 사용합니다.</small>

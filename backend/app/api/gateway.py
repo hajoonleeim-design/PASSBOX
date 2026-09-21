@@ -29,6 +29,14 @@ from app.security_scan import scan_text
 
 router = APIRouter(prefix="/documents", tags=["LLM Gateway"])
 
+HARD_BLOCK_CATEGORIES = {
+    "PROMPT_INJECTION",
+    "PRIVATE_KEY",
+    "API_KEY",
+    "ACCESS_TOKEN",
+    "SECRET",
+}
+
 
 class GatewayForwardRequest(BaseModel):
     provider: str = Field(min_length=1, max_length=100)
@@ -56,6 +64,29 @@ class GatewayForwardResponse(BaseModel):
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _apply_prompt_policy(
+    *,
+    confirmed_grade: str,
+    prompt_findings,
+    policy_decision: OutboundPolicyDecision,
+) -> OutboundPolicyDecision:
+    """Apply payload-level security findings on top of the grade policy."""
+    if not prompt_findings:
+        return policy_decision
+
+    finding_categories = {finding.category for finding in prompt_findings}
+    if confirmed_grade == "S" and not finding_categories & HARD_BLOCK_CATEGORIES:
+        return policy_decision
+
+    return OutboundPolicyDecision(
+        decision="PROMPT_BLOCKED",
+        can_transmit=False,
+        masking_required=False,
+        reason="전송 payload에서 보안 탐지 유형이 확인되었습니다: "
+        + ", ".join(sorted(finding_categories)),
+    )
 
 
 def _to_response(
@@ -145,25 +176,11 @@ def forward_to_gateway(
             policy=active_policy,
         )
         prompt_findings = scan_text(prompt)
-        hard_block_categories = {
-            "PROMPT_INJECTION",
-            "PRIVATE_KEY",
-            "API_KEY",
-            "ACCESS_TOKEN",
-            "SECRET",
-        }
-        finding_categories = {finding.category for finding in prompt_findings}
-        if prompt_findings and (
-            classification.confirmed_grade != "S"
-            or finding_categories & hard_block_categories
-        ):
-            policy_decision = OutboundPolicyDecision(
-                decision="PROMPT_BLOCKED",
-                can_transmit=False,
-                masking_required=False,
-                reason="전송 payload에서 보안 탐지 유형이 확인되었습니다: "
-                + ", ".join(sorted({finding.category for finding in prompt_findings})),
-            )
+        policy_decision = _apply_prompt_policy(
+            confirmed_grade=classification.confirmed_grade,
+            prompt_findings=prompt_findings,
+            policy_decision=policy_decision,
+        )
         gateway_prompt = prompt
         if policy_decision.decision == "ALLOWED" and policy_decision.masking_required:
             gateway_prompt = mask_text(prompt).masked_text

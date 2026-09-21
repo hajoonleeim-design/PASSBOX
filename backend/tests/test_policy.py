@@ -1,5 +1,7 @@
 import unittest
+from types import SimpleNamespace
 
+from app.api.gateway import _apply_prompt_policy
 from app.policy import PolicyConfiguration, check_outbound_policy
 
 
@@ -77,6 +79,51 @@ class PolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(decision.decision, "APPROVAL_REQUIRED")
+        self.assertFalse(decision.can_transmit)
+
+    def test_o_grade_is_blocked_when_payload_contains_sensitive_finding(self):
+        base_decision = check_outbound_policy(
+            confirmed_grade="O",
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+        decision = _apply_prompt_policy(
+            confirmed_grade="O",
+            prompt_findings=[SimpleNamespace(category="EMAIL")],
+            policy_decision=base_decision,
+        )
+
+        self.assertEqual(decision.decision, "PROMPT_BLOCKED")
+        self.assertFalse(decision.can_transmit)
+
+    def test_s_grade_can_continue_to_approval_for_maskable_finding(self):
+        base_decision = check_outbound_policy(
+            confirmed_grade="S",
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+        decision = _apply_prompt_policy(
+            confirmed_grade="S",
+            prompt_findings=[SimpleNamespace(category="EMAIL")],
+            policy_decision=base_decision,
+        )
+
+        self.assertEqual(decision.decision, "APPROVAL_REQUIRED")
+        self.assertTrue(decision.masking_required)
+
+    def test_s_grade_is_blocked_for_hard_secret_finding(self):
+        base_decision = check_outbound_policy(
+            confirmed_grade="S",
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+        decision = _apply_prompt_policy(
+            confirmed_grade="S",
+            prompt_findings=[SimpleNamespace(category="API_KEY")],
+            policy_decision=base_decision,
+        )
+
+        self.assertEqual(decision.decision, "PROMPT_BLOCKED")
         self.assertFalse(decision.can_transmit)
 
 

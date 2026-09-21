@@ -87,25 +87,28 @@ export function HomePageRedesign() {
   const touchStartY = useRef<number | null>(null)
   const lockRef = useRef(false)
   const lockTimer = useRef<number | undefined>(undefined)
+  const activeIndexRef = useRef(0)
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState<TransitionDirection>('forward')
   const [isLocked, setIsLocked] = useState(false)
 
   const moveTo = useCallback((nextIndex: number) => {
     if (lockRef.current) return
+    const currentIndex = activeIndexRef.current
     const next = Math.max(0, Math.min(showroomStages.length - 1, nextIndex))
-    if (next === activeIndex) return
+    if (next === currentIndex) return
     lockRef.current = true
     setIsLocked(true)
-    setDirection(next > activeIndex ? 'forward' : 'backward')
+    activeIndexRef.current = next
+    setDirection(next > currentIndex ? 'forward' : 'backward')
     setActiveIndex(next)
     lockTimer.current = window.setTimeout(() => {
       lockRef.current = false
       setIsLocked(false)
     }, TRANSITION_LOCK_MS)
-  }, [activeIndex])
+  }, [])
 
-  const moveBy = useCallback((delta: number) => moveTo(activeIndex + delta), [activeIndex, moveTo])
+  const moveBy = useCallback((delta: number) => moveTo(activeIndexRef.current + delta), [moveTo])
 
   useEffect(() => {
     const root = rootRef.current
@@ -127,13 +130,15 @@ export function HomePageRedesign() {
       if (event.key === 'End') { event.preventDefault(); moveTo(showroomStages.length - 1) }
     }
 
-    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('wheel', onWheel, { capture: true, passive: false })
     window.addEventListener('keydown', onKeyDown)
     return () => {
-      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('wheel', onWheel, { capture: true })
       window.removeEventListener('keydown', onKeyDown)
       document.documentElement.classList.remove('passbox-showroom-mode')
-      if (lockTimer.current) window.clearTimeout(lockTimer.current)
+      if (lockTimer.current !== undefined) window.clearTimeout(lockTimer.current)
+      lockTimer.current = undefined
+      lockRef.current = false
     }
   }, [moveBy, moveTo])
 

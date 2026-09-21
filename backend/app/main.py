@@ -29,6 +29,20 @@ def _parse_cors_origins(value: str) -> list[str]:
     return origins
 
 
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
+def _apply_security_headers(response):
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     start_worker()
@@ -55,6 +69,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers_middleware(request, call_next):
+    response = await call_next(request)
+    return _apply_security_headers(response)
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(approvals_router, prefix="/api/v1")

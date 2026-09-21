@@ -26,6 +26,8 @@ cd backend
 
 `GET /api/v1/health` is the liveness check. `GET /api/v1/health/ready` also verifies the database connection and returns `503` until the service is ready.
 
+API responses include baseline browser security headers such as `nosniff`, `DENY` framing, a strict referrer policy, and a restricted permissions policy.
+
 Swagger: `http://127.0.0.1:8000/docs`
 
 Use `GATEWAY_MODE=MOCK` for local testing. S-grade approval requests are handled at `/approvals` by an `APPROVER` or `SECURITY_ADMIN` user.

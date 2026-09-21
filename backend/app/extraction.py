@@ -85,19 +85,24 @@ def _extract_pptx(path: Path) -> str:
 
 
 def _extract_xlsx(path: Path) -> str:
-    workbook = load_workbook(filename=str(path), read_only=True, data_only=True)
-    try:
-        sheets: list[str] = []
-        for worksheet in workbook.worksheets:
-            rows: list[str] = [f"[시트: {worksheet.title}]"]
-            for row in worksheet.iter_rows(values_only=True):
-                values = [str(value) for value in row if value is not None]
-                if values:
-                    rows.append("\t".join(values))
-            sheets.append("\n".join(rows))
-        return "\n".join(sheets)
-    finally:
-        workbook.close()
+    # Quarantine files use the neutral `.upload` storage suffix. Passing the
+    # path string makes openpyxl validate that suffix instead of the original
+    # document extension, so provide a binary stream after the API has already
+    # validated the upload signature and extension.
+    with path.open("rb") as source:
+        workbook = load_workbook(filename=source, read_only=True, data_only=True)
+        try:
+            sheets: list[str] = []
+            for worksheet in workbook.worksheets:
+                rows: list[str] = [f"[시트: {worksheet.title}]"]
+                for row in worksheet.iter_rows(values_only=True):
+                    values = [str(value) for value in row if value is not None]
+                    if values:
+                        rows.append("\t".join(values))
+                sheets.append("\n".join(rows))
+            return "\n".join(sheets)
+        finally:
+            workbook.close()
 
 
 def _normalize_text(text: str) -> str:

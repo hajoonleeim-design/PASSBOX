@@ -23,8 +23,12 @@ def create_access_token(user_id: int, tenant_id: int, role: str) -> str:
     settings = Settings()
     if not settings.jwt_secret_key:
         raise RuntimeError("JWT_SECRET_KEY is not configured")
+    if settings.jwt_access_token_minutes <= 0:
+        raise RuntimeError("JWT_ACCESS_TOKEN_MINUTES must be positive")
 
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=60)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.jwt_access_token_minutes
+    )
     payload = {
         "sub": str(user_id),
         "tenant_id": tenant_id,

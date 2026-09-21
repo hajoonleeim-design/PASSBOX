@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     gateway_mode: str = "MOCK"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    jwt_access_token_minutes: int = 60
 
     model_config = SettingsConfigDict(
         env_file=".env",

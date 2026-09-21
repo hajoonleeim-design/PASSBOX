@@ -868,3 +868,8 @@ html.home-scroll-mode .story-end-grid {
   .story-intro { display: block; }
   .story-intro__console { width: 100%; max-width: none; margin-top: 42px; }
 }
+
+/* The hero stays focused on the PASSBOX message; the decorative console is removed. */
+.story-intro { grid-template-columns: minmax(0, 1fr); }
+.story-intro__console { display: none !important; }
+.story-intro__copy { width: 100%; }

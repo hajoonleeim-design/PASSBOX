@@ -873,3 +873,26 @@ html.home-scroll-mode .story-end-grid {
 .story-intro { grid-template-columns: minmax(0, 1fr); }
 .story-intro__console { display: none !important; }
 .story-intro__copy { width: 100%; }
+
+/* Typography follows meaning, not the width of individual glyphs. */
+.story-chapter h2 {
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: balance;
+}
+.story-chapter h2 span { word-break: keep-all; }
+.story-chapter__description { word-break: keep-all; text-wrap: pretty; }
+@media (max-width: 767px) {
+  .story-chapter__content { width: 100%; max-width: 620px; }
+  .story-chapter__index { margin-bottom: 22px; }
+  .story-chapter__index span { flex: 0 0 34px; }
+  .story-chapter__index i { width: 48px; }
+  .story-chapter h2 {
+    margin-top: 16px;
+    font-size: clamp(2.25rem, 9.7vw, 3.45rem);
+    letter-spacing: -.085em;
+    line-height: 1.08;
+  }
+  .story-chapter h2 span { display: inline; }
+  .story-chapter__description { max-width: 34rem; line-height: 1.8; }
+}

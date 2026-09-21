@@ -11,7 +11,7 @@ const links = [
   ['/account', '계정 보안'],
 ] as const
 
-export function Sidebar({ isOpen, onNavigate }: { isOpen: boolean; onNavigate: () => void }) {
+export function Sidebar({ isOpen, isCollapsed, onNavigate }: { isOpen: boolean; isCollapsed: boolean; onNavigate: () => void }) {
   const link = (to: string, label: string) => <NavLink key={to} to={to} end={to === '/'} onClick={onNavigate}><span aria-hidden="true">◈</span>{label}</NavLink>
-  return <aside className={`sidebar-shell ${isOpen ? 'sidebar-shell--open' : ''}`}><nav className="sidebar" aria-label="주 메뉴">{links.map(([to, label]) => link(to, label))}<PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>{link('/approvals', 'S등급 승인')}</PermissionGuard><PermissionGuard roles={['OPERATOR', 'ADMIN']}>{link('/audit/mock-request', '감사·증적')}</PermissionGuard><PermissionGuard roles={['ADMIN']}>{link('/admin/policy', '관리자 정책')}</PermissionGuard><PermissionGuard roles={['ADMIN']}>{link('/dashboard', '운영 대시보드')}</PermissionGuard></nav></aside>
+  return <aside id="passbox-sidebar" className={`sidebar-shell ${isOpen ? 'sidebar-shell--open' : ''} ${isCollapsed ? 'sidebar-shell--collapsed' : ''}`}><nav className="sidebar" aria-label="주 메뉴">{links.map(([to, label]) => link(to, label))}<PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>{link('/approvals', 'S등급 승인')}</PermissionGuard><PermissionGuard roles={['OPERATOR', 'ADMIN']}>{link('/audit/mock-request', '감사·증적')}</PermissionGuard><PermissionGuard roles={['ADMIN']}>{link('/admin/policy', '관리자 정책')}</PermissionGuard><PermissionGuard roles={['ADMIN']}>{link('/dashboard', '운영 대시보드')}</PermissionGuard></nav></aside>
 }

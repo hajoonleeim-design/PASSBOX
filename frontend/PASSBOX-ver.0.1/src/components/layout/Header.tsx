@@ -4,12 +4,12 @@ import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../common/Button'
 import { SessionWarning } from '../security/SessionWarning'
 
-export function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
+export function Header({ isMenuOpen, onMenuToggle }: { isMenuOpen: boolean; onMenuToggle: () => void }) {
   const { session, logout } = useAuth()
 
   return <header className="header">
     <div className="header__brand">
-      <button type="button" className="icon-button header__menu" aria-label="메뉴 열기" onClick={onMenuToggle}>☰</button>
+      <button type="button" className="icon-button header__menu" aria-label={isMenuOpen ? '메뉴 닫기' : '메뉴 열기'} aria-expanded={isMenuOpen} aria-controls="passbox-sidebar" onClick={onMenuToggle}><span aria-hidden="true">☰</span></button>
       <Link to="/" className="header__logo" aria-label="PASSBOX 홈"><img src="/passbox-logo.svg" alt="PASSBOX" /></Link>
       <span>Secure AI Console · {session?.institutionName}</span>
     </div>

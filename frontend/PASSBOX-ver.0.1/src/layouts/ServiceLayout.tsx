@@ -4,4 +4,24 @@ import { useState } from 'react'
 import { Header } from '../components/layout/Header'
 import { Sidebar } from '../components/layout/Sidebar'
 
-export function ServiceLayout() { const [isMenuOpen, setIsMenuOpen] = useState(false); return <div className="service-layout"><Header onMenuToggle={() => setIsMenuOpen((value) => !value)} /><Sidebar isOpen={isMenuOpen} onNavigate={() => setIsMenuOpen(false)} /><main className="main-content"><Outlet /></main></div> }
+export function ServiceLayout() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+
+  const toggleMenu = () => {
+    setIsMenuOpen((value) => !value)
+    setIsSidebarCollapsed((value) => !value)
+  }
+
+  const closeMenu = () => {
+    setIsMenuOpen(false)
+    setIsSidebarCollapsed(false)
+  }
+
+  return <div className={`service-layout ${isSidebarCollapsed ? 'service-layout--sidebar-collapsed' : ''}`}>
+    <Header isMenuOpen={isMenuOpen} onMenuToggle={toggleMenu} />
+    <Sidebar isOpen={isMenuOpen} isCollapsed={isSidebarCollapsed} onNavigate={closeMenu} />
+    {isMenuOpen && <button type="button" className="sidebar-backdrop" aria-label="메뉴 닫기" onClick={closeMenu} />}
+    <main className="main-content"><Outlet /></main>
+  </div>
+}

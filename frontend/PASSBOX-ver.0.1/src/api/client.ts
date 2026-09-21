@@ -7,6 +7,13 @@ export interface ApiError {
   requestId?: string
 }
 
+const LAST_REQUEST_ID_KEY = 'passbox_last_request_id'
+
+export function getLastRequestId(): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  return window.sessionStorage.getItem(LAST_REQUEST_ID_KEY) ?? undefined
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const ACCESS_TOKEN_KEY = 'passbox_access_token'
 
@@ -43,6 +50,9 @@ apiClient.interceptors.response.use(
       code: error.response?.data?.code,
       requestId: error.response?.headers?.['x-request-id'],
       message: error.response?.data?.message ?? error.response?.data?.detail ?? (error.request ? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.' : '요청을 처리하지 못했습니다.'),
+    }
+    if (apiError.requestId && typeof window !== 'undefined') {
+      window.sessionStorage.setItem(LAST_REQUEST_ID_KEY, apiError.requestId)
     }
     return Promise.reject(apiError)
   },

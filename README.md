@@ -30,6 +30,8 @@ API responses include baseline browser security headers such as `nosniff`, `DENY
 
 Swagger: `http://127.0.0.1:8000/docs`
 
+Every push and pull request to `main` runs backend compilation/tests and frontend lint/build through GitHub Actions.
+
 Use `GATEWAY_MODE=MOCK` for local testing. S-grade approval requests are handled at `/approvals` by an `APPROVER` or `SECURITY_ADMIN` user.
 
 For production, set `APP_ENV=production`, use a strong JWT secret, HTTPS-only CORS origins, a real database, and a configured non-MOCK Gateway. The API fails fast if those requirements are missing.

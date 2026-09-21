@@ -22,8 +22,8 @@ type ShowroomStage =
   | { kind: 'scene'; id: SceneId; scene: Scene }
   | { kind: 'end'; id: 'end' }
 
-const WHEEL_THRESHOLD = 20
-const TRANSITION_LOCK_MS = 430
+const WHEEL_THRESHOLD = 5
+const TRANSITION_LOCK_MS = 350
 
 const scenes: Scene[] = [
   { id: 'intake', index: '01', eyebrow: '01 · 문서 등록', title: '문서가 들어오면', emphasis: '먼저 안전한 영역에 보관합니다.', description: '파일은 외부 AI로 보내기 전에 PASSBOX의 격리 영역에 저장됩니다. 확장자, 파일 형식, 크기와 무결성을 먼저 확인합니다.', metric: '문서 격리 보관', detail: '검사가 끝날 때까지 원문은 외부로 전송되지 않습니다.' },
@@ -113,9 +113,10 @@ export function HomePageRedesign() {
     document.documentElement.classList.add('passbox-showroom-mode')
 
     const onWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaY) < WHEEL_THRESHOLD) return
+      const normalizedDelta = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY
+      if (Math.abs(normalizedDelta) < WHEEL_THRESHOLD) return
       event.preventDefault()
-      moveBy(event.deltaY > 0 ? 1 : -1)
+      moveBy(normalizedDelta > 0 ? 1 : -1)
     }
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target
@@ -126,10 +127,10 @@ export function HomePageRedesign() {
       if (event.key === 'End') { event.preventDefault(); moveTo(showroomStages.length - 1) }
     }
 
-    root.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('wheel', onWheel, { passive: false })
     window.addEventListener('keydown', onKeyDown)
     return () => {
-      root.removeEventListener('wheel', onWheel)
+      window.removeEventListener('wheel', onWheel)
       window.removeEventListener('keydown', onKeyDown)
       document.documentElement.classList.remove('passbox-showroom-mode')
       if (lockTimer.current) window.clearTimeout(lockTimer.current)

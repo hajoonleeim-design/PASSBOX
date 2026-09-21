@@ -6,6 +6,7 @@
 2. Copy `.env.example` to `.env` and fill in the local PostgreSQL connection and JWT secret.
 3. Run `create_tables.py` to create the schema, including the S-grade outbound approval and policy tables. If the database already existed before policy management was added, run `migrate_policy.py` once.
 4. Run `seed_demo_user.py` to create or reset a local `demo.user` account. The default local role is `OPERATOR` so the full document flow can be tested; set `$env:DEMO_USER_ROLE="USER"` when you need a read-only user.
+   To create a separate approval account, use `$env:DEMO_USERNAME="demo.approver"; $env:DEMO_DISPLAY_NAME="테스트 승인자"; $env:DEMO_USER_ROLE="APPROVER"` before running the same script.
 5. Start the API with:
 
 ```powershell

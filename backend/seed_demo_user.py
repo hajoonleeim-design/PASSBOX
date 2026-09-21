@@ -14,6 +14,10 @@ if __name__ == "__main__":
         raise SystemExit("비밀번호가 비어 있습니다.")
 
     demo_role = os.getenv("DEMO_USER_ROLE", "OPERATOR").strip().upper()
+    demo_username = os.getenv("DEMO_USERNAME", "demo.user").strip()
+    demo_display_name = os.getenv("DEMO_DISPLAY_NAME", "테스트 사용자").strip()
+    if not demo_username:
+        raise SystemExit("DEMO_USERNAME이 비어 있습니다.")
     allowed_roles = {"USER", "OPERATOR", "APPROVER", "SECURITY_ADMIN", "ADMIN"}
     if demo_role not in allowed_roles:
         raise SystemExit(f"지원하지 않는 DEMO_USER_ROLE입니다: {demo_role}")
@@ -31,14 +35,14 @@ if __name__ == "__main__":
         user = db.scalar(
             select(User).where(
                 User.tenant_id == tenant.id,
-                User.username == "demo.user",
+                User.username == demo_username,
             )
         )
         if user is None:
             user = User(
                 tenant_id=tenant.id,
-                username="demo.user",
-                display_name="테스트 사용자",
+                username=demo_username,
+                display_name=demo_display_name,
                 password_hash=hash_password(password),
                 role=demo_role,
             )
@@ -50,6 +54,6 @@ if __name__ == "__main__":
 
         db.commit()
         print(f"테스트 기관 ID: {tenant.id}")
-        print("테스트 사용자: demo.user")
+        print(f"테스트 사용자: {demo_username}")
         print(f"테스트 사용자 역할: {demo_role}")
         print("테스트 사용자 등록 완료")

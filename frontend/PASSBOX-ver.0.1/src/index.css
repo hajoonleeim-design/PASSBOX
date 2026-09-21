@@ -1352,3 +1352,81 @@ body:has(.showroom-shell) .sidebar a.active { border-color: rgb(20 173 130 / 26%
 .showroom-shell :is(.showroom-chamber__rim, .showroom-chamber__base, .showroom-core__ring--inner, .showroom-core__chip, .showroom-radar, .showroom-tunnel__ring, .showroom-tunnel__ring--three, .showroom-tunnel__gate, .showroom-chain__node b, .showroom-hero-orbit__ring, .showroom-hero-orbit__ring--three, .showroom-hero-orbit__cube, .showroom-end-orbit__ring, .showroom-end-orbit__core) { border-color: rgb(20 173 130 / 42%); }
 .showroom-shell :is(.showroom-indicator button:hover, .showroom-indicator button.is-active) { color: #14ad82; }
 .showroom-shell .showroom-indicator button.is-active i { border-color: #14ad82; background: #14ad82; }
+
+/* Light enterprise showroom: match the white navigation surface and mint accent. */
+body:has(.showroom-shell) { background: #f4f8fa; color: #102331; }
+body:has(.showroom-shell) .header { border-color: #d8e5ea; color: #102331; background: #ffffff; }
+body:has(.showroom-shell) .header__logo img { filter: none; }
+body:has(.showroom-shell) .header__brand span,
+body:has(.showroom-shell) .header__account span,
+body:has(.showroom-shell) .session-status { color: #4d6878; }
+body:has(.showroom-shell) .header__account-link { color: #102331; }
+body:has(.showroom-shell) .header__menu { border-color: #d8e5ea; color: #102331; background: #ffffff; }
+body:has(.showroom-shell) .sidebar-shell { border-color: #d8e5ea; background: #ffffff; }
+body:has(.showroom-shell) .sidebar a { color: #4d6878; }
+body:has(.showroom-shell) .sidebar a:hover { color: #078b68; background: rgb(20 173 130 / 8%); }
+body:has(.showroom-shell) .sidebar a.active { color: #078b68; background: linear-gradient(90deg, rgb(20 173 130 / 12%), transparent); box-shadow: inset 3px 0 0 #14ad82; }
+.main-content:has(.showroom-shell) { background: #f4f8fa; }
+.showroom-shell {
+  --showroom-bg: #f4f8fa;
+  --showroom-panel: #ffffff;
+  --showroom-panel-light: #eef8f5;
+  --showroom-line: rgb(55 91 108 / 15%);
+  --showroom-muted: #4d6878;
+  --showroom-text: #102331;
+  --showroom-cyan: #078b68;
+  --showroom-mint: #14ad82;
+  --showroom-blue: #277bb5;
+  color: #102331;
+  background: #f4f8fa;
+}
+.showroom-backdrop { background: linear-gradient(135deg, #ffffff 0%, #f4f8fa 58%, #eef8f5 100%); }
+.showroom-topbar { color: #4d6878; }
+.showroom-topbar__brand img { filter: none; }
+.showroom-topbar__status i { background: #14ad82; box-shadow: 0 0 10px rgb(20 173 130 / 35%); }
+.showroom-topbar__status b { border-color: rgb(20 173 130 / 30%); color: #078b68; background: rgb(20 173 130 / 7%); }
+.showroom-copy__kicker, .showroom-copy__count { color: #078b68; }
+.showroom-copy__kicker span::before { background: #14ad82; box-shadow: 0 0 9px rgb(20 173 130 / 30%); }
+.showroom-copy__kicker b, .showroom-copy__count span { color: #4d6878; }
+.showroom-copy__chip { border-color: rgb(20 173 130 / 30%); color: #078b68; background: rgb(20 173 130 / 7%); box-shadow: none; }
+.showroom-copy h1 { color: #102331; }
+.showroom-copy h1 em { color: #078b68; text-shadow: none; }
+.showroom-copy > p, .showroom-specs, .showroom-metric span { color: #4d6878; }
+.showroom-specs b, .showroom-metric strong { color: #078b68; }
+.showroom-shell .button--primary { color: #ffffff; background: #078b68; box-shadow: 0 8px 24px rgb(20 173 130 / 18%); }
+.showroom-shell .button--primary:hover { background: #06785a; }
+.showroom-shell .button--secondary { border-color: #c9dce2; color: #102331; background: #ffffff; backdrop-filter: none; }
+.showroom-shell .button--secondary:hover { border-color: rgb(20 173 130 / 45%); background: #eef8f5; }
+.showroom-visual__frame { border-color: rgb(20 173 130 / 27%); background: linear-gradient(145deg, #ffffff, #eef8f5); box-shadow: 0 26px 70px rgb(38 73 88 / 11%), inset 0 0 0 1px rgb(255 255 255 / 80%); }
+.showroom-visual__frame::after { border-color: rgb(20 173 130 / 12%); }
+.showroom-visual__topline, .showroom-visual__footer { color: #4d6878; }
+.showroom-visual__topline b { border-color: rgb(20 173 130 / 30%); color: #078b68; background: rgb(20 173 130 / 7%); }
+.showroom-visual__footer span { color: #078b68; }
+.showroom-chamber { border-color: rgb(20 173 130 / 28%); background: rgb(255 255 255 / 82%); box-shadow: inset 0 0 34px rgb(20 173 130 / 5%), 0 22px 45px rgb(38 73 88 / 9%); }
+.showroom-chamber__rim { border-color: rgb(20 173 130 / 40%); box-shadow: none; }
+.showroom-chamber__base { border-color: rgb(20 173 130 / 26%); background: #eef8f5; }
+.showroom-file, .showroom-node, .showroom-grade, .showroom-report { border-color: rgb(55 91 108 / 18%); background: rgb(255 255 255 / 94%); box-shadow: 0 14px 28px rgb(38 73 88 / 9%); }
+.showroom-file strong, .showroom-node strong, .showroom-report strong { color: #102331; }
+.showroom-file small, .showroom-file b, .showroom-node small, .showroom-node b, .showroom-report small { color: #4d6878; }
+.showroom-file b, .showroom-node b, .showroom-report b { color: #078b68; }
+.showroom-scan-beam, .showroom-scan-label i, .showroom-particle, .showroom-core__beam, .showroom-packet, .showroom-report i { background: #14ad82; box-shadow: none; }
+.showroom-scan-label, .showroom-tunnel-label, .showroom-hero-labels { color: #4d6878; }
+.showroom-core__ring { border-color: rgb(39 123 181 / 24%); box-shadow: none; }
+.showroom-core__ring--inner, .showroom-core__chip { border-color: rgb(20 173 130 / 45%); }
+.showroom-core__chip { background: #ffffff; box-shadow: 0 0 24px rgb(20 173 130 / 8%); }
+.showroom-circuit i { background: #8aa5af; box-shadow: none; }
+.showroom-radar { border-color: rgb(39 123 181 / 30%); }
+.showroom-radar__circle { border-color: rgb(39 123 181 / 18%); }
+.showroom-radar__cross { background: rgb(55 91 108 / 16%); }
+.showroom-radar__sweep { background: rgb(20 173 130 / 8%); }
+.showroom-radar strong { color: #ffffff; background: #078b68; }
+.showroom-grade--c b { background: #d95a66; }.showroom-grade--s b { background: #c58a24; }.showroom-grade--o b { background: #14ad82; }
+.showroom-tunnel__ring { border-color: rgb(39 123 181 / 28%); }.showroom-tunnel__ring--two { border-color: rgb(55 91 108 / 25%); }.showroom-tunnel__ring--three { border-color: rgb(20 173 130 / 45%); }
+.showroom-tunnel__gate { border-color: rgb(20 173 130 / 45%); background: #ffffff; box-shadow: 0 0 28px rgb(20 173 130 / 9%); }
+.showroom-tunnel__gate small, .showroom-tunnel__gate b { color: #4d6878; }.showroom-tunnel__gate strong, .showroom-tunnel-label span:first-child { color: #078b68; }.showroom-tunnel-label i { background: #8aa5af; }
+.showroom-chain__line { background: #8aa5af; box-shadow: none; }.showroom-chain__node b { border-color: rgb(20 173 130 / 45%); color: #078b68; background: #ffffff; box-shadow: 0 0 0 6px rgb(20 173 130 / 5%); }.showroom-chain__node span { color: #102331; }.showroom-chain__node small { color: #4d6878; }
+.showroom-report i { background: #14ad82; }.showroom-hash { border-color: rgb(55 91 108 / 18%); color: #4d6878; background: rgb(55 91 108 / 4%); }
+.showroom-hero-orbit__ring, .showroom-end-orbit__ring { border-color: rgb(20 173 130 / 30%); }.showroom-hero-orbit__ring--two { border-color: rgb(39 123 181 / 25%); }.showroom-hero-orbit__ring--three { border-color: rgb(20 173 130 / 42%); }.showroom-hero-orbit__cube { border-color: rgb(20 173 130 / 48%); background: #ffffff; box-shadow: 0 0 26px rgb(20 173 130 / 9%); }.showroom-hero-orbit__cube i { background: rgb(20 173 130 / 10%); }.showroom-hero-orbit__dot { background: #14ad82; }.showroom-hero-orbit__dot--two { background: #277bb5; }.showroom-hero-labels i { background: #14ad82; }
+.showroom-end-orbit__core { border-color: rgb(20 173 130 / 45%); background: #ffffff; box-shadow: 0 0 28px rgb(20 173 130 / 9%); }.showroom-end-orbit__core span, .showroom-end-stats { color: #4d6878; }.showroom-end-orbit__core strong, .showroom-end-stats b { color: #078b68; }
+.showroom-indicator { border-color: rgb(55 91 108 / 16%); background: rgb(255 255 255 / 94%); box-shadow: 0 14px 35px rgb(38 73 88 / 10%); backdrop-filter: none; }.showroom-indicator__line { background: rgb(55 91 108 / 18%); }.showroom-indicator button { color: #4d6878; }.showroom-indicator button i { border-color: #8aa5af; background: #ffffff; }.showroom-indicator button:hover, .showroom-indicator button.is-active { color: #078b68; }.showroom-indicator button.is-active i { border-color: #14ad82; background: #14ad82; box-shadow: none; }.showroom-indicator small, .showroom-scroll-hint, .showroom-end-session { color: #4d6878; }.showroom-scroll-hint i { border-color: rgb(55 91 108 / 25%); }.showroom-scroll-hint i::after { background: #14ad82; }.showroom-end-session b { color: #078b68; }
+@media (max-width: 767px) { body:has(.showroom-shell) .header { background: #ffffff; }.showroom-visual__frame { border-color: rgb(20 173 130 / 22%); } }

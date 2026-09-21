@@ -1,3 +1,4 @@
+import type { ChangePasswordInput } from '../api/auth'
 import type { LoginCredentials, UserRole, UserSession } from '../types/auth'
 
 interface DevelopmentAccount { username: string; password: string; displayName: string; role: UserRole; permissions: string[] }
@@ -17,5 +18,11 @@ export async function mockLogin(credentials: LoginCredentials): Promise<UserSess
 
 export async function mockGetSession(): Promise<UserSession | null> {
   return null
+}
+
+export async function mockChangePassword(input: ChangePasswordInput): Promise<void> {
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 200))
+  if (!input.currentPassword.trim()) throw new Error('INVALID_CURRENT_PASSWORD')
+  if (input.currentPassword === input.newPassword) throw new Error('PASSWORD_REUSE')
 }
 // 백엔드 없이 로그인 화면을 개발·확인할 수 있도록 만든 가짜 인증 데이터/함수입니다.

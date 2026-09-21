@@ -12,6 +12,7 @@ import { PolicyPage } from '../pages/policy/PolicyPage'
 import { OperationsDashboardPage } from '../pages/dashboard/OperationsDashboardPage'
 import { SupportPage } from '../pages/support/SupportPage'
 import { ApprovalPage } from '../pages/approvals/ApprovalPage'
+import { AccountPage } from '../pages/account/AccountPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
 // URL과 화면 컴포넌트를 연결하는 표입니다.
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
         { path: '/support', element: <SupportPage /> },
         { path: '/support/:scenario', element: <SupportPage /> },
         { path: '/approvals', element: <ApprovalPage /> },
+        { path: '/account', element: <AccountPage /> },
       ],
     }],
   },

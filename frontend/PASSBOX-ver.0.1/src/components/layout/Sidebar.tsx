@@ -8,6 +8,7 @@ const links = [
   ['/analysis/recent', '분석'],
   ['/chat', 'AI 대화'],
   ['/support', '사용자 지원'],
+  ['/account', '계정 보안'],
 ] as const
 
 export function Sidebar({ isOpen, onNavigate }: { isOpen: boolean; onNavigate: () => void }) {

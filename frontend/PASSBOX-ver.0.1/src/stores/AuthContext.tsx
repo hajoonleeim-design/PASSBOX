@@ -1,16 +1,7 @@
-import { createContext, useCallback, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 import { getSession, login as loginRequest, logout as logoutRequest } from '../api/auth'
 import type { LoginCredentials, UserSession } from '../types/auth'
-
-interface AuthContextValue {
-  session: UserSession | null
-  isAuthenticated: boolean
-  isInitializing: boolean
-  login: (credentials: LoginCredentials) => Promise<void>
-  logout: () => Promise<void>
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(null)
+import { AuthContext } from './authContextValue'
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<UserSession | null>(null)

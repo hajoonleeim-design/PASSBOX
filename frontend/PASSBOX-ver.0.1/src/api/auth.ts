@@ -23,6 +23,15 @@ interface BackendMeResponse {
   tenant_name: string
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
+}
+
+interface BackendPasswordChangeResponse {
+  status: string
+}
+
 export async function login(credentials: LoginCredentials): Promise<UserSession> {
   if (useMock) {
     const { mockLogin } = await import('../mocks/auth')
@@ -67,6 +76,19 @@ export async function getSession(): Promise<UserSession | null> {
 
 export async function logout(): Promise<void> {
   setAccessToken(null)
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  if (useMock) {
+    const { mockChangePassword } = await import('../mocks/auth')
+    await mockChangePassword(input)
+    return
+  }
+
+  await apiClient.post<BackendPasswordChangeResponse>('/auth/password', {
+    current_password: input.currentPassword,
+    new_password: input.newPassword,
+  })
 }
 
 function toUserSession(data: BackendLoginResponse, accessToken: string): UserSession {

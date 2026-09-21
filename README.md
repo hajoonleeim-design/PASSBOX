@@ -2,6 +2,8 @@
 
 PASSBOX is a document security pipeline that classifies documents as C/S/O, checks outbound policy, masks sensitive data, and routes approved requests through an LLM Gateway.
 
+Team setup, production checks, post-deployment verification, and retention operations are documented in [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Repository layout
 
 ```text

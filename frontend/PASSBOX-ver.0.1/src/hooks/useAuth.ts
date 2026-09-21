@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { AuthContext } from '../stores/AuthContext'
+import { AuthContext } from '../stores/authContextValue'
 
 // AuthContext를 편하게 꺼내 쓰기 위한 전용 Hook입니다.
 // AuthProvider 밖에서 쓰면 로그인 정보를 알 수 없으므로 명확한 오류를 냅니다.

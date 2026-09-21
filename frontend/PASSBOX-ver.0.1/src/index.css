@@ -778,3 +778,23 @@ body { overflow-x: hidden; word-break: keep-all; }
   .story-end-grid { grid-template-columns: 1fr; padding: 78px 16px 0; }
   .story-end-grid .card { min-height: 0; padding: 24px; }
 }
+
+/* Full-screen showroom movement: each PASSBOX story beat settles into view. */
+html.home-scroll-mode {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+html.home-scroll-mode .story-intro,
+html.home-scroll-mode .story-chapter,
+html.home-scroll-mode .story-end-grid {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  scroll-margin-top: var(--header-height);
+}
+@media (max-width: 767px) {
+  html.home-scroll-mode { scroll-snap-type: y proximity; }
+  html.home-scroll-mode .story-chapter { scroll-snap-stop: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.home-scroll-mode { scroll-snap-type: none; scroll-behavior: auto; }
+}

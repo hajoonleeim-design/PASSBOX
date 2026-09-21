@@ -58,6 +58,11 @@ export function HomePageRedesign() {
   const activeScene = scenes[activeIndex]
 
   useEffect(() => {
+    document.documentElement.classList.add('home-scroll-mode')
+    return () => document.documentElement.classList.remove('home-scroll-mode')
+  }, [])
+
+  useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
       if (!visible) return

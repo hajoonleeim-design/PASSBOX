@@ -18,8 +18,15 @@ from app.api.policies import router as policies_router
 from app.api.operations import router as operations_router
 from app.api.chat import router as chat_router
 from app.api.support import router as support_router
-from app.db import check_database
+from app.db import Settings, check_database
 from app.job_worker import start_worker, stop_worker
+
+
+def _parse_cors_origins(value: str) -> list[str]:
+    origins = list(dict.fromkeys(origin.strip() for origin in value.split(",") if origin.strip()))
+    if "*" in origins:
+        raise RuntimeError("CORS_ALLOWED_ORIGINS cannot contain '*'")
+    return origins
 
 
 @asynccontextmanager
@@ -37,16 +44,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_origins = _parse_cors_origins(Settings().cors_allowed_origins)
+
 # 로컬 프론트엔드 개발용 CORS 설정입니다.
 # 운영 배포 시에는 실제 프론트엔드 주소만 남겨야 합니다.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

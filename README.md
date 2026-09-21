@@ -26,6 +26,8 @@ cd backend
 
 `GET /api/v1/health` is the liveness check. `GET /api/v1/health/ready` also verifies the database connection and returns `503` until the service is ready.
 
+Authenticated users can change their password with `POST /api/v1/auth/password`. New passwords must be at least 12 characters long.
+
 API responses include baseline browser security headers such as `nosniff`, `DENY` framing, a strict referrer policy, and a restricted permissions policy.
 
 Every API response also includes `X-Request-ID`. Support requests can include this value to correlate a frontend error with server logs.

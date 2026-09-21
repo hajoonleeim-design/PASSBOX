@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from fastapi import HTTPException
 
-from app.api.auth import require_roles
+from app.api.auth import PasswordChangeRequest, require_roles
 
 
 class RoleGuardTests(unittest.TestCase):
@@ -21,6 +21,20 @@ class RoleGuardTests(unittest.TestCase):
             guard(SimpleNamespace(role="USER"))
 
         self.assertEqual(context.exception.status_code, 403)
+
+
+class PasswordChangeRequestTests(unittest.TestCase):
+    def test_new_password_requires_at_least_twelve_characters(self):
+        with self.assertRaises(ValueError):
+            PasswordChangeRequest(current_password="old-password", new_password="short")
+
+    def test_valid_password_change_request_is_accepted(self):
+        payload = PasswordChangeRequest(
+            current_password="old-password",
+            new_password="new-password-123",
+        )
+
+        self.assertEqual(payload.new_password, "new-password-123")
 
 
 if __name__ == "__main__":

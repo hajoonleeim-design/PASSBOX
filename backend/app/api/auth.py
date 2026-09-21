@@ -10,6 +10,7 @@ from app.models import User
 from app.security import (
     create_access_token,
     decode_access_token,
+    hash_password,
     verify_password,
 )
 
@@ -22,6 +23,15 @@ class LoginRequest(BaseModel):
     tenant_id: int = Field(gt=0)
     username: str = Field(min_length=1, max_length=100)
     password: str = Field(min_length=1, max_length=200)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=12, max_length=200)
+
+
+class PasswordChangeResponse(BaseModel):
+    status: str
 
 
 class LoginResponse(BaseModel):
@@ -128,6 +138,42 @@ def get_current_user(
             )
 
         return user
+
+
+@router.post("/password", response_model=PasswordChangeResponse)
+def change_password(
+    payload: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="현재 비밀번호가 올바르지 않습니다.",
+        )
+    if verify_password(payload.new_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="새 비밀번호는 현재 비밀번호와 달라야 합니다.",
+        )
+
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        user = db.scalar(
+            select(User).where(
+                User.id == current_user.id,
+                User.tenant_id == current_user.tenant_id,
+                User.status == "ACTIVE",
+            )
+        )
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="사용자 계정을 확인할 수 없습니다.",
+            )
+        user.password_hash = hash_password(payload.new_password)
+        db.commit()
+
+    return PasswordChangeResponse(status="updated")
 
 
 def require_roles(*allowed_roles: str):

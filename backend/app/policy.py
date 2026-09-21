@@ -35,6 +35,7 @@ def default_policy_configuration() -> PolicyConfiguration:
         ),
         approval_policy={
             "s_grade_requires_approval": True,
+            "approver_roles": ["APPROVER", "ADMIN"],
             "o_grade_requires_approval": False,
         },
         model_allowlist=(

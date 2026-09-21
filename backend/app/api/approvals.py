@@ -5,16 +5,44 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
-from app.api.auth import require_roles
+from app.api.auth import get_current_user
 from app.api.jobs import _update_latest_job_for_document
 from app.db import get_session_factory
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.models import GatewayTransmission, OutboundApproval, User
+from app.policy import get_active_policy_configuration
 from app.post_inspector import inspect_response
 
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
 APPROVAL_ROLES = ("APPROVER", "SECURITY_ADMIN", "ADMIN")
+
+
+def _allowed_approval_roles(approval_policy: dict) -> set[str]:
+    configured = {
+        str(role).strip().upper()
+        for role in approval_policy.get("approver_roles", [])
+        if str(role).strip().upper() in APPROVAL_ROLES
+    }
+    if not configured:
+        configured = {"APPROVER", "ADMIN"}
+    # 보안 관리자는 정책 변경·사고 대응을 위한 비상 승인 권한을 유지합니다.
+    configured.add("SECURITY_ADMIN")
+    return configured
+
+
+def require_approval_role(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        policy = get_active_policy_configuration(db, current_user.tenant_id)
+    if current_user.role not in _allowed_approval_roles(policy.approval_policy):
+        raise HTTPException(
+            status_code=403,
+            detail="현재 보안 정책에서 승인 권한이 없는 사용자입니다.",
+        )
+    return current_user
 
 
 class ApprovalDecisionRequest(BaseModel):
@@ -106,9 +134,7 @@ def _get_transmission(db, approval: OutboundApproval) -> GatewayTransmission:
     summary="대기 중인 S등급 승인 요청 조회",
 )
 def pending_approvals(
-    current_user: User = Depends(
-        require_roles(*APPROVAL_ROLES)
-    ),
+    current_user: User = Depends(require_approval_role),
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
@@ -134,9 +160,7 @@ def pending_approvals(
 def approve_request(
     approval_id: int,
     payload: ApprovalDecisionRequest,
-    current_user: User = Depends(
-        require_roles(*APPROVAL_ROLES)
-    ),
+    current_user: User = Depends(require_approval_role),
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
@@ -241,9 +265,7 @@ def approve_request(
 def reject_request(
     approval_id: int,
     payload: ApprovalDecisionRequest,
-    current_user: User = Depends(
-        require_roles(*APPROVAL_ROLES)
-    ),
+    current_user: User = Depends(require_approval_role),
 ):
     session_factory = get_session_factory()
     with session_factory() as db:

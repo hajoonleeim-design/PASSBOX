@@ -245,6 +245,36 @@ def pending_approvals(
         ]
 
 
+@router.get(
+    "/retryable",
+    response_model=list[ApprovalResponse],
+    summary="Gateway 재시도 가능 승인 건 조회",
+    description="승인은 완료되었지만 Gateway 전송에 실패한 건만 반환합니다.",
+)
+def retryable_approvals(
+    current_user: User = Depends(require_approval_role),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        approvals = db.scalars(
+            select(OutboundApproval)
+            .join(
+                GatewayTransmission,
+                GatewayTransmission.id == OutboundApproval.gateway_transmission_id,
+            )
+            .where(
+                OutboundApproval.tenant_id == current_user.tenant_id,
+                OutboundApproval.status == "APPROVED",
+                GatewayTransmission.status == "FAILED",
+            )
+            .order_by(desc(OutboundApproval.created_at))
+        ).all()
+        return [
+            _to_response(approval, _get_transmission(db, approval))
+            for approval in approvals
+        ]
+
+
 @router.post(
     "/{approval_id}/approve",
     response_model=ApprovalResponse,

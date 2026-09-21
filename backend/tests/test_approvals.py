@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.approvals import _allowed_approval_roles
-from app.api.approvals import retry_approved_request
+from app.api.approvals import retry_approved_request, retryable_approvals
 from app.db import Base
 from app.gateway import GatewayConfigurationError
 from app.models import (
@@ -153,6 +153,20 @@ class ApprovalRetryTests(unittest.TestCase):
             self.assertEqual(transmission.status, "COMPLETED")
             self.assertEqual(job.status, "COMPLETED")
             self.assertEqual(request.status, "COMPLETED")
+
+    def test_retryable_list_contains_only_failed_transmissions(self):
+        _approval_id, user_id, _tenant_id = self._seed_failed_approval()
+
+        with self.Session() as db:
+            user = db.get(User, user_id)
+        with patch(
+            "app.api.approvals.get_session_factory", return_value=self.Session
+        ):
+            items = retryable_approvals(user)
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].status, "APPROVED")
+        self.assertEqual(items[0].transmission_status, "FAILED")
 
     def test_retry_failure_keeps_approval_and_records_failed_attempt(self):
         approval_id, user_id, _tenant_id = self._seed_failed_approval()

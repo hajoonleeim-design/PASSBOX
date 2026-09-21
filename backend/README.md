@@ -29,4 +29,4 @@ C/S/O 최종 확정은 `OPERATOR`, `SECURITY_ADMIN`, `ADMIN` 역할만 수행할
 
 Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.
 
-After approval, a failed Gateway transmission can be retried by an approval-role user with `POST /api/v1/approvals/{approval_id}/retry`. Only approvals with `APPROVED` status and a `FAILED` transmission are eligible, and the retry reuses the masked payload.
+After approval, retryable failures can be listed with `GET /api/v1/approvals/retryable` and retried by an approval-role user with `POST /api/v1/approvals/{approval_id}/retry`. Only approvals with `APPROVED` status and a `FAILED` transmission are eligible, and the retry reuses the masked payload.

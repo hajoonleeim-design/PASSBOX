@@ -1052,7 +1052,7 @@ body:has(.showroom-shell) .sidebar a span[aria-hidden="true"] { color: #52cbb5; 
   color: var(--showroom-text);
   background: var(--showroom-bg);
 }
-.showroom-shell.is-locked { cursor: wait; }
+.showroom-shell.is-locked { cursor: default; }
 .showroom-backdrop,
 .showroom-backdrop__grid,
 .showroom-backdrop__glow { position: absolute; pointer-events: none; }

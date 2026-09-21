@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -29,6 +30,63 @@ def _timestamp(value: datetime) -> float:
     if normalized.tzinfo is None:
         normalized = normalized.replace(tzinfo=timezone.utc)
     return normalized.timestamp()
+
+
+def _pdf_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _build_audit_pdf(record: "AuditRecordResponse") -> bytes:
+    """Build a valid metadata-only PDF without including source content."""
+    lines = [
+        "PASSBOX METADATA-ONLY AUDIT REPORT",
+        f"Request ID: {record.request_id}",
+        f"Current status: {record.current_status}",
+        f"Confirmed grade: {record.grade}",
+        f"Policy version: {record.policy_version}",
+        f"Events recorded: {len(record.events)}",
+        "Original document and AI response are not included.",
+    ]
+    stream_lines = [
+        "BT",
+        "/F1 12 Tf",
+        "72 720 Td",
+        "16 TL",
+    ]
+    for index, line in enumerate(lines):
+        if index:
+            stream_lines.append("T*")
+        stream_lines.append(f"({_pdf_escape(line)}) Tj")
+    stream_lines.append("ET")
+    stream = ("\n".join(stream_lines) + "\n").encode("ascii")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"endstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+
+    output = BytesIO()
+    output.write(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for object_id, body in enumerate(objects, start=1):
+        offsets.append(output.tell())
+        output.write(f"{object_id} 0 obj\n".encode("ascii"))
+        output.write(body)
+        output.write(b"\nendobj\n")
+    xref_offset = output.tell()
+    output.write(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    output.write(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        output.write(f"{offset:010d} 00000 n \n".encode("ascii"))
+    output.write(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode(
+            "ascii"
+        )
+    )
+    return output.getvalue()
 
 
 class AuditEventResponse(BaseModel):
@@ -396,17 +454,8 @@ def generate_audit_pdf(
     session_factory = get_session_factory()
     with session_factory() as db:
         record = _audit_record(db, request_id, current_user.tenant_id)
-    body = (
-        "%PDF-1.4\n"
-        "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n"
-        "2 0 obj<< /Type /Pages /Kids[3 0 R] /Count 1 >>endobj\n"
-        "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox[0 0 612 792] /Contents 4 0 R >>endobj\n"
-        "4 0 obj<< /Length 83 >>stream\n"
-        "BT /F1 12 Tf 72 720 Td (PASSBOX metadata-only audit report) Tj ET\n"
-        "endstream\nendobj\ntrailer<< /Root 1 0 R >>\n%%EOF"
-    ).encode("ascii")
     return Response(
-        content=body,
+        content=_build_audit_pdf(record),
         media_type="application/pdf",
         headers={
             "Content-Disposition": f'attachment; filename="audit-{record.request_id}.pdf"'

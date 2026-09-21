@@ -40,25 +40,97 @@ const showroomStages: ShowroomStage[] = [
 ]
 
 function IntakeVisual() {
-  return <div className="showroom-visual__art showroom-art--intake" aria-hidden="true"><div className="showroom-chamber"><div className="showroom-chamber__rim" /><div className="showroom-file"><span className="showroom-file__type">PDF</span><div><strong>기밀 문서</strong><small>격리 보관 · 3.2 MB</small></div><b>검사 전</b></div><div className="showroom-scan-beam" /><div className="showroom-scan-label"><i /> SHA-256 무결성 확인</div><div className="showroom-chamber__base" /></div></div>
+  return <div className="showroom-visual__art showroom-art--intake hud-console hud-console--vault" aria-hidden="true">
+    <div className="hud-console__header"><span>QUARANTINE VAULT / INTAKE-01</span><b className="hud-status hud-status--amber"><i /> 외부 통신 차단</b></div>
+    <div className="vault-stage">
+      <div className="vault-rail"><span className="is-active">01 <b>REGISTER</b></span><span>02 <b>INSPECT</b></span><span>03 <b>DECIDE</b></span></div>
+      <div className="vault-chamber">
+        <div className="vault-chamber__label">ISOLATED STORAGE <b>WRITE-ONCE</b></div>
+        <div className="vault-document">
+          <div className="vault-document__icon"><strong>HWPX</strong><span>DOC</span></div>
+          <div className="vault-document__name"><strong>2026_국가보안업무_추진계획.hwpx</strong><small>공공기관 문서 · 3.4 MB · 방금 등록됨</small></div>
+          <em>격리 보관 중<small>외부 통신 차단</small></em>
+        </div>
+        <div className="vault-seal"><i /> QUARANTINED <b>NETWORK OFF</b></div>
+        <div className="vault-chamber__grid" />
+      </div>
+    </div>
+    <div className="hud-hashbar"><span>SHA-256 INTEGRITY HASH</span><code>e3b0c44298fc1c149afbf4c8996fb924...</code><b><i /> 검증됨</b></div>
+  </div>
 }
 
 function InferenceVisual() {
-  return <div className="showroom-visual__art showroom-art--inference" aria-hidden="true"><div className="showroom-core"><div className="showroom-core__ring showroom-core__ring--outer" /><div className="showroom-core__ring showroom-core__ring--inner" /><div className="showroom-core__chip"><strong>검사</strong><small>KoBERT</small></div><div className="showroom-core__beam" /></div><div className="showroom-node showroom-node--gpu"><small>처리 장치</small><strong>GPU CLUSTER</strong><b>준비 완료 · 72%</b></div><div className="showroom-node showroom-node--model"><small>분류 모델</small><strong>KoBERT</strong><b>문서 분류</b></div><div className="showroom-node showroom-node--output"><small>판정 후보</small><strong>C / S / O</strong><b>담당자 확인</b></div><div className="showroom-circuit"><i /><i /><i /><i /></div></div>
+  return <div className="showroom-visual__art showroom-art--inference hud-console hud-console--engine" aria-hidden="true">
+    <div className="hud-console__header"><span>INSPECTION ENGINE / LOCAL-02</span><b className="hud-status hud-status--blue"><i /> ON-PREMISE</b></div>
+    <div className="engine-status"><strong>PASSBOX On-Premise GPU-01</strong><span>온도 <b>42°C</b></span><span>메모리 <b>18.4 / 24 GB</b></span><em><i /> 연산 준비 완료</em></div>
+    <div className="engine-pipeline">
+      <div className="engine-node engine-node--source"><small>INPUT</small><strong>문서 텍스트</strong><b>HWPX / 3.4 MB</b></div>
+      <i className="engine-arrow">→</i>
+      <div className="engine-node engine-node--model"><small>CONTEXT MODEL</small><strong>KoBERT</strong><b>문맥 분류 신경망</b></div>
+      <i className="engine-arrow">→</i>
+      <div className="engine-node engine-node--pattern"><small>PATTERN SCAN</small><strong>REGEX / SECRET</strong><b>정규식 패턴 분석</b></div>
+    </div>
+    <div className="engine-metrics">
+      <div className="engine-metric"><span>개인정보 7종</span><strong>87%</strong><i><b style={{ width: '87%' }} /></i><small>주민번호 · 계좌 · 연락처</small></div>
+      <div className="engine-metric"><span>Secret 탐지</span><strong>64%</strong><i><b style={{ width: '64%' }} /></i><small>API Key · Access Token</small></div>
+      <div className="engine-metric"><span>Prompt Injection</span><strong>12%</strong><i><b style={{ width: '12%' }} /></i><small>지시문 패턴 검사</small></div>
+    </div>
+    <div className="hud-console__footer"><span>SCAN PROFILE <b>PUBLIC-AGENCY / STRICT</b></span><span>LATENCY <b>184 ms</b></span><span className="is-good"><i /> LIVE ANALYSIS</span></div>
+  </div>
 }
 
 function PolicyVisual() {
-  return <div className="showroom-visual__art showroom-art--policy" aria-hidden="true"><div className="showroom-radar"><div className="showroom-radar__circle showroom-radar__circle--one" /><div className="showroom-radar__circle showroom-radar__circle--two" /><div className="showroom-radar__circle showroom-radar__circle--three" /><div className="showroom-radar__cross showroom-radar__cross--x" /><div className="showroom-radar__cross showroom-radar__cross--y" /><span className="showroom-radar__sweep" /><strong>C/S/O</strong></div><div className="showroom-grade showroom-grade--c"><b>C</b><span>기밀</span><small>전송 차단</small></div><div className="showroom-grade showroom-grade--s"><b>S</b><span>민감</span><small>승인 필요</small></div><div className="showroom-grade showroom-grade--o"><b>O</b><span>공개</span><small>정책 확인 후 전송</small></div></div>
+  return <div className="showroom-visual__art showroom-art--policy hud-console hud-console--policy" aria-hidden="true">
+    <div className="hud-console__header"><span>POLICY DECISION MATRIX / 03</span><b className="hud-status hud-status--blue"><i /> HUMAN REVIEW</b></div>
+    <div className="policy-stamp"><i>✓</i><span>기관 정책 엔진 + 담당자 최종 확정</span><b>DECISION READY</b></div>
+    <div className="policy-grid">
+      <div className="policy-card policy-card--c"><div><b>C</b><span>기밀</span></div><strong>기밀정보·고위험</strong><p>외부 AI 전송 차단<br />내부 격리</p><small>BLOCK / INTERNAL ONLY</small></div>
+      <div className="policy-card policy-card--s"><div><b>S</b><span>민감</span></div><strong>개인정보·식별자</strong><p>원문 마스킹 &amp; 토큰화<br />승인 요청</p><small>MASK / APPROVAL REQUIRED</small></div>
+      <div className="policy-card policy-card--o"><div><b>O</b><span>공개</span></div><strong>일반 업무정보</strong><p>기관 정책 확인 후<br />전송 허용</p><small>ALLOW / POLICY CHECKED</small></div>
+    </div>
+    <div className="policy-footer"><span>CLASSIFICATION CONFIDENCE</span><strong>98.2%</strong><i><b /></i><em>담당자 승인 대기</em></div>
+  </div>
 }
 
 function GatewayVisual() {
-  return <div className="showroom-visual__art showroom-art--gateway" aria-hidden="true"><div className="showroom-tunnel"><div className="showroom-tunnel__ring showroom-tunnel__ring--one" /><div className="showroom-tunnel__ring showroom-tunnel__ring--two" /><div className="showroom-tunnel__ring showroom-tunnel__ring--three" /><div className="showroom-tunnel__gate"><small>정책 확인</small><strong>허용</strong><b>O 등급</b></div><div className="showroom-packet showroom-packet--one" /><div className="showroom-packet showroom-packet--two" /><div className="showroom-packet showroom-packet--three" /></div><div className="showroom-tunnel-label"><span>TLS 1.3</span><i /> <span>마스킹된 요청만 전송</span></div></div>
+  return <div className="showroom-visual__art showroom-art--gateway hud-console hud-console--gateway" aria-hidden="true">
+    <div className="hud-console__header"><span>SECURE GATEWAY / OUTBOUND-04</span><b className="hud-status hud-status--green"><i /> TLS 1.3 ACTIVE</b></div>
+    <div className="gateway-flow">
+      <div className="gateway-node"><small>SOURCE</small><strong>원문 문서</strong><span>국가보안업무.hwpx</span><b className="gateway-node__blocked">원문 외부 미전송</b></div>
+      <div className="gateway-stream"><i /><i /><i /><span>검사된 Payload</span></div>
+      <div className="gateway-vault"><div><i>PB</i><strong>PASSBOX<br />Token Vault</strong></div><span>원문 난독화<br />식별자 치환</span><b>MASKED</b></div>
+      <div className="gateway-stream gateway-stream--out"><i /><i /><i /><span>승인된 Payload</span></div>
+      <div className="gateway-node gateway-node--ai"><small>EXTERNAL AI</small><strong>OpenAI / Gemini</strong><span>승인된 모델만 사용</span><b className="gateway-node__allowed">전송 허용</b></div>
+    </div>
+    <div className="gateway-payload"><span>PAYLOAD PREVIEW</span><code>"요청 내용: [MASKED_USER_01]의 [TOKEN_GOV_DOC] 요약 요청"</code><b><i /> 승인된 Payload만 전송</b></div>
+    <div className="hud-console__footer"><span>원문 보관 없음</span><span>정책 게이트 통과</span><span className="is-good"><i /> 암호화 완료</span></div>
+  </div>
 }
 
 function AuditVisual() {
-  return <div className="showroom-visual__art showroom-art--audit" aria-hidden="true"><div className="showroom-chain"><div className="showroom-chain__line" /><div className="showroom-chain__node showroom-chain__node--one"><b>01</b><span>문서 검사</span><small>09:41:02</small></div><div className="showroom-chain__node showroom-chain__node--two"><b>02</b><span>등급 확정</span><small>09:41:18</small></div><div className="showroom-chain__node showroom-chain__node--three"><b>03</b><span>답변 확인</span><small>09:41:22</small></div><div className="showroom-chain__node showroom-chain__node--four"><b>04</b><span>기록 저장</span><small>09:41:23</small></div></div><div className="showroom-report"><small>감사 기록 보고서</small><strong>처리 이력 확인</strong><b>PDF</b><i /></div><div className="showroom-hash">8f9b...c530dc</div></div>
+  return <div className="showroom-visual__art showroom-art--audit hud-console hud-console--audit" aria-hidden="true">
+    <div className="hud-console__header"><span>AUDIT EVIDENCE / IMMUTABLE-05</span><b className="hud-status hud-status--green"><i /> HASH VERIFIED</b></div>
+    <div className="audit-layout">
+      <div className="audit-report">
+        <div className="audit-report__top"><span>PDF</span><b>원클릭 PDF</b></div>
+        <small>PASSBOX 감사 증적 보고서</small>
+        <strong>N2SF-AUDIT-2026-0921</strong>
+        <div className="audit-report__rows"><span>문서 처리 이력 <b>05 EVENTS</b></span><span>정책 버전 <b>N2SF-POLICY-1.4</b></span><span>원문 저장 여부 <b>NOT STORED</b></span></div>
+        <button type="button"><i>↓</i> PDF 다운로드</button>
+      </div>
+      <div className="audit-chain">
+        <div className="audit-chain__title">APPEND-ONLY HASH CHAIN <b>변경 불가</b></div>
+        <div className="audit-chain__line" />
+        <div className="audit-chain__event"><i>01</i><span>업로드</span><small>09:41:02</small></div>
+        <div className="audit-chain__event"><i>02</i><span>C/S/O 판정</span><small>09:41:18</small></div>
+        <div className="audit-chain__event"><i>03</i><span>마스킹 전송</span><small>09:41:22</small></div>
+        <div className="audit-chain__event"><i>04</i><span>답변 검증</span><small>09:41:23</small></div>
+        <code>8f9b2c71...c530dc</code>
+      </div>
+    </div>
+    <div className="audit-verified"><i>✓</i><span>블록 해시 검증 완료</span><b>APPEND ONLY</b></div>
+  </div>
 }
-
 function SceneVisual({ scene }: { scene: Scene }) {
   return <div className={`showroom-visual__frame showroom-visual__frame--${scene.id}`}><div className="showroom-visual__topline"><span>PASSBOX 보안 처리 흐름</span><b>{scene.index} / 05</b></div><div className="showroom-visual__grid" />{scene.id === 'intake' && <IntakeVisual />}{scene.id === 'inference' && <InferenceVisual />}{scene.id === 'policy' && <PolicyVisual />}{scene.id === 'gateway' && <GatewayVisual />}{scene.id === 'audit' && <AuditVisual />}<div className="showroom-visual__footer"><span>{scene.metric}</span><i /><small>보호 상태</small></div></div>
 }

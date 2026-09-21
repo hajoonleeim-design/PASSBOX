@@ -41,85 +41,85 @@ const showroomStages: ShowroomStage[] = [
 
 function IntakeVisual() {
   return <div className="showroom-visual__art showroom-art--intake hud-console hud-console--vault" aria-hidden="true">
-    <div className="hud-console__header"><span>QUARANTINE VAULT / INTAKE-01</span><b className="hud-status hud-status--amber"><i /> 외부 통신 차단</b></div>
+    <div className="hud-console__header"><span>01 · 문서 등록 및 격리 보관</span><b className="hud-status hud-status--amber"><i /> 외부 통신 차단</b></div>
     <div className="vault-stage">
-      <div className="vault-rail"><span className="is-active">01 <b>REGISTER</b></span><span>02 <b>INSPECT</b></span><span>03 <b>DECIDE</b></span></div>
+      <div className="vault-rail"><span className="is-active">01 <b>등록</b></span><span>02 <b>검사</b></span><span>03 <b>판정</b></span></div>
       <div className="vault-chamber">
-        <div className="vault-chamber__label">ISOLATED STORAGE <b>WRITE-ONCE</b></div>
+        <div className="vault-chamber__label">격리 보관소 <b>무결성 잠금</b></div>
         <div className="vault-document">
           <div className="vault-document__icon"><strong>HWPX</strong><span>DOC</span></div>
           <div className="vault-document__name"><strong>2026_국가보안업무_추진계획.hwpx</strong><small>공공기관 문서 · 3.4 MB · 방금 등록됨</small></div>
           <em>격리 보관 중<small>외부 통신 차단</small></em>
         </div>
-        <div className="vault-seal"><i /> QUARANTINED <b>NETWORK OFF</b></div>
+        <div className="vault-seal"><i /> 격리 보관 중 <b>외부 연결 없음</b></div>
         <div className="vault-chamber__grid" />
       </div>
     </div>
-    <div className="hud-hashbar"><span>SHA-256 INTEGRITY HASH</span><code>e3b0c44298fc1c149afbf4c8996fb924...</code><b><i /> 검증됨</b></div>
+    <div className="hud-hashbar"><span>SHA-256 무결성 해시</span><code>e3b0c44298fc1c149afbf4c8996fb924...</code><b><i /> 검증됨</b></div>
   </div>
 }
 
 function InferenceVisual() {
   return <div className="showroom-visual__art showroom-art--inference hud-console hud-console--engine" aria-hidden="true">
-    <div className="hud-console__header"><span>INSPECTION ENGINE / LOCAL-02</span><b className="hud-status hud-status--blue"><i /> ON-PREMISE</b></div>
-    <div className="engine-status"><strong>PASSBOX On-Premise GPU-01</strong><span>온도 <b>42°C</b></span><span>메모리 <b>18.4 / 24 GB</b></span><em><i /> 연산 준비 완료</em></div>
+    <div className="hud-console__header"><span>02 · 내부 보안 검사</span><b className="hud-status hud-status--blue"><i /> 사내 서버 처리</b></div>
+    <div className="engine-status"><strong>PASSBOX 내부 보안 GPU-01</strong><span>온도 <b>42°C</b></span><span>메모리 <b>18.4 / 24 GB</b></span><em><i /> 분석 준비 완료</em></div>
     <div className="engine-pipeline">
-      <div className="engine-node engine-node--source"><small>INPUT</small><strong>문서 텍스트</strong><b>HWPX / 3.4 MB</b></div>
+      <div className="engine-node engine-node--source"><small>입력 문서</small><strong>문서 텍스트</strong><b>HWPX / 3.4 MB</b></div>
       <i className="engine-arrow">→</i>
-      <div className="engine-node engine-node--model"><small>CONTEXT MODEL</small><strong>KoBERT</strong><b>문맥 분류 신경망</b></div>
+      <div className="engine-node engine-node--model"><small>문맥 분석 모델</small><strong>KoBERT</strong><b>문맥 분류 신경망</b></div>
       <i className="engine-arrow">→</i>
-      <div className="engine-node engine-node--pattern"><small>PATTERN SCAN</small><strong>REGEX / SECRET</strong><b>정규식 패턴 분석</b></div>
+      <div className="engine-node engine-node--pattern"><small>패턴 탐지</small><strong>정규식 · Secret</strong><b>보안 문자열 분석</b></div>
     </div>
     <div className="engine-metrics">
       <div className="engine-metric"><span>개인정보 7종</span><strong>87%</strong><i><b style={{ width: '87%' }} /></i><small>주민번호 · 계좌 · 연락처</small></div>
       <div className="engine-metric"><span>Secret 탐지</span><strong>64%</strong><i><b style={{ width: '64%' }} /></i><small>API Key · Access Token</small></div>
-      <div className="engine-metric"><span>Prompt Injection</span><strong>12%</strong><i><b style={{ width: '12%' }} /></i><small>지시문 패턴 검사</small></div>
+      <div className="engine-metric"><span>프롬프트 인젝션</span><strong>12%</strong><i><b style={{ width: '12%' }} /></i><small>우회 지시문 패턴 검사</small></div>
     </div>
-    <div className="hud-console__footer"><span>SCAN PROFILE <b>PUBLIC-AGENCY / STRICT</b></span><span>LATENCY <b>184 ms</b></span><span className="is-good"><i /> LIVE ANALYSIS</span></div>
+    <div className="hud-console__footer"><span>검사 정책 <b>공공기관 · 엄격 기준</b></span><span>처리 시간 <b>184 ms</b></span><span className="is-good"><i /> 실시간 분석</span></div>
   </div>
 }
 
 function PolicyVisual() {
   return <div className="showroom-visual__art showroom-art--policy hud-console hud-console--policy" aria-hidden="true">
-    <div className="hud-console__header"><span>POLICY DECISION MATRIX / 03</span><b className="hud-status hud-status--blue"><i /> HUMAN REVIEW</b></div>
-    <div className="policy-stamp"><i>✓</i><span>기관 정책 엔진 + 담당자 최종 확정</span><b>DECISION READY</b></div>
+    <div className="hud-console__header"><span>03 · 정책 기반 보안등급 판정</span><b className="hud-status hud-status--blue"><i /> 담당자 검토</b></div>
+    <div className="policy-stamp"><i>✓</i><span>기관 정책 엔진 + 담당자 최종 확정</span><b>판정 준비 완료</b></div>
     <div className="policy-grid">
-      <div className="policy-card policy-card--c"><div><b>C</b><span>기밀</span></div><strong>기밀정보·고위험</strong><p>외부 AI 전송 차단<br />내부 격리</p><small>BLOCK / INTERNAL ONLY</small></div>
-      <div className="policy-card policy-card--s"><div><b>S</b><span>민감</span></div><strong>개인정보·식별자</strong><p>원문 마스킹 &amp; 토큰화<br />승인 요청</p><small>MASK / APPROVAL REQUIRED</small></div>
-      <div className="policy-card policy-card--o"><div><b>O</b><span>공개</span></div><strong>일반 업무정보</strong><p>기관 정책 확인 후<br />전송 허용</p><small>ALLOW / POLICY CHECKED</small></div>
+      <div className="policy-card policy-card--c"><div><b>C</b><span>기밀</span></div><strong>기밀정보 · 고위험</strong><p>외부 AI 전송 차단<br />내부 격리</p><small>외부 전송 차단 · 내부 전용</small></div>
+      <div className="policy-card policy-card--s"><div><b>S</b><span>민감</span></div><strong>개인정보 · 식별자</strong><p>원문 마스킹 및 토큰화<br />담당자 승인 요청</p><small>마스킹 후 승인 필요</small></div>
+      <div className="policy-card policy-card--o"><div><b>O</b><span>공개</span></div><strong>일반 업무정보</strong><p>기관 정책 확인 후<br />전송 허용</p><small>정책 확인 후 업무 활용</small></div>
     </div>
-    <div className="policy-footer"><span>CLASSIFICATION CONFIDENCE</span><strong>98.2%</strong><i><b /></i><em>담당자 승인 대기</em></div>
+    <div className="policy-footer"><span>AI 추천 신뢰도</span><strong>98.2%</strong><i><b /></i><em>담당자 승인 대기</em></div>
   </div>
 }
 
 function GatewayVisual() {
   return <div className="showroom-visual__art showroom-art--gateway hud-console hud-console--gateway" aria-hidden="true">
-    <div className="hud-console__header"><span>SECURE GATEWAY / OUTBOUND-04</span><b className="hud-status hud-status--green"><i /> TLS 1.3 ACTIVE</b></div>
+    <div className="hud-console__header"><span>04 · 마스킹 및 외부 AI 전송</span><b className="hud-status hud-status--green"><i /> TLS 1.3 보호</b></div>
     <div className="gateway-flow">
-      <div className="gateway-node"><small>SOURCE</small><strong>원문 문서</strong><span>국가보안업무.hwpx</span><b className="gateway-node__blocked">원문 외부 미전송</b></div>
-      <div className="gateway-stream"><i /><i /><i /><span>검사된 Payload</span></div>
-      <div className="gateway-vault"><div><i>PB</i><strong>PASSBOX<br />Token Vault</strong></div><span>원문 난독화<br />식별자 치환</span><b>MASKED</b></div>
-      <div className="gateway-stream gateway-stream--out"><i /><i /><i /><span>승인된 Payload</span></div>
-      <div className="gateway-node gateway-node--ai"><small>EXTERNAL AI</small><strong>OpenAI / Gemini</strong><span>승인된 모델만 사용</span><b className="gateway-node__allowed">전송 허용</b></div>
+      <div className="gateway-node"><small>내부 원문</small><strong>원문 문서</strong><span>국가보안업무.hwpx</span><b className="gateway-node__blocked">원문 외부 미전송</b></div>
+      <div className="gateway-stream"><i /><i /><i /><span>검사된 요청</span></div>
+      <div className="gateway-vault"><div><i>PB</i><strong>PASSBOX<br />토큰 보관소</strong></div><span>원문 난독화<br />식별자 치환</span><b>마스킹 완료</b></div>
+      <div className="gateway-stream gateway-stream--out"><i /><i /><i /><span>승인된 요청</span></div>
+      <div className="gateway-node gateway-node--ai"><small>외부 AI</small><strong>OpenAI / Gemini</strong><span>승인된 모델만 사용</span><b className="gateway-node__allowed">전송 허용</b></div>
     </div>
-    <div className="gateway-payload"><span>PAYLOAD PREVIEW</span><code>"요청 내용: [MASKED_USER_01]의 [TOKEN_GOV_DOC] 요약 요청"</code><b><i /> 승인된 Payload만 전송</b></div>
+    <div className="gateway-payload"><span>전송 내용 미리보기</span><code>"요청 내용: [MASKED_USER_01]의 [TOKEN_GOV_DOC] 요약 요청"</code><b><i /> 승인된 요청만 전송</b></div>
     <div className="hud-console__footer"><span>원문 보관 없음</span><span>정책 게이트 통과</span><span className="is-good"><i /> 암호화 완료</span></div>
   </div>
 }
 
 function AuditVisual() {
   return <div className="showroom-visual__art showroom-art--audit hud-console hud-console--audit" aria-hidden="true">
-    <div className="hud-console__header"><span>AUDIT EVIDENCE / IMMUTABLE-05</span><b className="hud-status hud-status--green"><i /> HASH VERIFIED</b></div>
+    <div className="hud-console__header"><span>05 · 처리 이력 및 감사 증적</span><b className="hud-status hud-status--green"><i /> 해시 검증 완료</b></div>
     <div className="audit-layout">
       <div className="audit-report">
         <div className="audit-report__top"><span>PDF</span><b>원클릭 PDF</b></div>
         <small>PASSBOX 감사 증적 보고서</small>
         <strong>N2SF-AUDIT-2026-0921</strong>
-        <div className="audit-report__rows"><span>문서 처리 이력 <b>05 EVENTS</b></span><span>정책 버전 <b>N2SF-POLICY-1.4</b></span><span>원문 저장 여부 <b>NOT STORED</b></span></div>
+        <div className="audit-report__rows"><span>문서 처리 이력 <b>05건</b></span><span>정책 버전 <b>N2SF-POLICY-1.4</b></span><span>원문 저장 여부 <b>미보관</b></span></div>
         <button type="button"><i>↓</i> PDF 다운로드</button>
       </div>
       <div className="audit-chain">
-        <div className="audit-chain__title">APPEND-ONLY HASH CHAIN <b>변경 불가</b></div>
+        <div className="audit-chain__title">추가 기록 전용 해시 체인 <b>변경 불가</b></div>
         <div className="audit-chain__line" />
         <div className="audit-chain__event"><i>01</i><span>업로드</span><small>09:41:02</small></div>
         <div className="audit-chain__event"><i>02</i><span>C/S/O 판정</span><small>09:41:18</small></div>
@@ -128,7 +128,7 @@ function AuditVisual() {
         <code>8f9b2c71...c530dc</code>
       </div>
     </div>
-    <div className="audit-verified"><i>✓</i><span>블록 해시 검증 완료</span><b>APPEND ONLY</b></div>
+    <div className="audit-verified"><i>✓</i><span>블록 해시 검증 완료</span><b>추가 기록 전용</b></div>
   </div>
 }
 function SceneVisual({ scene }: { scene: Scene }) {
@@ -136,9 +136,20 @@ function SceneVisual({ scene }: { scene: Scene }) {
 }
 
 function HeroVisual() {
-  return <div className="showroom-visual__frame showroom-visual__frame--hero" aria-hidden="true"><div className="showroom-visual__topline"><span>PASSBOX / 문서 보안 처리</span><b>READY</b></div><div className="showroom-hero-orbit"><div className="showroom-hero-orbit__ring showroom-hero-orbit__ring--one" /><div className="showroom-hero-orbit__ring showroom-hero-orbit__ring--two" /><div className="showroom-hero-orbit__ring showroom-hero-orbit__ring--three" /><div className="showroom-hero-orbit__cube"><i /><i /><i /><strong>PB</strong></div><span className="showroom-hero-orbit__dot showroom-hero-orbit__dot--one" /><span className="showroom-hero-orbit__dot showroom-hero-orbit__dot--two" /><span className="showroom-hero-orbit__dot showroom-hero-orbit__dot--three" /></div><div className="showroom-hero-labels"><span><i /> 원문 외부 전송 차단</span><span><i /> 처리 이력 자동 기록</span></div><div className="showroom-visual__footer"><span>문서가 AI로 이동하는 모든 경로</span><i /><small>보안 기준 적용</small></div></div>
+  return <div className="showroom-visual__frame showroom-visual__frame--hero" aria-hidden="true">
+    <div className="showroom-visual__topline"><span>PASSBOX 전체 시스템 파이프라인 아키텍처</span><b className="tag-safe">END-TO-END SECURITY</b></div>
+    <div className="arch-flow">
+      <div className="arch-flow__step"><div className="arch-card"><span className="arch-card__num">01</span><div className="arch-card__icon arch-card__icon--work" /><strong>사용자 업무망</strong><p>공공기관 업무 PC<br />공문서(HWPX/PDF) 등록</p><small>내부 업무 환경</small></div></div>
+      <div className="arch-flow__arrow">➔</div>
+      <div className="arch-flow__step"><div className="arch-card arch-card--highlight"><span className="arch-card__num">02</span><div className="arch-card__icon arch-card__icon--vault">▣</div><strong>PASSBOX 웹 격리</strong><p>외부 전송 원천 차단<br />SHA-256 무결성 검증</p><small className="text-amber">독립 샌드박스 보관</small></div></div>
+      <div className="arch-flow__arrow">➔</div>
+      <div className="arch-flow__step arch-flow__step--wide"><div className="arch-card arch-card--core"><span className="arch-card__num">03</span><div className="arch-card__badge">온프레미스 엔진</div><strong>보안 분석 &amp; C/S/O 게이트</strong><div className="arch-subgrid"><span>KoBERT 문맥 분석</span><span>7종 개인정보 스캔</span><span>C/S/O 3단계 판정</span></div><small className="text-green">사내 로컬 GPU 처리</small></div></div>
+      <div className="arch-flow__arrow">➔</div>
+      <div className="arch-flow__step"><div className="arch-card"><span className="arch-card__num">04</span><div className="arch-card__icon arch-card__icon--cloud">☁</div><strong>외부 AI 서비스</strong><p>OpenAI / Gemini<br />마스킹된 토큰만 전송</p><small>TLS 1.3 암호화 통신</small></div></div>
+    </div>
+    <div className="arch-footer-badges"><span><i className="dot dot--red" /> 원문 외부 전송 차단</span><span><i className="dot dot--amber" /> 사내 온프레미스 사전 검사</span><span><i className="dot dot--green" /> 감사원 제출 증적 100% 확보</span></div>
+  </div>
 }
-
 function EndVisual() {
   return <div className="showroom-visual__frame showroom-visual__frame--end" aria-hidden="true"><div className="showroom-end-orbit"><div className="showroom-end-orbit__ring showroom-end-orbit__ring--one" /><div className="showroom-end-orbit__ring showroom-end-orbit__ring--two" /><div className="showroom-end-orbit__core"><span>PASSBOX</span><strong>증적</strong></div></div><div className="showroom-end-stats"><span><b>01</b> 원문 외부 미보관</span><span><b>02</b> 정책 기반 처리</span><span><b>03</b> 사후 확인 가능</span></div></div>
 }

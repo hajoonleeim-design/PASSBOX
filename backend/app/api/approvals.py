@@ -14,6 +14,7 @@ from app.post_inspector import inspect_response
 
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
+APPROVAL_ROLES = ("APPROVER", "SECURITY_ADMIN", "ADMIN")
 
 
 class ApprovalDecisionRequest(BaseModel):
@@ -106,7 +107,7 @@ def _get_transmission(db, approval: OutboundApproval) -> GatewayTransmission:
 )
 def pending_approvals(
     current_user: User = Depends(
-        require_roles("APPROVER", "SECURITY_ADMIN", "ADMIN")
+        require_roles(*APPROVAL_ROLES)
     ),
 ):
     session_factory = get_session_factory()
@@ -134,7 +135,7 @@ def approve_request(
     approval_id: int,
     payload: ApprovalDecisionRequest,
     current_user: User = Depends(
-        require_roles("APPROVER", "SECURITY_ADMIN", "ADMIN")
+        require_roles(*APPROVAL_ROLES)
     ),
 ):
     session_factory = get_session_factory()
@@ -241,7 +242,7 @@ def reject_request(
     approval_id: int,
     payload: ApprovalDecisionRequest,
     current_user: User = Depends(
-        require_roles("APPROVER", "SECURITY_ADMIN", "ADMIN")
+        require_roles(*APPROVAL_ROLES)
     ),
 ):
     session_factory = get_session_factory()

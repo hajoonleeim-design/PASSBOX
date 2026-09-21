@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
 import { FileDropzone } from '../../components/upload/FileDropzone'
 import type { HashStatus, UploadFileResult, UploadPolicyHint, UploadStatus } from '../../types/upload'
+import { createId } from '../../utils/id'
 
 interface UploadRow {
   id: string
@@ -62,7 +63,7 @@ export function UploadPage() {
       const extension = extensionOf(file)
       const allowed = acceptedExtensions.has(extension)
       return {
-        id: crypto.randomUUID(),
+        id: createId(),
         file,
         extension: extension ? extension.toUpperCase() : '없음',
         uploadStatus: allowed ? 'PENDING' : 'FAILED',

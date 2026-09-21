@@ -1,7 +1,7 @@
 import type { SecurityGrade } from './security'
 import type { UserRole } from './auth'
 
-export type DecisionStatus = 'BLOCKED' | 'WAITING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'ALLOWED' | 'UNKNOWN'
+export type DecisionStatus = 'BLOCKED' | 'WAITING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'ALLOWED' | 'FAILED' | 'UNKNOWN'
 export interface DetectionEvidence { type: string; item: string; policy: string; description: string }
 export interface DecisionActor { userId: string; displayName: string; role: UserRole }
 export interface ApprovalHistoryEntry { id: string; action: 'APPROVED' | 'REJECTED'; actor: DecisionActor; actedAt: string; reason?: string }

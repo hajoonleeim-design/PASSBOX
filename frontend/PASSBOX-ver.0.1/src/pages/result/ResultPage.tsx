@@ -16,8 +16,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { useDecision } from '../../hooks/useDecision'
 import type { ApprovalHistoryEntry, DecisionStatus } from '../../types/decision'
 
-const statusLabels: Record<DecisionStatus, StatusLabel> = { BLOCKED: '차단', WAITING_APPROVAL: '승인대기', APPROVED: '완료', REJECTED: '실패', ALLOWED: '완료', UNKNOWN: '대기' }
-const statusText: Record<DecisionStatus, string> = { BLOCKED: '전송 차단', WAITING_APPROVAL: '승인 대기', APPROVED: '승인 완료', REJECTED: '반려', ALLOWED: '전송 가능', UNKNOWN: '상태 확인 필요' }
+const statusLabels: Record<DecisionStatus, StatusLabel> = { BLOCKED: '차단', WAITING_APPROVAL: '승인대기', APPROVED: '완료', REJECTED: '실패', ALLOWED: '완료', FAILED: '실패', UNKNOWN: '대기' }
+const statusText: Record<DecisionStatus, string> = { BLOCKED: '전송 차단', WAITING_APPROVAL: '승인 대기', APPROVED: '승인 완료', REJECTED: '반려', ALLOWED: '전송 가능', FAILED: 'Gateway 전송 실패', UNKNOWN: '상태 확인 필요' }
 const normalize = (status: string): DecisionStatus => status in statusLabels ? status as DecisionStatus : 'UNKNOWN'
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
 const historyColumns: DataTableColumn<ApprovalHistoryEntry>[] = [{ key: 'actor', header: '사용자', render: (item) => item.actor.displayName }, { key: 'role', header: '역할', render: (item) => item.actor.role }, { key: 'action', header: '결과', render: (item) => item.action === 'APPROVED' ? '승인' : '반려' }, { key: 'time', header: '시간', render: (item) => formatDate(item.actedAt) }, { key: 'reason', header: '사유', render: (item) => item.reason ?? '-' }]

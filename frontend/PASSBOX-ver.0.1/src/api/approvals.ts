@@ -70,6 +70,16 @@ export async function getPendingApprovals(): Promise<ApprovalItem[]> {
   return data.map(mapApproval)
 }
 
+export async function getRetryableApprovals(): Promise<ApprovalItem[]> {
+  const { data } = await apiClient.get<BackendApprovalResponse[]>('/approvals/retryable')
+  return data.map(mapApproval)
+}
+
+export async function retryApproval(approvalId: number): Promise<ApprovalItem> {
+  const { data } = await apiClient.post<BackendApprovalResponse>(`/approvals/${approvalId}/retry`)
+  return mapApproval(data)
+}
+
 export async function decideApproval(
   approvalId: number,
   action: 'approve' | 'reject',

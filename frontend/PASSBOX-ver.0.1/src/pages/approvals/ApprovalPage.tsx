@@ -6,6 +6,7 @@ import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/StateViews'
 import { useAuth } from '../../hooks/useAuth'
+import { RetryableApprovalsPanel } from '../../components/security/RetryableApprovalsPanel'
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
@@ -88,6 +89,7 @@ export function ApprovalPage() {
         </div>
       )}
 
+      <RetryableApprovalsPanel />
       {!items || items.length === 0 ? (
         <Card className="section-gap"><EmptyState label="현재 대기 중인 승인 요청이 없습니다." /></Card>
       ) : (

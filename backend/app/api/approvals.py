@@ -109,7 +109,7 @@ def _get_approval(db, approval_id: int, tenant_id: int) -> OutboundApproval:
         select(OutboundApproval).where(
             OutboundApproval.id == approval_id,
             OutboundApproval.tenant_id == tenant_id,
-        )
+        ).with_for_update()
     )
     if approval is None:
         raise HTTPException(status_code=404, detail="승인 요청을 찾을 수 없습니다.")
@@ -121,11 +121,104 @@ def _get_transmission(db, approval: OutboundApproval) -> GatewayTransmission:
         select(GatewayTransmission).where(
             GatewayTransmission.id == approval.gateway_transmission_id,
             GatewayTransmission.tenant_id == approval.tenant_id,
-        )
+        ).with_for_update()
     )
     if transmission is None:
         raise HTTPException(status_code=500, detail="Gateway 전송 감사 기록이 없습니다.")
     return transmission
+
+
+def _prepare_gateway_attempt(
+    db, approval: OutboundApproval, transmission: GatewayTransmission
+) -> None:
+    transmission.policy_decision = "APPROVED"
+    transmission.status = "QUEUED"
+    transmission.post_inspection_status = None
+    transmission.response_hash = None
+    transmission.response_categories = None
+    transmission.error_message = None
+    _update_latest_job_for_document(
+        db,
+        document_id=approval.document_id,
+        tenant_id=approval.tenant_id,
+        status_value="TRANSMITTING",
+        progress=85,
+        error_message=None,
+    )
+    db.commit()
+    db.refresh(approval)
+    db.refresh(transmission)
+
+
+def _transmit_approved_payload(
+    db,
+    approval: OutboundApproval,
+    transmission: GatewayTransmission,
+    current_user: User,
+) -> ApprovalResponse:
+    try:
+        gateway_response = gateway.send(
+            provider=approval.provider,
+            model=approval.model,
+            prompt=approval.masked_payload,
+            safety_identifier=_hash_text(
+                f"{current_user.tenant_id}:{current_user.id}"
+            ),
+        )
+        post_result = inspect_response(gateway_response.content)
+        transmission.post_inspection_status = post_result.status
+        transmission.response_categories = ",".join(post_result.categories)
+        transmission.response_hash = _hash_text(gateway_response.content)
+        transmission.status = (
+            "COMPLETED" if post_result.status == "PASSED" else "BLOCKED"
+        )
+        transmission.error_message = (
+            None
+            if post_result.status == "PASSED"
+            else "Post-Inspector blocked the response."
+        )
+        _update_latest_job_for_document(
+            db,
+            document_id=approval.document_id,
+            tenant_id=approval.tenant_id,
+            status_value="COMPLETED" if post_result.status == "PASSED" else "BLOCKED",
+            progress=100,
+            error_message=transmission.error_message,
+        )
+        db.commit()
+        db.refresh(approval)
+        db.refresh(transmission)
+        return _to_response(
+            approval,
+            transmission,
+            gateway_response.content if post_result.status == "PASSED" else None,
+        )
+    except GatewayConfigurationError as exc:
+        transmission.status = "FAILED"
+        transmission.error_message = str(exc)
+        _update_latest_job_for_document(
+            db,
+            document_id=approval.document_id,
+            tenant_id=approval.tenant_id,
+            status_value="FAILED",
+            progress=100,
+            error_message=str(exc),
+        )
+        db.commit()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        transmission.status = "FAILED"
+        transmission.error_message = "Gateway request failed."
+        _update_latest_job_for_document(
+            db,
+            document_id=approval.document_id,
+            tenant_id=approval.tenant_id,
+            status_value="FAILED",
+            progress=100,
+            error_message="Gateway request failed.",
+        )
+        db.commit()
+        raise HTTPException(status_code=502, detail="Gateway request failed.") from exc
 
 
 @router.get(
@@ -255,6 +348,29 @@ def approve_request(
             )
             db.commit()
             raise HTTPException(status_code=502, detail="Gateway 호출에 실패했습니다.") from exc
+
+
+@router.post(
+    "/{approval_id}/retry",
+    response_model=ApprovalResponse,
+    summary="Gateway 전송 실패 승인 건 재시도",
+    description="이미 승인되었지만 Gateway 호출에 실패한 건만 동일한 마스킹 Payload로 재전송합니다.",
+)
+def retry_approved_request(
+    approval_id: int,
+    current_user: User = Depends(require_approval_role),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        approval = _get_approval(db, approval_id, current_user.tenant_id)
+        transmission = _get_transmission(db, approval)
+        if approval.status != "APPROVED" or transmission.status != "FAILED":
+            raise HTTPException(
+                status_code=409,
+                detail="Gateway 전송 실패 상태의 승인 건만 재시도할 수 있습니다.",
+            )
+        _prepare_gateway_attempt(db, approval, transmission)
+        return _transmit_approved_payload(db, approval, transmission, current_user)
 
 
 @router.post(

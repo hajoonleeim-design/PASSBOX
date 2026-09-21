@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -22,6 +22,13 @@ from app.policy import POLICY_VERSION
 
 
 router = APIRouter(prefix="/requests", tags=["Audit"])
+
+
+def _timestamp(value: datetime) -> float:
+    normalized = value
+    if normalized.tzinfo is None:
+        normalized = normalized.replace(tzinfo=timezone.utc)
+    return normalized.timestamp()
 
 
 class AuditEventResponse(BaseModel):
@@ -104,6 +111,7 @@ def _find_request(db, request_id: int, tenant_id: int):
             AnalysisRequest.id == request_id,
             AnalysisRequest.tenant_id == tenant_id,
         )
+        .order_by(desc(Job.updated_at), desc(Job.created_at))
     ).first()
 
 
@@ -150,6 +158,8 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
             )
         )
 
+    classification_user = db.get(User, classification.user_id)
+
     status = _status_for(classification.confirmed_grade, transmission, approval)
     policy_version = transmission.policy_version if transmission else POLICY_VERSION
     post_status = transmission.post_inspection_status if transmission else None
@@ -193,6 +203,8 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
             classification.confirmed_grade,
             classification.created_at,
             "Final C/S/O classification was recorded.",
+            actor=classification_user.display_name if classification_user else "SYSTEM",
+            actor_role=classification_user.role if classification_user else "SYSTEM",
             metadata={"grade": classification.confirmed_grade},
         )
     )
@@ -292,7 +304,7 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
             )
         )
 
-    events.sort(key=lambda item: item.timestamp)
+    events.sort(key=lambda item: _timestamp(item.timestamp))
     completed_at = events[-1].timestamp if status in {"BLOCKED", "ALLOWED", "APPROVED", "REJECTED"} else None
     approval_history: list[AuditApprovalResponse] = []
     if approval is not None and approval.status in {"APPROVED", "REJECTED"}:

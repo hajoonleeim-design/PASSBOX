@@ -81,6 +81,23 @@ def health_check():
     }
 
 
+@app.get("/api/v1/health/ready")
+def readiness_check():
+    try:
+        check_database()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="service is not ready",
+        ) from exc
+
+    return {
+        "status": "ready",
+        "service": "PASSBOX Backend API",
+        "database": "connected",
+    }
+
+
 @app.get("/api/v1/db-check")
 def database_check():
     try:

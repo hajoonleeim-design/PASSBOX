@@ -313,14 +313,19 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
             )
         )
         if transmission.policy_decision in {"ALLOWED", "APPROVED"}:
+            transmission_failed = transmission.status == "FAILED"
             events.append(
                 _event(
                     request.id,
-                    "transmitted",
-                    "AI_TRANSMITTED",
+                    "failed" if transmission_failed else "transmitted",
+                    "FAILED" if transmission_failed else "AI_TRANSMITTED",
                     transmission.status,
                     transmission.created_at,
-                    "Gateway transmission was recorded without original content.",
+                    (
+                        "Gateway transmission failed; no response content was stored."
+                        if transmission_failed
+                        else "Gateway transmission was recorded without original content."
+                    ),
                 )
             )
         if transmission.post_inspection_status is not None:
@@ -363,7 +368,7 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
         )
 
     events.sort(key=lambda item: _timestamp(item.timestamp))
-    completed_at = events[-1].timestamp if status in {"BLOCKED", "ALLOWED", "APPROVED", "REJECTED"} else None
+    completed_at = events[-1].timestamp if status in {"FAILED", "BLOCKED", "ALLOWED", "APPROVED", "REJECTED"} else None
     approval_history: list[AuditApprovalResponse] = []
     if approval is not None and approval.status in {"APPROVED", "REJECTED"}:
         approval_history.append(

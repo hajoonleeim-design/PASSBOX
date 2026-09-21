@@ -24,6 +24,11 @@ class DecisionMappingTests(unittest.TestCase):
         approval = SimpleNamespace(status="APPROVED")
         self.assertEqual(_status_for("S", transmission, approval), "APPROVED")
 
+    def test_failed_transmission_is_failed(self):
+        transmission = SimpleNamespace(status="FAILED", policy_decision="APPROVED")
+        approval = SimpleNamespace(status="APPROVED")
+        self.assertEqual(_status_for("S", transmission, approval), "FAILED")
+
 
 if __name__ == "__main__":
     unittest.main()

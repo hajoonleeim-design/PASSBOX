@@ -83,7 +83,7 @@ def _status_for(
     }:
         return "BLOCKED"
     if transmission.status == "FAILED":
-        return "UNKNOWN"
+        return "FAILED"
     if approval is not None and approval.status == "PENDING":
         return "WAITING_APPROVAL"
     if approval is not None and approval.status == "REJECTED":

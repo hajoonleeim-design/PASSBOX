@@ -29,6 +29,37 @@ def _parse_cors_origins(value: str) -> list[str]:
     return origins
 
 
+def _validate_runtime_settings(settings: Settings) -> None:
+    environment = settings.app_env.strip().lower()
+    if environment not in {"development", "test", "production"}:
+        raise RuntimeError("APP_ENV must be development, test, or production")
+    if settings.jwt_access_token_minutes <= 0:
+        raise RuntimeError("JWT_ACCESS_TOKEN_MINUTES must be positive")
+    if settings.login_rate_limit_attempts <= 0:
+        raise RuntimeError("LOGIN_RATE_LIMIT_ATTEMPTS must be positive")
+    if settings.login_rate_limit_window_seconds <= 0:
+        raise RuntimeError("LOGIN_RATE_LIMIT_WINDOW_SECONDS must be positive")
+
+    if environment != "production":
+        return
+
+    if not settings.database_url:
+        raise RuntimeError("DATABASE_URL is required in production")
+    if (
+        len(settings.jwt_secret_key.strip()) < 32
+        or settings.jwt_secret_key.strip() == "CHANGE_ME_TO_A_LONG_RANDOM_VALUE"
+    ):
+        raise RuntimeError("JWT_SECRET_KEY must be a strong production secret")
+    if settings.gateway_mode.strip().upper() == "MOCK":
+        raise RuntimeError("GATEWAY_MODE=MOCK is not allowed in production")
+    if settings.gateway_mode.strip().upper() == "OPENAI" and not settings.openai_api_key.strip():
+        raise RuntimeError("OPENAI_API_KEY is required when production uses OPENAI")
+
+    origins = _parse_cors_origins(settings.cors_allowed_origins)
+    if not origins or any(not origin.lower().startswith("https://") for origin in origins):
+        raise RuntimeError("production CORS_ALLOWED_ORIGINS must contain HTTPS origins only")
+
+
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -58,7 +89,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-cors_origins = _parse_cors_origins(Settings().cors_allowed_origins)
+settings = Settings()
+_validate_runtime_settings(settings)
+cors_origins = _parse_cors_origins(settings.cors_allowed_origins)
 
 # 로컬 프론트엔드 개발용 CORS 설정입니다.
 # 운영 배포 시에는 실제 프론트엔드 주소만 남겨야 합니다.

@@ -34,6 +34,8 @@ Use `GATEWAY_MODE=MOCK` for local testing. S-grade approval requests are handled
 
 For production, set `APP_ENV=production`, use a strong JWT secret, HTTPS-only CORS origins, a real database, and a configured non-MOCK Gateway. The API fails fast if those requirements are missing.
 
+Retention cleanup is preview-only by default. From `backend`, run `python cleanup_retention.py` to list expired terminal-document files, then add `--apply` only after reviewing the list. The cleanup removes stored document files while keeping database audit metadata and hashes.
+
 ### Frontend
 
 1. Install dependencies in `frontend/PASSBOX-ver.0.1`.

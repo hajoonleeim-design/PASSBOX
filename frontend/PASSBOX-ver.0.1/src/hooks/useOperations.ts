@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getApiErrorCode } from '../api/client'
 import { getOperationsDashboard } from '../api/operations'
 import type { UserRole } from '../types/auth'
 import type { OperationsDashboard } from '../types/operations'
@@ -16,7 +17,7 @@ export function useOperations(scenario: string, role: UserRole | undefined) {
     try {
       setDashboard(await getOperationsDashboard(scenario, role))
     } catch (error) {
-      setErrorCode(error instanceof Error ? error.message : 'NETWORK_ERROR')
+      setErrorCode(getApiErrorCode(error) ?? (error instanceof Error ? error.message : 'NETWORK_ERROR'))
     } finally {
       setIsLoading(false)
     }

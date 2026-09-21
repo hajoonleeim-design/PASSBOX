@@ -7,6 +7,16 @@ export interface ApiError {
   requestId?: string
 }
 
+export function getApiErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const candidate = error as Partial<ApiError>
+  if (candidate.code) return candidate.code
+  if (candidate.status === 401) return 'UNAUTHORIZED'
+  if (candidate.status === 403) return 'FORBIDDEN'
+  if (candidate.status === 404) return 'NOT_FOUND'
+  return candidate.status ? `HTTP_${candidate.status}` : undefined
+}
+
 const LAST_REQUEST_ID_KEY = 'passbox_last_request_id'
 
 export function getLastRequestId(): string | undefined {

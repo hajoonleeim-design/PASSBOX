@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getApiErrorCode } from '../api/client'
 import { createInquiry, getSupportContent } from '../api/support'
 import type { CreateInquiryInput, SupportContent, SupportResponse } from '../types/support'
 
@@ -13,7 +14,7 @@ export function useSupport(scenario: string) {
   const refresh = useCallback(async () => {
     setIsLoading(true); setErrorCode('')
     try { setContent(await getSupportContent(scenario)) }
-    catch (error) { setErrorCode(error instanceof Error ? error.message : 'NETWORK_ERROR') }
+    catch (error) { setErrorCode(getApiErrorCode(error) ?? (error instanceof Error ? error.message : 'NETWORK_ERROR')) }
     finally { setIsLoading(false) }
   }, [scenario])
 

@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,11 +19,22 @@ from app.api.operations import router as operations_router
 from app.api.chat import router as chat_router
 from app.api.support import router as support_router
 from app.db import check_database
+from app.job_worker import start_worker, stop_worker
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    start_worker()
+    try:
+        yield
+    finally:
+        stop_worker()
 
 
 app = FastAPI(
     title="PASSBOX Backend API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # 로컬 프론트엔드 개발용 CORS 설정입니다.

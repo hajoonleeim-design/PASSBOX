@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+from logging import getLogger
 from pathlib import Path
+from threading import Event, Lock, Thread
 
 from sqlalchemy import select
 
@@ -18,6 +21,12 @@ from app.models import (
 from app.security_scan import SCANNER_VERSION, scan_text
 
 
+logger = getLogger(__name__)
+_worker_lock = Lock()
+_worker_thread: Thread | None = None
+_worker_stop: Event | None = None
+
+
 def _load_job(db, job_id: int, tenant_id: int):
     return db.execute(
         select(Job, AnalysisRequest, Document)
@@ -25,6 +34,28 @@ def _load_job(db, job_id: int, tenant_id: int):
         .join(Document, AnalysisRequest.document_id == Document.id)
         .where(Job.id == job_id, AnalysisRequest.tenant_id == tenant_id)
     ).first()
+
+
+def _claim_next_job(session_factory):
+    """Atomically reserve the oldest queued job for this process."""
+    with session_factory() as db:
+        result = db.execute(
+            select(Job, AnalysisRequest)
+            .join(AnalysisRequest, Job.request_id == AnalysisRequest.id)
+            .where(Job.status == "QUEUED")
+            .order_by(Job.created_at)
+            .with_for_update(skip_locked=True)
+        ).first()
+        if result is None:
+            return None
+
+        job, request = result
+        job.status = "INSPECTING"
+        job.progress = max(job.progress, 5)
+        job.updated_at = datetime.now(timezone.utc)
+        request.status = "INSPECTING"
+        db.commit()
+        return job.id, request.tenant_id
 
 
 def _set_job_state(
@@ -152,20 +183,25 @@ def _save_recommendation(db, document: Document, scan: DocumentScan, text_record
     return recommendation
 
 
-def process_document_job(job_id: int, tenant_id: int) -> None:
+def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> None:
     """Run local extraction, security scanning, and provisional classification."""
-    session_factory = get_session_factory()
+    session_factory = session_factory or get_session_factory()
     with session_factory() as db:
         result = _load_job(db, job_id, tenant_id)
         if result is None:
             return
         job, request, document = result
-        if job.status != "QUEUED":
+        if job.status not in {"QUEUED", "INSPECTING"}:
             return
 
         try:
-            if not _set_job_state(db, job, request, status="INSPECTING", progress=10):
-                return
+            if job.status == "QUEUED":
+                if not _set_job_state(db, job, request, status="INSPECTING", progress=10):
+                    return
+            else:
+                job.progress = max(job.progress, 10)
+                job.updated_at = datetime.now(timezone.utc)
+                db.commit()
             storage_path = _document_path(document)
 
             text_record = db.scalar(
@@ -220,3 +256,53 @@ def process_document_job(job_id: int, tenant_id: int) -> None:
                 progress=100,
                 error_message="문서 분석 작업에 실패했습니다.",
             )
+
+
+def run_worker_loop(stop_event: Event, poll_interval: float = 1.0) -> None:
+    """Continuously dispatch queued jobs while the API process is alive."""
+    try:
+        session_factory = get_session_factory()
+    except Exception:
+        logger.exception("문서 분석 Worker가 데이터베이스를 초기화하지 못했습니다.")
+        return
+
+    while not stop_event.is_set():
+        try:
+            claimed = _claim_next_job(session_factory)
+            if claimed is not None:
+                job_id, tenant_id = claimed
+                process_document_job(job_id, tenant_id, session_factory=session_factory)
+                continue
+        except Exception:
+            logger.exception("문서 분석 Worker의 작업 조회에 실패했습니다.")
+        stop_event.wait(poll_interval)
+
+
+def start_worker() -> None:
+    """Start the in-process dispatcher once for the current API process."""
+    global _worker_thread, _worker_stop
+    with _worker_lock:
+        if _worker_thread is not None and _worker_thread.is_alive():
+            return
+        _worker_stop = Event()
+        _worker_thread = Thread(
+            target=run_worker_loop,
+            args=(_worker_stop,),
+            name="passbox-job-worker",
+            daemon=True,
+        )
+        _worker_thread.start()
+
+
+def stop_worker() -> None:
+    """Stop the dispatcher during API shutdown or reload."""
+    global _worker_thread, _worker_stop
+    with _worker_lock:
+        thread = _worker_thread
+        stop_event = _worker_stop
+        _worker_thread = None
+        _worker_stop = None
+    if stop_event is not None:
+        stop_event.set()
+    if thread is not None and thread.is_alive():
+        thread.join(timeout=5)

@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.db import get_session_factory
-from app.job_worker import process_document_job
 from app.models import Document, Job, Request as AnalysisRequest, User
 
 
@@ -138,7 +137,6 @@ def _reset_failed_job(job: Job, request: AnalysisRequest) -> None:
 )
 def create_job(
     payload: CreateJobRequest,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
 ):
     session_factory = get_session_factory()
@@ -182,7 +180,6 @@ def create_job(
         db.commit()
         db.refresh(job)
         db.refresh(request)
-        background_tasks.add_task(process_document_job, job.id, current_user.tenant_id)
 
         return _to_response(job, request, document)
 
@@ -245,7 +242,6 @@ def cancel_job(
 )
 def retry_job(
     job_id: int,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
 ):
     session_factory = get_session_factory()
@@ -258,5 +254,4 @@ def retry_job(
         db.commit()
         db.refresh(job)
         db.refresh(request)
-        background_tasks.add_task(process_document_job, job.id, current_user.tenant_id)
         return _to_response(job, request, document)

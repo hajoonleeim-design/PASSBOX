@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import re
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,12 +68,21 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 }
+REQUEST_ID_HEADER = "X-Request-ID"
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,100}$")
 
 
 def _apply_security_headers(response):
     for name, value in SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
     return response
+
+
+def _resolve_request_id(value: str | None) -> str:
+    candidate = (value or "").strip()
+    if REQUEST_ID_PATTERN.fullmatch(candidate):
+        return candidate
+    return uuid4().hex
 
 
 @asynccontextmanager
@@ -108,6 +119,15 @@ app.add_middleware(
 async def security_headers_middleware(request, call_next):
     response = await call_next(request)
     return _apply_security_headers(response)
+
+
+@app.middleware("http")
+async def request_id_middleware(request, call_next):
+    request_id = _resolve_request_id(request.headers.get(REQUEST_ID_HEADER))
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers[REQUEST_ID_HEADER] = request_id
+    return response
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(approvals_router, prefix="/api/v1")

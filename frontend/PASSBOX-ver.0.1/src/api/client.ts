@@ -4,6 +4,7 @@ export interface ApiError {
   status?: number
   message: string
   code?: string
+  requestId?: string
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -40,6 +41,7 @@ apiClient.interceptors.response.use(
     const apiError: ApiError = {
       status: error.response?.status,
       code: error.response?.data?.code,
+      requestId: error.response?.headers?.['x-request-id'],
       message: error.response?.data?.message ?? error.response?.data?.detail ?? (error.request ? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.' : '요청을 처리하지 못했습니다.'),
     }
     return Promise.reject(apiError)

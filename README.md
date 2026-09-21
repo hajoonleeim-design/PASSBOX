@@ -28,6 +28,8 @@ cd backend
 
 API responses include baseline browser security headers such as `nosniff`, `DENY` framing, a strict referrer policy, and a restricted permissions policy.
 
+Every API response also includes `X-Request-ID`. Support requests can include this value to correlate a frontend error with server logs.
+
 Swagger: `http://127.0.0.1:8000/docs`
 
 Every push and pull request to `main` runs backend compilation/tests and frontend lint/build through GitHub Actions.

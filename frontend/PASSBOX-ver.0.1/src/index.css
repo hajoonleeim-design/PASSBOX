@@ -998,3 +998,21 @@ textarea.form-control { min-height: 96px; resize: vertical; line-height: 1.65; }
   .stepper__item span:not(.stepper__marker) { font-size: 12px; }
   .toast-anchor { right: 14px; bottom: 14px; left: 14px; max-width: none; }
 }
+
+/* Korean product copy should read as labels, not terminal output. */
+.story-intro__system-line,
+.story-visual__topline,
+.story-visual__footer { letter-spacing: .04em; }
+.story-intro__terminal span,
+.story-intro__terminal strong,
+.story-intro__terminal b,
+.visual-inference-chip strong,
+.visual-inference-chip small,
+.visual-inference-node span,
+.visual-inference-node small,
+.visual-request span,
+.visual-request strong,
+.visual-request small,
+.visual-gate span,
+.visual-gate small,
+.visual-route-tag { font-family: inherit; letter-spacing: .02em; }

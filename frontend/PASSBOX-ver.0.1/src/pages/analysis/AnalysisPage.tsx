@@ -172,7 +172,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
     <Card className="classification-card">
       <div className="page-title-row">
         <div>
-          <p className="eyebrow">AI CLASSIFICATION</p>
+          <p className="eyebrow">보안등급 분류</p>
           <h2>보안등급 추천 및 최종 확정</h2>
         </div>
         {decision && <StatusBadge label="완료" />}
@@ -276,7 +276,7 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
     <Card className="gateway-card">
       <div className="page-title-row">
         <div>
-          <p className="eyebrow">LLM GATEWAY</p>
+          <p className="eyebrow">외부 AI 전송</p>
           <h2>정책 통과 문서 전송</h2>
         </div>
         {result && <StatusBadge label={result.status === 'COMPLETED' ? '완료' : result.status === 'BLOCKED' ? '차단' : result.status === 'WAITING_APPROVAL' ? '승인대기' : result.status === 'FAILED' ? '실패' : '전송'} />}
@@ -398,15 +398,15 @@ export function AnalysisPage() {
   ].includes(status)
   return (
     <section aria-live="polite">
-      <p className="eyebrow">ASYNC ANALYSIS JOB</p>
+      <p className="eyebrow">문서 분석 작업</p>
       <div className="page-title-row">
         <div><h1>문서 분석</h1><p>Job ID를 기준으로 현재 처리 상태를 다시 조회합니다.</p></div>
         <StatusBadge label={statuses[status]} />
       </div>
       {networkError && <div className="section-gap"><Alert variant="warning" title="상태 조회 지연">{networkError}<div className="alert-action"><Button size="sm" variant="secondary" onClick={() => void refresh()}>다시 조회</Button></div></Alert></div>}
       <div className="analysis-grid">
-        <Card><div className="job-id-row"><div><p className="eyebrow">JOB ID</p><code>{job.jobId}</code></div><Button size="sm" variant="ghost" onClick={() => void copyJobId()}>복사</Button></div><dl className="info-list"><div><dt>파일</dt><dd>{job.file.fileName}</dd></div><div><dt>현재 상태</dt><dd><StatusBadge label={statuses[status]} /></dd></div><div><dt>생성 시각</dt><dd>{formatDate(job.createdAt)}</dd></div><div><dt>마지막 업데이트</dt><dd>{formatDate(job.updatedAt)}</dd></div></dl></Card>
-        <Card><p className="eyebrow">PROGRESS</p><div className="progress-value">{job.progress}%</div><div className="progress-bar" role="progressbar" aria-label="분석 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={job.progress}><span style={{ width: `${job.progress}%` }} /></div><p>{terminal ? '처리가 종료되었습니다.' : `${job.currentStep} 단계를 처리 중입니다.`}</p></Card>
+        <Card><div className="job-id-row"><div><p className="eyebrow">작업 ID</p><code>{job.jobId}</code></div><Button size="sm" variant="ghost" onClick={() => void copyJobId()}>복사</Button></div><dl className="info-list"><div><dt>파일</dt><dd>{job.file.fileName}</dd></div><div><dt>현재 상태</dt><dd><StatusBadge label={statuses[status]} /></dd></div><div><dt>생성 시각</dt><dd>{formatDate(job.createdAt)}</dd></div><div><dt>마지막 업데이트</dt><dd>{formatDate(job.updatedAt)}</dd></div></dl></Card>
+        <Card><p className="eyebrow">진행률</p><div className="progress-value">{job.progress}%</div><div className="progress-bar" role="progressbar" aria-label="분석 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={job.progress}><span style={{ width: `${job.progress}%` }} /></div><p>{terminal ? '처리가 종료되었습니다.' : `${job.currentStep} 단계를 처리 중입니다.`}</p></Card>
       </div>
       <Card className="analysis-step-card"><h2>분석 단계</h2><Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} /></Card>
       {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}

@@ -159,7 +159,7 @@ export function UploadPage() {
   ]
 
   return <section>
-    <p className="eyebrow">DOCUMENT SECURITY CHECK</p>
+    <p className="eyebrow">파일 보안 검사</p>
     <h1>문서 업로드</h1>
     <p>문서를 추가하면 서버 정책에 따라 파일 signature, MIME, 확장자, 크기, 무결성을 검증합니다.</p>
     <div className="upload-layout">

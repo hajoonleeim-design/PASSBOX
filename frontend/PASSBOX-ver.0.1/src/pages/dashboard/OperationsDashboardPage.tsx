@@ -63,7 +63,7 @@ export function OperationsDashboardPage() {
   const csoTotal = dashboard.csoDistribution.reduce((total, item) => total + item.count, 0)
 
   return <section className="operations-dashboard">
-    <div className="page-title-row"><div><p className="eyebrow">OPERATIONS OVERVIEW</p><h1>운영 대시보드</h1><p>데이터 기준 시각: {formatDate(dashboard.generatedAt)}</p></div><Button onClick={() => void refresh()} disabled={isLoading}>{isLoading ? '새로고침 중' : '새로고침'}</Button></div>
+    <div className="page-title-row"><div><p className="eyebrow">운영 현황</p><h1>운영 대시보드</h1><p>데이터 기준 시각: {formatDate(dashboard.generatedAt)}</p></div><Button onClick={() => void refresh()} disabled={isLoading}>{isLoading ? '새로고침 중' : '새로고침'}</Button></div>
 
     <div className="operations-summary-grid">{summary.map(([label, value, description]) => <Card key={label} className="operations-kpi"><span>{label}</span><strong>{Number(value).toLocaleString()}</strong><small>{description}</small></Card>)}</div>
 
@@ -72,12 +72,12 @@ export function OperationsDashboardPage() {
       <Card><h2>처리 성능</h2><div className="performance-list"><div><span>시간당 처리량</span><strong>{dashboard.performance.throughputPerHour.toLocaleString()}건</strong></div><div><span>평균 처리시간</span><strong>{formatDuration(dashboard.performance.averageProcessingTimeMs)}</strong></div><div><span>P95 처리시간</span><strong>{formatDuration(dashboard.performance.p95ProcessingTimeMs)}</strong></div><div><span>성공률</span><strong>{dashboard.summary.successRate}%</strong><div className="metric-bar" role="progressbar" aria-label="성공률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={dashboard.summary.successRate}><span style={{ width: `${dashboard.summary.successRate}%` }} /></div></div><div><span>실패율</span><strong>{dashboard.summary.failureRate}%</strong><div className="metric-bar metric-bar--danger" role="progressbar" aria-label="실패율" aria-valuemin={0} aria-valuemax={100} aria-valuenow={dashboard.summary.failureRate}><span style={{ width: `${dashboard.summary.failureRate}%` }} /></div></div></div></Card>
     </div>
 
-    <Card className="operations-section"><h2>AI Provider 상태</h2><DataTable columns={providerColumns} rows={dashboard.providers.map((item) => ({ ...item, id: item.providerId }))} /></Card>
-    <Card className="operations-section"><h2>최근 Job</h2><DataTable columns={jobColumns} rows={dashboard.recentJobs.map((item) => ({ ...item, id: item.jobId }))} emptyMessage="현재 표시할 최근 Job이 없습니다." /></Card>
+    <Card className="operations-section"><h2>외부 AI 연결 상태</h2><DataTable columns={providerColumns} rows={dashboard.providers.map((item) => ({ ...item, id: item.providerId }))} /></Card>
+    <Card className="operations-section"><h2>최근 작업</h2><DataTable columns={jobColumns} rows={dashboard.recentJobs.map((item) => ({ ...item, id: item.jobId }))} emptyMessage="현재 표시할 최근 작업이 없습니다." /></Card>
 
     <div className="operations-layout">
       <Card><h2>C/S/O 분포</h2><div className="distribution-list">{dashboard.csoDistribution.map((item) => <div key={item.grade}><GradeBadge grade={item.grade} /><strong>{item.count.toLocaleString()}건</strong><span>{csoTotal === 0 ? 0 : ((item.count / csoTotal) * 100).toFixed(1)}%</span></div>)}</div></Card>
-      <Card><h2>Incident / 장애 현황</h2>{dashboard.incidents.length === 0 ? <EmptyState label="현재 열린 Incident가 없습니다." /> : <div className="incident-list">{dashboard.incidents.map((item) => <div key={item.incidentId} className="incident-item"><div><Badge variant={incidentVariant[item.severity]}><span aria-hidden="true">●</span> {item.severity} · {item.status}</Badge><strong>{item.incidentId}</strong></div><p>{item.summary}</p><small>발생: {formatDate(item.occurredAt)}{item.relatedJobId ? ` · 관련 Job: ${item.relatedJobId}` : ''}</small></div>)}</div>}</Card>
+      <Card><h2>장애 현황</h2>{dashboard.incidents.length === 0 ? <EmptyState label="현재 열린 장애가 없습니다." /> : <div className="incident-list">{dashboard.incidents.map((item) => <div key={item.incidentId} className="incident-item"><div><Badge variant={incidentVariant[item.severity]}><span aria-hidden="true">●</span> {item.severity} · {item.status}</Badge><strong>{item.incidentId}</strong></div><p>{item.summary}</p><small>발생: {formatDate(item.occurredAt)}{item.relatedJobId ? ` · 관련 작업: ${item.relatedJobId}` : ''}</small></div>)}</div>}</Card>
     </div>
     {dashboard.providers.some((item) => item.status === 'DOWN') && <div className="section-gap"><Alert variant="danger" title="Provider 장애 감지">Provider 상태를 확인할 수 없습니다. 이 화면은 현황 조회 전용이며 실제 장애 조치는 운영 절차에 따라 수행해야 합니다.</Alert></div>}
   </section>

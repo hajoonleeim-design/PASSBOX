@@ -70,8 +70,8 @@ export function ApprovalPage() {
     <section className="approval-page" aria-live="polite">
       <div className="page-title-row">
         <div>
-          <p className="eyebrow">OUTBOUND APPROVALS</p>
-          <h1>S등급 Gateway 승인</h1>
+          <p className="eyebrow">외부 전송 승인</p>
+          <h1>S등급 외부 전송 승인</h1>
           <p>민감정보가 포함된 문서의 외부 AI 전송 요청을 검토하고 처리합니다.</p>
         </div>
         <Button variant="secondary" onClick={() => void loadApprovals()} disabled={isLoading}>
@@ -98,7 +98,7 @@ export function ApprovalPage() {
             <Card className="approval-card" key={item.approvalId}>
               <div className="page-title-row">
                 <div>
-                  <p className="eyebrow">APPROVAL REQUEST #{item.approvalId}</p>
+                  <p className="eyebrow">승인 요청 #{item.approvalId}</p>
                   <h2>문서 ID {item.documentId}</h2>
                 </div>
                 <span className="badge badge--warning">승인 대기</span>

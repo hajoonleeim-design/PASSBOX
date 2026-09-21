@@ -56,7 +56,7 @@ export function AccountPage() {
   }
 
   return <section className="account-page">
-    <p className="eyebrow">ACCOUNT SECURITY</p>
+    <p className="eyebrow">계정 및 보안</p>
     <div className="page-title-row">
       <div>
         <h1>계정 보안</h1>

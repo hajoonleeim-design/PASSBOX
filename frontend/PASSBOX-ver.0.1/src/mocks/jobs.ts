@@ -32,6 +32,13 @@ export async function mockGetJob(jobId: string): Promise<AnalysisJob> {
   return clone(job)
 }
 
+export async function mockListJobs(limit = 30): Promise<AnalysisJob[]> {
+  return Array.from(jobs.values())
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, limit)
+    .map(clone)
+}
+
 export async function mockCancelJob(jobId: string): Promise<AnalysisJob> { const current = await mockGetJob(jobId); const cancelled = { ...current, status: 'CANCELLED' as const, updatedAt: now(), canCancel: false }; jobs.set(jobId, cancelled); return clone(cancelled) }
 export async function mockRetryJob(jobId: string): Promise<AnalysisJob> { const current = await mockGetJob(jobId); const retry = jobFromState(jobId, { file: current.file }); jobs.set(jobId, retry); positions.set(jobId, 0); return clone(retry) }
 // 분석 Job의 상태 변화와 취소/재시도를 브라우저 안에서 흉내 내는 가짜 구현입니다.

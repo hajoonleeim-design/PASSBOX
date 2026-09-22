@@ -9,15 +9,44 @@ const accounts: DevelopmentAccount[] = [
   { username: 'test-admin', password: 'Test1234!', displayName: '테스트 관리자', role: 'ADMIN', permissions: ['policy:read', 'policy:write', 'dashboard:read', 'audit:read', 'approval:write'] },
 ]
 
+const DEV_SESSION_KEY = 'passbox_dev_session'
+const DEV_LOGOUT_KEY = 'passbox_dev_logged_out'
+
 export async function mockLogin(credentials: LoginCredentials): Promise<UserSession> {
   await new Promise<void>((resolve) => window.setTimeout(resolve, 350))
   const account = accounts.find((item) => item.username === credentials.username && item.password === credentials.password)
   if (!account) throw new Error('사용자 ID 또는 비밀번호를 확인해 주세요.')
-  return { userId: `dev-${account.username}`, displayName: account.displayName, institutionId: 'DEV-TEST-ORG', institutionName: '테스트 기관', role: account.role, permissions: account.permissions, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() }
+  const session: UserSession = { userId: `dev-${account.username}`, displayName: account.displayName, institutionId: 'DEV-TEST-ORG', institutionName: '국가보안기술연구소', role: account.role, permissions: account.permissions, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() }
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.setItem(DEV_SESSION_KEY, JSON.stringify(session))
+    window.sessionStorage.removeItem(DEV_LOGOUT_KEY)
+  }
+  return session
 }
 
 export async function mockGetSession(): Promise<UserSession | null> {
-  return null
+  if (typeof window === 'undefined') return null
+  if (window.sessionStorage.getItem(DEV_LOGOUT_KEY) === 'true') return null
+  const saved = window.sessionStorage.getItem(DEV_SESSION_KEY)
+  if (saved) {
+    try {
+      return JSON.parse(saved) as UserSession
+    } catch {
+      // ignore
+    }
+  }
+  // 기본 데모 세션 제공 (개발 및 프리뷰 원활화)
+  const defaultSession: UserSession = {
+    userId: 'dev-test-admin',
+    displayName: '보안 관리자',
+    institutionId: 'DEV-TEST-ORG',
+    institutionName: '국가보안기술연구소',
+    role: 'ADMIN',
+    permissions: ['policy:read', 'policy:write', 'dashboard:read', 'audit:read', 'approval:write'],
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }
+  window.sessionStorage.setItem(DEV_SESSION_KEY, JSON.stringify(defaultSession))
+  return defaultSession
 }
 
 export async function mockChangePassword(input: ChangePasswordInput): Promise<void> {

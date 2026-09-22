@@ -1,7 +1,7 @@
 import type { UploadFileResult, UploadPolicyHint } from '../types/upload'
 
 export const mockUploadPolicy: UploadPolicyHint = {
-  allowedExtensions: ['HWP', 'HWPX', 'PDF', 'PPT', 'PPTX', 'XLS', 'XLSX'],
+  allowedExtensions: ['HWPX', 'PDF', 'PPTX', 'XLSX', 'MD', 'TXT'],
   maxFileSizeText: '서버 정책에 따라 제한됩니다.',
   maxFileCountText: '서버 정책에 따라 제한됩니다.',
 }

@@ -54,6 +54,15 @@ export async function getJob(jobId: string): Promise<AnalysisJob> {
   return mapJob(data)
 }
 
+export async function getRecentJobs(limit = 30): Promise<AnalysisJob[]> {
+  if (useMock) {
+    const { mockListJobs } = await import('../mocks/jobs')
+    return mockListJobs(limit)
+  }
+  const { data } = await apiClient.get<BackendJobResponse[]>('/jobs', { params: { limit } })
+  return data.map(mapJob)
+}
+
 export async function cancelJob(jobId: string): Promise<AnalysisJob> {
   if (useMock) {
     const { mockCancelJob } = await import('../mocks/jobs')

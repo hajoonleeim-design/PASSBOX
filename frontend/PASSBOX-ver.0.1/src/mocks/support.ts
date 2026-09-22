@@ -11,7 +11,7 @@ const content: SupportContent = {
     { id: 'audit', title: '감사·증적', description: 'Request ID를 기준으로 처리 이력과 메타데이터 중심의 증적을 조회합니다.' },
     { id: 'access', title: '권한 기능', description: '정책 관리와 운영 현황은 역할과 서버 권한에 따라 제공됩니다.' },
   ],
-  fileFormats: ['HWP', 'HWPX', 'PDF', 'PPT', 'PPTX', 'XLS', 'XLSX'],
+  fileFormats: ['HWPX', 'PDF', 'PPTX', 'XLSX', 'MD', 'TXT'],
   privacy: [
     { category: '개인정보', example: '가상의 사용자 식별 정보', caution: '개인을 식별할 수 있는 정보는 문의에 입력하지 마세요.' },
     { category: '인증정보', example: '비밀번호 또는 인증 토큰', caution: '비밀번호, 인증코드, 접근 토큰은 절대 공유하지 마세요.' },
@@ -22,7 +22,7 @@ const content: SupportContent = {
     { category: '기타 민감정보', example: '공개가 제한된 자료', caution: '민감할 수 있는 자료는 문의에 첨부하거나 복사하지 마세요.' },
   ],
   faqs: [
-    { id: 'file', question: '어떤 파일을 업로드할 수 있나요?', answer: 'HWP, HWPX, PDF, PPT, PPTX, XLS, XLSX 형식을 지원합니다. 실제 크기와 개수 제한은 서버 정책을 따릅니다.' },
+    { id: 'file', question: '어떤 파일을 업로드할 수 있나요?', answer: 'HWPX, PDF, PPTX, XLSX, MD, TXT 형식을 지원합니다. 실제 크기와 개수 제한은 서버 정책을 따릅니다.' },
     { id: 'time', question: '분석에는 얼마나 걸리나요?', answer: '문서 크기와 대기열 상태에 따라 달라집니다. 분석 화면에서 Job ID와 진행 단계를 확인하세요.' },
     { id: 'grade', question: 'C/S/O는 무엇인가요?', answer: 'C는 전송 차단, S는 사람의 승인 필요, O는 정책 검증 완료 상태를 뜻합니다.' },
     { id: 'approval', question: 'S등급은 왜 승인이 필요한가요?', answer: '정책상 검토가 필요한 요청이므로 APPROVER 또는 ADMIN 역할의 승인이 필요합니다.' },

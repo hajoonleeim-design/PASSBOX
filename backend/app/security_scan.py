@@ -45,10 +45,42 @@ CREDIT_CARD_PATTERN = (
 PASSPORT_KR_PATTERN = r"(?<![A-Za-z0-9])[MSRODT]\d{8}(?![A-Za-z0-9])"
 # Korean business registration number: 3-2-5 digit groups.
 BUSINESS_REG_NO_PATTERN = r"(?<!\d)\d{3}-\d{2}-\d{5}(?!\d)"
+# PROMPT_INJECTION은 "지시를 그대로 따르는 명령형 문장"만 잡도록 설계했습니다.
+# 'jailbreak'나 'DAN' 같은 단어가 보안 교육 질문("탈옥이 뭐야?")에도 등장할 수
+# 있어서, 페르소나/탈옥 관련 표현은 반드시 명령형(~해줘, act as, enable 등)과
+# 함께 나타날 때만 매칭하여 오탐(false positive)을 줄입니다.
 PROMPT_INJECTION_PATTERN = (
-    r"(?i)(?:ignore\s+(?:all\s+)?previous\s+instructions|system\s+prompt|"
-    r"reveal\s+.{0,30}prompt|jailbreak|이전\s*지시(?:사항)?\s*무시|"
-    r"시스템\s*프롬프트|프롬프트를\s*무시|비밀\s*.{0,20}지시)"
+    r"(?i)("
+    # 1. 지시 무효화 시도
+    r"ignore\s+(?:all\s+|any\s+)?(?:the\s+)?(?:previous|prior|above)\s+instructions?"
+    r"|disregard\s+(?:the\s+)?(?:above|previous|prior)\s+instructions?"
+    r"|forget\s+(?:everything|all)\s+(?:you\s+were\s+told|above)"
+    r"|이전\s*(?:지시|명령)\s*사항?\s*(?:은|는|을|를)?\s*(?:모두\s*)?무시"
+    r"|위\s*(?:내용|지시|명령)\s*(?:은|는|을|를)?\s*무시하고"
+    r"|지금까지\s*(?:의\s*)?규칙\s*(?:은|는|을|를)?\s*(?:잊어|무시)"
+    # 2. 시스템 프롬프트 탈취 시도
+    r"|(?:reveal|print|show|output|repeat)\s+.{0,30}(?:system\s+prompt|your\s+instructions)"
+    r"|repeat\s+everything\s+above"
+    r"|시스템\s*프롬프트\s*(?:를|을)?\s*(?:그대로\s*)?(?:보여|출력|알려)"
+    r"|(?:너의|당신의)\s*(?:지시사항|시스템\s*프롬프트)\s*(?:을|를)?\s*(?:알려|보여|출력)"
+    r"|위에\s*(?:적힌|있는)\s*(?:내용|지시)\s*(?:을|를)?\s*그대로\s*(?:보여|반복|출력)"
+    # 3. 탈옥/페르소나 우회 (반드시 명령형과 결합될 때만 매칭)
+    r"|(?:너는|당신은|you\s+are)\s*(?:이제|now)?\s*(?:DAN|무제한\s*AI|제약\s*없는\s*AI)"
+    r"|act\s+as\s+(?:an?\s+)?(?:unrestricted|unfiltered|jailbroken)\s+AI"
+    r"|pretend\s+(?:you\s+are|to\s+be)\s+.{0,20}(?:unrestricted|no\s+rules|DAN)"
+    r"|(?:enable|activate)\s*.{0,10}(?:developer\s+mode)"
+    r"|(?:개발자\s*모드|탈옥\s*모드|무제한\s*모드)\s*(?:을|를)?\s*(?:켜|시작해|활성화)"
+    r"|제약\s*(?:이|가)?\s*없는\s*(?:AI|인공지능)(?:처럼|인\s*것처럼)?\s*(?:행동|답변)해"
+    # 4. 권한/핑계를 이용한 안전장치 해제 시도
+    r"|as\s+the\s+system\s+administrator,?\s*override"
+    r"|관리자\s*권한으로\s*(?:안전\s*장치|필터)\s*(?:를)?\s*(?:해제|꺼)"
+    r"|(?:테스트|가상)\s*(?:목적|시나리오)(?:이니|니까)\s*.{0,15}(?:무시해도|해제해|꺼줘)"
+    # 5. 가짜 역할/구분자 주입 (일반 대화에 등장할 가능성이 거의 없는 패턴)
+    r"|<\|im_start\|>"
+    r"|\[INST\]"
+    r"|###\s*(?:system|instruction)"
+    r"|비밀\s*.{0,20}지시"
+    r")"
 )
 
 

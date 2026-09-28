@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -19,7 +20,10 @@ router = APIRouter(prefix="/chat", tags=["AI Chat"])
 
 class CreateChatRequestPayload(BaseModel):
     prompt: str = Field(min_length=1, max_length=10000)
-    provider: str = Field(default="openai", max_length=100)
+    provider: Literal["openai", "anthropic"] = Field(
+        default="openai",
+        description="요청을 처리할 LLM Gateway provider. 서버에 해당 provider의 API 키가 설정되어 있어야 합니다.",
+    )
 
 
 class PostInspectionResponse(BaseModel):
@@ -134,17 +138,38 @@ def _finish_without_external_call(
     db.refresh(chat)
 
 
+def _prompt_block_reason(categories: set[str]) -> tuple[str, str]:
+    """Pick a decision_status + human-readable reason for a blocked prompt.
+
+    PROMPT_INJECTION gets its own status and wording because it is a
+    different kind of risk than a PII/secret leak: the prompt itself is
+    trying to manipulate the AI system, not just carrying sensitive data.
+    """
+    if "PROMPT_INJECTION" in categories:
+        return (
+            "INJECTION_BLOCKED",
+            "이 프롬프트는 AI의 기존 지시사항을 무시시키거나 시스템 프롬프트를 "
+            "노출시키려는 시도로 보여 전송을 차단했습니다. 업무 질문만 입력해 주세요.",
+        )
+    joined = ", ".join(sorted(categories))
+    return (
+        "BLOCKED",
+        f"Prompt에서 보안 탐지 유형이 확인되어 외부 AI 전송을 차단했습니다: {joined}",
+    )
+
+
 def _process_chat(db, chat: ChatRequest, prompt: str) -> None:
     active_policy = get_active_policy_configuration(db, chat.tenant_id)
     chat.policy_version = active_policy.version
     findings = scan_text(prompt)
     if findings:
-        categories = ", ".join(sorted({finding.category for finding in findings}))
+        categories = {finding.category for finding in findings}
+        decision_status, reason = _prompt_block_reason(categories)
         _finish_without_external_call(
             db,
             chat,
-            decision_status="BLOCKED",
-            reason=f"Prompt에서 보안 탐지 유형이 확인되어 외부 AI 전송을 차단했습니다: {categories}",
+            decision_status=decision_status,
+            reason=reason,
         )
         return
 

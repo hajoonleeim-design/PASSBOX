@@ -119,6 +119,43 @@ class OperationsDashboardTests(unittest.TestCase):
     def test_p95_uses_upper_percentile_sample(self):
         self.assertEqual(_p95([100, 200, 300, 400, 500]), 400)
 
+    def test_prompt_injection_blocks_appear_as_resolved_security_incidents(self):
+        base = datetime(2026, 9, 18, 8, 0, tzinfo=UTC)
+        requests = [item(id=1, document_id=10, created_at=base, status="RECEIVED")]
+        documents = [item(id=10, original_filename="poisoned.pdf")]
+        jobs = [item(id=1, request_id=1, status="BLOCKED", created_at=base, updated_at=base)]
+        decisions = [item(id=1, document_id=10, confirmed_grade="O", created_at=base)]
+        transmissions = [
+            item(
+                id=1,
+                document_id=10,
+                provider="openai",
+                status="BLOCKED",
+                policy_decision="PROMPT_INJECTION_BLOCKED",
+                created_at=base + timedelta(minutes=1),
+                error_message="문서 본문에서 프롬프트 인젝션 시도가 탐지되어 전송을 차단했습니다.",
+            )
+        ]
+
+        dashboard = _dashboard_response(
+            requests=requests,
+            jobs=jobs,
+            documents=documents,
+            decisions=decisions,
+            transmissions=transmissions,
+            approvals=[],
+            policy=None,
+            now=base + timedelta(minutes=5),
+        )
+
+        self.assertEqual(len(dashboard.incidents), 1)
+        incident = dashboard.incidents[0]
+        self.assertEqual(incident.incidentId, "INC-INJECTION-1")
+        self.assertEqual(incident.severity, "MEDIUM")
+        self.assertEqual(incident.status, "RESOLVED")
+        self.assertIsNotNone(incident.resolvedAt)
+        self.assertEqual(incident.relatedJobId, "JOB-1")
+
 
 if __name__ == "__main__":
     unittest.main()

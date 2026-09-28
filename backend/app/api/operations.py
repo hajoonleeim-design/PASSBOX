@@ -363,25 +363,47 @@ def _dashboard_response(
         for job in jobs
         if (request := request_by_id.get(job.request_id)) is not None
     }
-    incidents = [
+
+    def _related_job_id(transmission: GatewayTransmission) -> str | None:
+        job = job_by_document.get(transmission.document_id)
+        return f"JOB-{job.id}" if job is not None else None
+
+    failure_incidents = [
         OperationsIncidentResponse(
             incidentId=f"INC-TRANSMISSION-{transmission.id}",
             severity="HIGH",
             status="OPEN",
             occurredAt=transmission.created_at,
             summary=transmission.error_message or "Gateway 호출에 실패했습니다.",
-            relatedJobId=(
-                f"JOB-{job_by_document[transmission.document_id].id}"
-                if transmission.document_id in job_by_document
-                else None
-            ),
+            relatedJobId=_related_job_id(transmission),
         )
-        for transmission in sorted(
-            (item for item in transmissions if item.status == "FAILED"),
-            key=lambda item: _timestamp(item.created_at),
-            reverse=True,
-        )[:10]
+        for transmission in transmissions
+        if transmission.status == "FAILED"
     ]
+    # 프롬프트 인젝션 차단은 시스템 오류가 아니라 "탐지가 정상 동작한" 보안
+    # 이벤트이므로, 관리자가 공격 시도 이력을 따로 훑어볼 수 있도록 실패
+    # incident와 구분해 RESOLVED 상태로 표시합니다.
+    injection_incidents = [
+        OperationsIncidentResponse(
+            incidentId=f"INC-INJECTION-{transmission.id}",
+            severity="MEDIUM",
+            status="RESOLVED",
+            occurredAt=transmission.created_at,
+            summary=(
+                transmission.error_message
+                or "문서 본문에서 프롬프트 인젝션 시도가 탐지되어 전송을 차단했습니다."
+            ),
+            relatedJobId=_related_job_id(transmission),
+            resolvedAt=transmission.created_at,
+        )
+        for transmission in transmissions
+        if transmission.policy_decision == "PROMPT_INJECTION_BLOCKED"
+    ]
+    incidents = sorted(
+        failure_incidents + injection_incidents,
+        key=lambda item: _timestamp(item.occurredAt),
+        reverse=True,
+    )[:10]
 
     success_rate = round(completed / total * 100, 1) if total else 0.0
     failure_rate = round(failed / total * 100, 1) if total else 0.0

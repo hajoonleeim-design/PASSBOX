@@ -77,7 +77,7 @@ export function OperationsDashboardPage() {
 
     <div className="operations-layout">
       <Card><h2>C/S/O 분포</h2><div className="distribution-list">{dashboard.csoDistribution.map((item) => <div key={item.grade}><GradeBadge grade={item.grade} /><strong>{item.count.toLocaleString()}건</strong><span>{csoTotal === 0 ? 0 : ((item.count / csoTotal) * 100).toFixed(1)}%</span></div>)}</div></Card>
-      <Card><h2>장애 현황</h2>{dashboard.incidents.length === 0 ? <EmptyState label="현재 열린 장애가 없습니다." /> : <div className="incident-list">{dashboard.incidents.map((item) => <div key={item.incidentId} className="incident-item"><div><Badge variant={incidentVariant[item.severity]}><span aria-hidden="true">●</span> {item.severity} · {item.status}</Badge><strong>{item.incidentId}</strong></div><p>{item.summary}</p><small>발생: {formatDate(item.occurredAt)}{item.relatedJobId ? ` · 관련 작업: ${item.relatedJobId}` : ''}</small></div>)}</div>}</Card>
+      <Card><h2>장애 및 보안 이벤트</h2>{dashboard.incidents.length === 0 ? <EmptyState label="현재 열린 장애나 보안 이벤트가 없습니다." /> : <div className="incident-list">{dashboard.incidents.map((item) => <div key={item.incidentId} className="incident-item"><div><Badge variant={incidentVariant[item.severity]}><span aria-hidden="true">●</span> {item.severity} · {item.status}</Badge><strong>{item.incidentId}</strong></div><p>{item.summary}</p><small>발생: {formatDate(item.occurredAt)}{item.relatedJobId ? ` · 관련 작업: ${item.relatedJobId}` : ''}</small></div>)}</div>}</Card>
     </div>
     {dashboard.providers.some((item) => item.status === 'DOWN') && <div className="section-gap"><Alert variant="danger" title="Provider 장애 감지">Provider 상태를 확인할 수 없습니다. 이 화면은 현황 조회 전용이며 실제 장애 조치는 운영 절차에 따라 수행해야 합니다.</Alert></div>}
   </section>

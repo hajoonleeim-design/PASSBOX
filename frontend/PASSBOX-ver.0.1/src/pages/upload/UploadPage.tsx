@@ -14,7 +14,9 @@ import type { UploadDraftRow } from '../../stores/uploadDraftContext'
 import type { HashStatus, UploadFileResult, UploadPolicyHint, UploadStatus } from '../../types/upload'
 import { createId } from '../../utils/id'
 
-const acceptedExtensions = new Set(['hwpx', 'pdf', 'pptx', 'xlsx', 'md', 'txt'])
+const acceptedExtensions = new Set([
+  'hwp', 'hwpx', 'pdf', 'pptx', 'xlsx', 'docx', 'md', 'txt', 'csv', 'html', 'htm',
+])
 const statusLabels: Record<UploadStatus, StatusLabel> = {
   PENDING: '대기',
   UPLOADING: '업로드 중',

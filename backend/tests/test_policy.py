@@ -126,6 +126,21 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(decision.decision, "PROMPT_BLOCKED")
         self.assertFalse(decision.can_transmit)
 
+    def test_s_grade_is_blocked_for_credit_card_finding(self):
+        base_decision = check_outbound_policy(
+            confirmed_grade="S",
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+        decision = _apply_prompt_policy(
+            confirmed_grade="S",
+            prompt_findings=[SimpleNamespace(category="CREDIT_CARD")],
+            policy_decision=base_decision,
+        )
+
+        self.assertEqual(decision.decision, "PROMPT_BLOCKED")
+        self.assertFalse(decision.can_transmit)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -41,6 +41,18 @@ def _validate_runtime_settings(settings: Settings) -> None:
         raise RuntimeError("LOGIN_RATE_LIMIT_ATTEMPTS must be positive")
     if settings.login_rate_limit_window_seconds <= 0:
         raise RuntimeError("LOGIN_RATE_LIMIT_WINDOW_SECONDS must be positive")
+    classifier_mode = settings.classifier_mode.strip().upper()
+    if classifier_mode not in {"LOCAL_RULES", "REMOTE"}:
+        raise RuntimeError("CLASSIFIER_MODE must be LOCAL_RULES or REMOTE")
+    if settings.classifier_timeout_seconds <= 0:
+        raise RuntimeError("CLASSIFIER_TIMEOUT_SECONDS must be positive")
+    if classifier_mode == "REMOTE" and not settings.classifier_service_url.strip():
+        raise RuntimeError("CLASSIFIER_SERVICE_URL is required when CLASSIFIER_MODE=REMOTE")
+    if settings.job_worker_threads <= 0:
+        raise RuntimeError("JOB_WORKER_THREADS must be positive")
+    gateway_mode = settings.gateway_mode.strip().upper()
+    if gateway_mode not in {"MOCK", "LIVE"}:
+        raise RuntimeError("GATEWAY_MODE must be MOCK or LIVE")
 
     if environment != "production":
         return
@@ -52,10 +64,21 @@ def _validate_runtime_settings(settings: Settings) -> None:
         or settings.jwt_secret_key.strip() == "CHANGE_ME_TO_A_LONG_RANDOM_VALUE"
     ):
         raise RuntimeError("JWT_SECRET_KEY must be a strong production secret")
-    if settings.gateway_mode.strip().upper() == "MOCK":
+    if gateway_mode == "MOCK":
         raise RuntimeError("GATEWAY_MODE=MOCK is not allowed in production")
-    if settings.gateway_mode.strip().upper() == "OPENAI" and not settings.openai_api_key.strip():
-        raise RuntimeError("OPENAI_API_KEY is required when production uses OPENAI")
+    if gateway_mode == "LIVE" and not (
+        settings.openai_api_key.strip() or settings.anthropic_api_key.strip()
+    ):
+        raise RuntimeError(
+            "OPENAI_API_KEY or ANTHROPIC_API_KEY is required when GATEWAY_MODE=LIVE"
+        )
+    if classifier_mode == "REMOTE":
+        if not settings.classifier_service_url.strip().lower().startswith("https://"):
+            raise RuntimeError("CLASSIFIER_SERVICE_URL must use HTTPS in production")
+        if not settings.classifier_service_token.strip():
+            raise RuntimeError(
+                "CLASSIFIER_SERVICE_TOKEN is required in production when CLASSIFIER_MODE=REMOTE"
+            )
 
     origins = _parse_cors_origins(settings.cors_allowed_origins)
     if not origins or any(not origin.lower().startswith("https://") for origin in origins):

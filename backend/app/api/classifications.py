@@ -6,7 +6,7 @@ from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
-from app.classifier import classifier
+from app.classifier import ClassifierUnavailableError, classifier
 from app.db import get_session_factory
 from app.models import (
     ClassificationRecommendation,
@@ -142,7 +142,13 @@ def recommend_classification(
                 select(SecurityFinding).where(SecurityFinding.scan_id == scan.id)
             )
         )
-        recommendation_result = classifier.recommend(text_record.extracted_text, findings)
+        try:
+            recommendation_result = classifier.recommend(text_record.extracted_text, findings)
+        except ClassifierUnavailableError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"분류 서버를 사용할 수 없습니다. 잠시 후 다시 시도해주세요: {exc}",
+            ) from exc
         recommendation = ClassificationRecommendation(
             tenant_id=document.tenant_id,
             document_id=document.id,

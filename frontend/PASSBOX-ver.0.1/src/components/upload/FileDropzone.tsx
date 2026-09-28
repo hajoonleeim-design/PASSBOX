@@ -1,7 +1,7 @@
 import { useRef, type DragEvent } from 'react'
 import { Button } from '../common/Button'
 
-const acceptedFileTypes = '.hwpx,.pdf,.pptx,.xlsx,.md,.txt'
+const acceptedFileTypes = '.hwp,.hwpx,.pdf,.pptx,.xlsx,.docx,.md,.txt,.csv,.html,.htm'
 
 export function FileDropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)

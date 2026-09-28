@@ -19,6 +19,7 @@ router = APIRouter(prefix="/chat", tags=["AI Chat"])
 
 class CreateChatRequestPayload(BaseModel):
     prompt: str = Field(min_length=1, max_length=10000)
+    provider: str = Field(default="openai", max_length=100)
 
 
 class PostInspectionResponse(BaseModel):
@@ -243,14 +244,19 @@ def create_chat_request(
         raise HTTPException(status_code=422, detail="질문을 입력해 주세요.")
 
     settings = Settings()
-    model = settings.openai_model.strip() or "gpt-4o-mini"
+    provider = payload.provider.strip().lower() or "openai"
+    model_by_provider = {
+        "openai": settings.openai_model.strip() or "gpt-4o-mini",
+        "anthropic": settings.anthropic_model.strip() or "claude-sonnet-5",
+    }
+    model = model_by_provider.get(provider, model_by_provider["openai"])
     session_factory = get_session_factory()
     with session_factory() as db:
         policy = get_active_policy_configuration(db, current_user.tenant_id)
         chat = ChatRequest(
             tenant_id=current_user.tenant_id,
             user_id=current_user.id,
-            provider="openai",
+            provider=provider,
             model=model,
             policy_version=policy.version,
             prompt_hash=_hash_text(prompt),

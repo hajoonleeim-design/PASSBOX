@@ -40,7 +40,7 @@ def default_policy_configuration() -> PolicyConfiguration:
         },
         model_allowlist=(
             {"provider": "openai", "model_id": "gpt-4o-mini", "model_name": "gpt-4o-mini", "enabled": True},
-            {"provider": "gemini", "model_id": "*", "model_name": "*", "enabled": True},
+            {"provider": "anthropic", "model_id": "*", "model_name": "*", "enabled": True},
         ),
     )
 

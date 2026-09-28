@@ -10,7 +10,7 @@ class RuntimeConfigurationTests(unittest.TestCase):
             "app_env": "production",
             "database_url": "postgresql+psycopg://user:password@db/passbox",
             "jwt_secret_key": "x" * 64,
-            "gateway_mode": "OPENAI",
+            "gateway_mode": "LIVE",
             "openai_api_key": "sk-test-key",
             "cors_allowed_origins": "https://passbox.example",
         }
@@ -34,6 +34,21 @@ class RuntimeConfigurationTests(unittest.TestCase):
 
     def test_development_keeps_local_defaults(self):
         _validate_runtime_settings(Settings(app_env="development"))
+
+    def test_gateway_mode_must_be_mock_or_live(self):
+        with self.assertRaisesRegex(RuntimeError, "GATEWAY_MODE"):
+            _validate_runtime_settings(Settings(gateway_mode="OPENAI"))
+
+    def test_production_live_gateway_requires_at_least_one_provider_key(self):
+        with self.assertRaisesRegex(RuntimeError, "OPENAI_API_KEY or ANTHROPIC_API_KEY"):
+            _validate_runtime_settings(
+                self.production_settings(openai_api_key="", anthropic_api_key="")
+            )
+
+    def test_production_live_gateway_accepts_anthropic_key_alone(self):
+        _validate_runtime_settings(
+            self.production_settings(openai_api_key="", anthropic_api_key="sk-ant-test")
+        )
 
 
 if __name__ == "__main__":

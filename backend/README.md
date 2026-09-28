@@ -17,7 +17,7 @@ The Swagger UI is available at `http://127.0.0.1:8000/docs`.
 
 운영 현황은 `GET /api/v1/operations/dashboard`에서 조회합니다. `ADMIN` 또는 `OPERATOR` 권한이 필요하며, 현재 로그인한 기관의 요청·Job·Gateway·승인 데이터를 기준으로 집계합니다.
 
-AI 채팅은 `POST /api/v1/chat/requests`에서 시작합니다. 실제 OpenAI 호출을 사용하려면 `.env`의 `GATEWAY_MODE=OPENAI`, `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-4o-mini`를 설정한 뒤 `migrate_policy.py`를 실행하고 백엔드를 재시작합니다. 키가 없거나 잔액이 없으면 채팅 요청은 실패 상태로 기록되며, API 키는 브라우저로 전달되지 않습니다.
+AI 채팅은 `POST /api/v1/chat/requests`에서 시작합니다. 실제 OpenAI 호출을 사용하려면 `.env`의 `GATEWAY_MODE=LIVE`, `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-4o-mini`를 설정한 뒤 `migrate_policy.py`를 실행하고 백엔드를 재시작합니다. 키가 없거나 잔액이 없으면 채팅 요청은 실패 상태로 기록되며, API 키는 브라우저로 전달되지 않습니다. `GATEWAY_MODE=LIVE`는 OpenAI와 Anthropic을 함께 지원하며, `/documents/{id}/gateway/forward`에 전달하는 `provider`(`openai` 또는 `anthropic`) 값에 따라 실제로 호출되는 제공자가 정해집니다. 두 provider 모두 각자의 API 키(`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`)가 설정된 경우에만 사용할 수 있습니다.
 
 지원센터 콘텐츠는 `GET /api/v1/support/content`, 문의 접수는 `POST /api/v1/support/inquiries`, 문의 상태는 `GET /api/v1/support/inquiries/{inquiry_id}`에서 제공합니다. 문의 원문은 저장하지 않고 민감정보 탐지·해시·마스킹을 적용합니다.
 
@@ -27,6 +27,6 @@ AI 채팅은 `POST /api/v1/chat/requests`에서 시작합니다. 실제 OpenAI �
 
 C/S/O 최종 확정은 `OPERATOR`, `SECURITY_ADMIN`, `ADMIN` 역할만 수행할 수 있습니다. `USER` 역할은 추천 결과와 확정 결과 조회만 가능합니다.
 
-Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.
+Use `GATEWAY_MODE=MOCK` for local testing. Keep `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, database passwords, `.env`, uploaded files, and database dumps out of source control. Each developer uses a separate local PostgreSQL database and local `storage` directory.
 
 After approval, retryable failures can be listed with `GET /api/v1/approvals/retryable` and retried by an approval-role user with `POST /api/v1/approvals/{approval_id}/retry`. Only approvals with `APPROVED` status and a `FAILED` transmission are eligible, and the retry reuses the masked payload.

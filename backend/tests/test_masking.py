@@ -9,7 +9,7 @@ class MaskingTests(unittest.TestCase):
             "email test@example.com, phone 010-1234-5678, id 900101-1234567"
         )
 
-        self.assertEqual(MASKING_VERSION, "rules-mask-v1")
+        self.assertEqual(MASKING_VERSION, "rules-mask-v2")
         self.assertEqual(
             set(result.categories),
             {"EMAIL", "PHONE", "PERSONAL_ID"},
@@ -25,6 +25,20 @@ class MaskingTests(unittest.TestCase):
         self.assertEqual(result.masked_text, "문서 요약을 작성해 주세요.")
         self.assertEqual(result.categories, ())
         self.assertEqual(result.replacement_count, 0)
+
+    def test_masks_card_passport_and_business_registration_numbers(self):
+        result = mask_text(
+            "카드번호 4111-1111-1111-1111, 여권번호 M12345678, "
+            "사업자등록번호 123-45-67890"
+        )
+
+        self.assertEqual(
+            set(result.categories),
+            {"CREDIT_CARD", "PASSPORT_KR", "BUSINESS_REG_NO"},
+        )
+        self.assertNotIn("4111-1111-1111-1111", result.masked_text)
+        self.assertNotIn("M12345678", result.masked_text)
+        self.assertNotIn("123-45-67890", result.masked_text)
 
 
 if __name__ == "__main__":

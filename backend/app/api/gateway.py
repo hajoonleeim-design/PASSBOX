@@ -35,6 +35,7 @@ HARD_BLOCK_CATEGORIES = {
     "API_KEY",
     "ACCESS_TOKEN",
     "SECRET",
+    "CREDIT_CARD",
 }
 
 
@@ -122,7 +123,8 @@ def _to_response(
     summary="정책 통과 문서의 LLM Gateway 전달",
     description=(
         "확정 등급과 전송 정책을 검사한 후 Gateway를 호출하고, AI 답변을 Post-Inspector로 "
-        "재검사합니다. OPENAI 모드에서는 서버의 OPENAI_API_KEY만 사용하며, 키가 없으면 전송하지 않습니다."
+        "재검사합니다. LIVE 모드에서는 요청의 provider(openai 또는 anthropic)에 해당하는 "
+        "서버 측 API 키만 사용하며, 해당 provider의 키가 없으면 전송하지 않습니다."
     ),
 )
 def forward_to_gateway(

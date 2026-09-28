@@ -8,6 +8,8 @@
 !/backend/**
 !/frontend/
 !/frontend/**
+!/classifier-service/
+!/classifier-service/**
 
 # Local secrets and environment files
 **/.env
@@ -22,6 +24,15 @@ backend/*.py[cod]
 backend/**/*.py[cod]
 backend/storage/
 backend/.pytest_cache/
+
+# Classifier service (model weights are large local artifacts, never commit them)
+classifier-service/__pycache__/
+classifier-service/**/__pycache__/
+classifier-service/*.py[cod]
+classifier-service/model_out/
+classifier-service/dummy_model/
+classifier-service/*.pt
+classifier-service/*.safetensors
 
 # Frontend
 frontend/**/node_modules/

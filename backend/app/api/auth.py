@@ -16,7 +16,9 @@ from app.security import (
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(
+    description="POST /auth/login 응답의 access_token 값을 그대로 붙여넣으세요 (Bearer 접두어는 자동으로 붙습니다).",
+)
 
 
 class LoginRequest(BaseModel):

@@ -35,6 +35,18 @@ VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 
 Swagger는 `http://127.0.0.1:8000/docs`, 프론트는 Vite가 출력한 주소에서 확인합니다.
 
+### 분류 추론 서버 (선택, `CLASSIFIER_MODE=REMOTE`일 때만 필요)
+
+```powershell
+cd "C:\Users\user\Desktop\Projects\N2SF with AI\classifier-service"
+pip install -r requirements.txt
+$env:CLASSIFIER_MODEL_DIR = ".\model_out"
+$env:CLASSIFIER_AUTH_TOKEN = "<백엔드 CLASSIFIER_SERVICE_TOKEN과 동일한 값>"
+python -m uvicorn app:app --host 0.0.0.0 --port 8100
+```
+
+기본값(`CLASSIFIER_MODE=LOCAL_RULES`)에서는 이 서버가 없어도 백엔드가 정상 동작합니다. 학습된 모델(`model_out/`)이 준비되면 이 서버를 띄우고 백엔드 `.env`에 `CLASSIFIER_MODE=REMOTE`, `CLASSIFIER_SERVICE_URL=http://<주소>:8100/classify`를 설정합니다.
+
 ## 2. 배포 전 필수 설정
 
 운영 백엔드는 시작할 때 아래 조건을 검사합니다. 하나라도 빠지면 의도적으로 시작하지 않습니다.
@@ -44,6 +56,7 @@ Swagger는 `http://127.0.0.1:8000/docs`, 프론트는 Vite가 출력한 주소�
 - 32자 이상의 새 `JWT_SECRET_KEY`
 - `GATEWAY_MODE=MOCK`이 아닌 실제 Gateway 설정 (`GATEWAY_MODE=LIVE`)
 - `LIVE` 모드에서는 `OPENAI_API_KEY`/`OPENAI_MODEL`, `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` 중 최소 하나 이상을 설정 (요청의 `provider` 값에 따라 실제 호출 대상이 정해짐)
+- `CLASSIFIER_MODE=REMOTE`를 쓴다면 `CLASSIFIER_SERVICE_URL`은 반드시 `https://`, `CLASSIFIER_SERVICE_TOKEN`도 필수 (분류 서버가 평문으로 문서 원문을 주고받지 않도록)
 - `CORS_ALLOWED_ORIGINS`에 실제 프론트엔드의 HTTPS 주소만 등록
 - 운영용 `STORAGE_ROOT`와 파일 권한
 
@@ -89,7 +102,8 @@ cd backend
 저장소 내부 구현은 완료되어 있지만 아래 항목은 실제 운영 주체가 선택하고 발급해야 합니다.
 
 - SSO/조직 계정 제공자와 도메인
-- 실제 LLM Gateway와 OpenAI 결제·사용량 정책
+- 실제 LLM Gateway 결제·사용량 정책 (OpenAI, Anthropic 중 사용할 provider 및 계정)
+- 학습 완료된 C/S/O 분류 모델(`classifier-service/model_out/`) — 현재 별도 GPU 환경에서 KLUE-RoBERTa 파인튜닝 진행 중이며, 완료 전까지는 `CLASSIFIER_MODE=LOCAL_RULES`(임시 규칙 기반)로 운영
 - 운영 PostgreSQL, 파일 저장소, 백업 및 모니터링 인프라
 - HTTPS 인증서와 배포 플랫폼
 

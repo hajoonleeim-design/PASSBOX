@@ -29,6 +29,7 @@ backend/.pytest_cache/
 classifier-service/__pycache__/
 classifier-service/**/__pycache__/
 classifier-service/*.py[cod]
+classifier-service/.pytest_cache/
 classifier-service/model_out/
 classifier-service/dummy_model/
 classifier-service/*.pt

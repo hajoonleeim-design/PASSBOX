@@ -14,6 +14,11 @@ backend/app/classifier.py의 RemoteClassifierAdapter가 호출하는 계약을
 512토큰을 넘는 문서는 학습 때(chunk_corpus.py)와 동일한 방식으로 청크
 분할한 뒤, 국정원 N2SF 표 2-9(혼재 시 최고등급) 원칙에 따라 C > S > O
 순으로 가장 심각한 청크의 판정을 문서 전체 판정으로 채택한다.
+
+토크나이저(klue/roberta-base)는 항상 고정이라 즉시 로드하지만, 실제
+파인튜닝된 분류 모델(MODEL_DIR)은 첫 분류 요청이 들어올 때 지연 로드한다
+— 그래야 모델 파일이 없는 개발/CI 환경에서도 청크 분할 로직 등을
+모델 없이 테스트할 수 있다.
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+TOKENIZER_NAME = "klue/roberta-base"  # 학습 파이프라인과 항상 동일해야 함
 MODEL_DIR = os.environ.get("CLASSIFIER_MODEL_DIR", "./model_out")
 AUTH_TOKEN = os.environ.get("CLASSIFIER_AUTH_TOKEN", "").strip()
 MAX_CHUNK_TOKENS = 490
@@ -34,11 +40,17 @@ GRADE_SEVERITY = {"C": 0, "S": 1, "O": 2}
 
 app = FastAPI(title="PASSBOX Classifier Service")
 
+_tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME)
 _device = "cuda" if torch.cuda.is_available() else "cpu"
-_tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
-_model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR).to(_device)
-_model.eval()
-_id2label = _model.config.id2label
+_model = None  # 지연 로드
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        _model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR).to(_device)
+        _model.eval()
+    return _model
 
 
 class Finding(BaseModel):
@@ -81,11 +93,17 @@ def _chunk_text(text: str) -> list[str]:
 
 @torch.inference_mode()
 def _classify_chunk(chunk: str) -> tuple[str, float]:
+    model = _get_model()
     inputs = _tokenizer(chunk, truncation=True, max_length=512, return_tensors="pt").to(_device)
-    logits = _model(**inputs).logits[0]
+    logits = model(**inputs).logits[0]
     probs = torch.softmax(logits, dim=-1)
     top_id = int(torch.argmax(probs).item())
-    return _id2label[top_id], float(probs[top_id].item())
+    return model.config.id2label[top_id], float(probs[top_id].item())
+
+
+def _pick_worst(results: list[tuple[str, float]]) -> tuple[str, float]:
+    """표 2-9: 혼재 시 최고등급(C > S > O). 동률이면 확신도가 높은 쪽."""
+    return min(results, key=lambda r: (GRADE_SEVERITY[r[0]], -r[1]))
 
 
 def _check_auth(authorization: str | None) -> None:
@@ -105,7 +123,7 @@ def classify(payload: ClassifyRequest, authorization: str | None = Header(defaul
 
     chunks = _chunk_text(text)
     results = [_classify_chunk(c) for c in chunks]
-    best_grade, best_conf = min(results, key=lambda r: (GRADE_SEVERITY[r[0]], -r[1]))
+    best_grade, best_conf = _pick_worst(results)
 
     finding_note = ""
     if payload.findings:
@@ -128,4 +146,4 @@ def classify(payload: ClassifyRequest, authorization: str | None = Header(defaul
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "device": _device, "model_dir": str(MODEL_DIR)}
+    return {"status": "ok", "device": _device, "model_dir": str(MODEL_DIR), "model_loaded": _model is not None}

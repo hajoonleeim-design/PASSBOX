@@ -1,6 +1,6 @@
 import unittest
 
-from app.security_scan import scan_response_links, scan_text
+from app.security_scan import EICAR_TEST_SIGNATURE, contains_eicar_signature, scan_response_links, scan_text
 
 
 class SecurityScanTests(unittest.TestCase):
@@ -188,6 +188,19 @@ class SuspiciousLinkScanTests(unittest.TestCase):
             "SUSPICIOUS_URL",
             {finding.category for finding in scan_text("http://192.168.45.12/login 이 안전한가요?")},
         )
+
+
+class EicarSignatureTests(unittest.TestCase):
+    def test_standalone_eicar_file_is_detected(self):
+        self.assertTrue(contains_eicar_signature(EICAR_TEST_SIGNATURE))
+
+    def test_eicar_signature_embedded_in_larger_file_is_detected(self):
+        data = b"some header bytes\n" + EICAR_TEST_SIGNATURE + b"\ntrailing bytes"
+
+        self.assertTrue(contains_eicar_signature(data))
+
+    def test_ordinary_file_content_is_not_flagged(self):
+        self.assertFalse(contains_eicar_signature(b"%PDF-1.4\nordinary document content"))
 
 
 if __name__ == "__main__":

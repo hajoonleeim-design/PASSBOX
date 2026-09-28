@@ -16,6 +16,23 @@ class Finding:
     line_hint: int | None
 
 
+# EICAR 표준 안티바이러스 테스트 시그니처. 실제 악성코드가 아니라 전 세계
+# 백신 업체들이 "탐지 기능이 켜져 있는지" 자체 검증할 때 쓰는 업계 표준
+# 68바이트 문자열입니다 (https://www.eicar.org/download-anti-malware-testfile/).
+#
+# 이 시그니처만 탐지하는 것은 실제 랜섬웨어/바이러스에 대한 방어가 아닙니다.
+# "파일 업로드 -> 악성코드 검사 -> 격리/거부" 체크포인트가 실제로 배선되어
+# 동작한다는 것을 증명하는 자리 표시자이며, 운영 배포 시에는 이 위치에
+# ClamAV 같은 실제 백신 엔진을 붙여야 합니다.
+EICAR_TEST_SIGNATURE = (
+    rb"X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+)
+
+
+def contains_eicar_signature(data: bytes) -> bool:
+    return EICAR_TEST_SIGNATURE in data
+
+
 # Pattern strings are exported so app.masking can reuse the exact same
 # definitions instead of maintaining a second, drift-prone copy.
 PERSONAL_ID_PATTERN = r"(?<!\d)\d{6}[- ]?[1-4]\d{6}(?!\d)"

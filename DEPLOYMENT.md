@@ -42,8 +42,8 @@ Swagger는 `http://127.0.0.1:8000/docs`, 프론트는 Vite가 출력한 주소�
 - `APP_ENV=production`
 - 실제 PostgreSQL `DATABASE_URL`
 - 32자 이상의 새 `JWT_SECRET_KEY`
-- `GATEWAY_MODE=MOCK`이 아닌 실제 Gateway 설정
-- `GATEWAY_MODE=OPENAI`인 경우 `OPENAI_API_KEY`와 모델 설정
+- `GATEWAY_MODE=MOCK`이 아닌 실제 Gateway 설정 (`GATEWAY_MODE=LIVE`)
+- `LIVE` 모드에서는 `OPENAI_API_KEY`/`OPENAI_MODEL`, `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` 중 최소 하나 이상을 설정 (요청의 `provider` 값에 따라 실제 호출 대상이 정해짐)
 - `CORS_ALLOWED_ORIGINS`에 실제 프론트엔드의 HTTPS 주소만 등록
 - 운영용 `STORAGE_ROOT`와 파일 권한
 

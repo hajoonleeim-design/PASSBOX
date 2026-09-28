@@ -135,9 +135,9 @@ DEFAULT_MODEL_ALLOWLIST = [
     {
         "model_id": "*",
         "model_name": "*",
-        "provider": "gemini",
+        "provider": "anthropic",
         "enabled": True,
-        "description": "기관에서 허용한 Gemini 모델입니다.",
+        "description": "기관에서 허용한 Anthropic 모델입니다.",
     },
     {
         "model_id": "external-model-x",

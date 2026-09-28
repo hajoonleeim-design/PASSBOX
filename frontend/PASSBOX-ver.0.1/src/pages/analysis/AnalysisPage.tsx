@@ -17,6 +17,7 @@ import { ConfirmDialog } from '../../components/common/Modal'
 import { ErrorState, LoadingState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
 import { Toast } from '../../components/common/Toast'
+import { PermissionGuard } from '../../components/security/PermissionGuard'
 import { Stepper } from '../../components/upload/Stepper'
 import { useAuth } from '../../hooks/useAuth'
 import { isTerminalJob, useJobPolling } from '../../hooks/useJobPolling'
@@ -323,7 +324,14 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
           ) : result.status === 'WAITING_APPROVAL' ? (
             <Alert variant="warning" title="S등급 승인 대기">
               승인 요청이 등록되었습니다. 승인자가 처리한 뒤에만 Gateway 전송이 진행됩니다.
-              {result.approvalId && <div className="alert-action"><Link to="/approvals">승인 요청 화면으로 이동</Link> · Approval ID {result.approvalId}</div>}
+              {result.approvalId && (
+                <div className="alert-action">
+                  <PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>
+                    <Link to="/approvals">승인 요청 화면으로 이동</Link> ·{' '}
+                  </PermissionGuard>
+                  Approval ID {result.approvalId}
+                </div>
+              )}
             </Alert>
           ) : (
             <Alert variant="warning" title={`전송 결과: ${result.status}`}>

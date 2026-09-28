@@ -5,7 +5,7 @@ from threading import Event, Lock, Thread
 
 from sqlalchemy import select
 
-from app.classifier import classifier
+from app.classifier import ClassifierUnavailableError, classifier
 from app.db import Settings, get_session_factory
 from app.extraction import UnsupportedDocumentError, extract_document
 from app.models import (
@@ -23,7 +23,7 @@ from app.security_scan import SCANNER_VERSION, scan_text
 
 logger = getLogger(__name__)
 _worker_lock = Lock()
-_worker_thread: Thread | None = None
+_worker_threads: list[Thread] = []
 _worker_stop: Event | None = None
 
 
@@ -247,6 +247,18 @@ def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> N
             )
         except UnsupportedDocumentError as exc:
             _set_job_state(db, job, request, status="FAILED", progress=100, error_message=str(exc))
+        except ClassifierUnavailableError:
+            logger.warning(
+                "분류 서버 호출 실패로 Job을 재시도 대상으로 표시합니다: job_id=%s", job.id
+            )
+            _set_job_state(
+                db,
+                job,
+                request,
+                status="FAILED",
+                progress=100,
+                error_message="분류 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.",
+            )
         except Exception:
             _set_job_state(
                 db,
@@ -279,30 +291,42 @@ def run_worker_loop(stop_event: Event, poll_interval: float = 1.0) -> None:
 
 
 def start_worker() -> None:
-    """Start the in-process dispatcher once for the current API process."""
-    global _worker_thread, _worker_stop
+    """Start the in-process dispatcher(s) once for the current API process.
+
+    ``_claim_next_job`` reserves rows with ``SELECT ... FOR UPDATE SKIP LOCKED``,
+    so more than one dispatcher thread can safely pull from the same queue.
+    Thread count is controlled by ``JOB_WORKER_THREADS`` so a slow remote
+    classifier call does not serialize every other queued document.
+    """
+    global _worker_threads, _worker_stop
     with _worker_lock:
-        if _worker_thread is not None and _worker_thread.is_alive():
+        if any(thread.is_alive() for thread in _worker_threads):
             return
+        thread_count = max(1, Settings().job_worker_threads)
         _worker_stop = Event()
-        _worker_thread = Thread(
-            target=run_worker_loop,
-            args=(_worker_stop,),
-            name="passbox-job-worker",
-            daemon=True,
-        )
-        _worker_thread.start()
+        _worker_threads = [
+            Thread(
+                target=run_worker_loop,
+                args=(_worker_stop,),
+                name=f"passbox-job-worker-{index}",
+                daemon=True,
+            )
+            for index in range(thread_count)
+        ]
+        for thread in _worker_threads:
+            thread.start()
 
 
 def stop_worker() -> None:
-    """Stop the dispatcher during API shutdown or reload."""
-    global _worker_thread, _worker_stop
+    """Stop the dispatcher(s) during API shutdown or reload."""
+    global _worker_threads, _worker_stop
     with _worker_lock:
-        thread = _worker_thread
+        threads = _worker_threads
         stop_event = _worker_stop
-        _worker_thread = None
+        _worker_threads = []
         _worker_stop = None
     if stop_event is not None:
         stop_event.set()
-    if thread is not None and thread.is_alive():
-        thread.join(timeout=5)
+    for thread in threads:
+        if thread.is_alive():
+            thread.join(timeout=5)

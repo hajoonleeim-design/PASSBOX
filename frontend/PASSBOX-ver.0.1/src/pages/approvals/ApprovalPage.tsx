@@ -6,6 +6,7 @@ import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/StateViews'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermission } from '../../hooks/usePermission'
 import { RetryableApprovalsPanel } from '../../components/security/RetryableApprovalsPanel'
 
 const formatDate = (value: string) =>
@@ -20,6 +21,7 @@ function statusLabel(item: ApprovalItem) {
 
 export function ApprovalPage() {
   const { session } = useAuth()
+  const isApprover = usePermission(['APPROVER', 'SECURITY_ADMIN', 'ADMIN'])
   const [items, setItems] = useState<ApprovalItem[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [actingId, setActingId] = useState<number | null>(null)
@@ -28,6 +30,10 @@ export function ApprovalPage() {
   const [lastAction, setLastAction] = useState<ApprovalItem | null>(null)
 
   const loadApprovals = useCallback(async () => {
+    if (!isApprover) {
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
@@ -37,7 +43,7 @@ export function ApprovalPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [isApprover])
 
   useEffect(() => {
     void loadApprovals()
@@ -56,6 +62,24 @@ export function ApprovalPage() {
     } finally {
       setActingId(null)
     }
+  }
+
+  if (!isApprover) {
+    return (
+      <section className="approval-page" aria-live="polite">
+        <div className="page-title-row">
+          <div>
+            <p className="eyebrow">외부 전송 승인</p>
+            <h1>승인 권한이 없습니다.</h1>
+            <p>APPROVER, SECURITY_ADMIN 또는 ADMIN 권한이 있는 사용자만 접근할 수 있습니다.</p>
+          </div>
+        </div>
+        <Card className="section-gap">
+          <ErrorState label="현재 계정은 승인 권한이 없습니다. 승인 권한이 부여된 계정으로 로그인해 주세요." />
+        </Card>
+        <p className="approval-session-note">현재 로그인: {session?.displayName} · {session?.role}</p>
+      </section>
+    )
   }
 
   if (isLoading && !items) return <LoadingState label="승인 대기 요청을 불러오는 중입니다." />

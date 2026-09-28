@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import desc, select
 
@@ -182,6 +182,28 @@ def create_job(
         db.refresh(request)
 
         return _to_response(job, request, document)
+
+
+@router.get(
+    "",
+    response_model=list[JobResponse],
+    summary="최근 문서 분석 작업 목록 조회",
+)
+def list_jobs(
+    limit: int = Query(default=30, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        rows = db.execute(
+            select(Job, AnalysisRequest, Document)
+            .join(AnalysisRequest, Job.request_id == AnalysisRequest.id)
+            .join(Document, AnalysisRequest.document_id == Document.id)
+            .where(AnalysisRequest.tenant_id == current_user.tenant_id)
+            .order_by(desc(Job.created_at))
+            .limit(limit)
+        ).all()
+        return [_to_response(job, request, document) for job, request, document in rows]
 
 
 @router.get(

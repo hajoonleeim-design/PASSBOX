@@ -9,12 +9,17 @@ from sqlalchemy import select
 
 from app.api.auth import get_current_user
 from app.db import Settings, get_session_factory
+from app.extraction import UnsupportedDocumentError, decode_plain_text
 from app.models import Document, User
 
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
-ALLOWED_EXTENSIONS = {".hwp", ".hwpx", ".pdf", ".ppt", ".pptx", ".xls", ".xlsx"}
+ALLOWED_EXTENSIONS = {
+    ".hwp", ".hwpx", ".pdf", ".pptx", ".xlsx", ".docx",
+    ".md", ".txt", ".csv", ".html", ".htm",
+}
+TEXT_EXTENSIONS = {".md", ".txt", ".csv", ".html", ".htm"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 
@@ -42,14 +47,16 @@ class InspectionResponse(BaseModel):
 def _expected_format(extension: str) -> tuple[str, ...]:
     if extension == ".pdf":
         return ("PDF",)
-    if extension in {".hwp", ".ppt", ".xls"}:
-        return ("OLE",)
-    if extension in {".hwpx", ".pptx", ".xlsx"}:
+    if extension in {".hwpx", ".pptx", ".xlsx", ".docx"}:
         return ("ZIP",)
+    if extension == ".hwp":
+        return ("OLE",)
+    if extension in TEXT_EXTENSIONS:
+        return ("TEXT",)
     return ()
 
 
-def _detect_format(path: Path) -> str:
+def _detect_format(path: Path, extension: str | None = None) -> str:
     with path.open("rb") as source:
         header = source.read(8)
 
@@ -59,6 +66,13 @@ def _detect_format(path: Path) -> str:
         return "ZIP"
     if header == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
         return "OLE"
+    if extension in TEXT_EXTENSIONS:
+        try:
+            decode_plain_text(path.read_bytes())
+        except UnsupportedDocumentError:
+            pass
+        else:
+            return "TEXT"
     return "UNKNOWN"
 
 
@@ -205,7 +219,7 @@ def inspect_document(
             db.commit()
             raise HTTPException(status_code=422, detail="격리 저장 파일을 찾을 수 없습니다.")
 
-        detected_format = _detect_format(storage_path)
+        detected_format = _detect_format(storage_path, document.extension)
         actual_sha256, actual_size = _file_sha256_and_size(storage_path)
         expected_formats = _expected_format(document.extension)
 

@@ -6,6 +6,7 @@ import { HomePageRedesign } from '../pages/home/HomePageRedesign'
 import { UploadPage } from '../pages/upload/UploadPage'
 import { ChatPage } from '../pages/chat/ChatPage'
 import { AnalysisPage } from '../pages/analysis/AnalysisPage'
+import { AnalysisJobsPage } from '../pages/analysis/AnalysisJobsPage'
 import { ResultPage } from '../pages/result/ResultPage'
 import { AuditPage } from '../pages/audit/AuditPage'
 import { PolicyPage } from '../pages/policy/PolicyPage'
@@ -15,17 +16,19 @@ import { ApprovalPage } from '../pages/approvals/ApprovalPage'
 import { AccountPage } from '../pages/account/AccountPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
-// URL과 화면 컴포넌트를 연결하는 표입니다.
-// ProtectedRoute 아래의 화면은 로그인한 사용자만 들어갈 수 있습니다.
+// URL과 화면 컴포넌트를 연결하는 라우터 설정입니다.
+// 쇼룸(HomePageRedesign)은 접근성을 위해 최상위 '/'로 제공되며,
+// 보안 콘솔 내부 기능들은 ProtectedRoute를 거치도록 구성됩니다.
 const router = createBrowserRouter([
   { element: <AuthLayout />, children: [{ path: '/login', element: <LoginPage /> }] },
+  { path: '/', element: <HomePageRedesign /> },
   {
     element: <ProtectedRoute />,
     children: [{
       element: <ServiceLayout />,
       children: [
-        { path: '/', element: <HomePageRedesign /> },
         { path: '/upload', element: <UploadPage /> },
+        { path: '/analysis/recent', element: <AnalysisJobsPage /> },
         { path: '/analysis/:jobId', element: <AnalysisPage /> },
         { path: '/result/:requestId', element: <ResultPage /> },
         { path: '/chat', element: <ChatPage /> },
@@ -45,5 +48,4 @@ const router = createBrowserRouter([
   { path: '*', element: <Navigate to="/" replace /> },
 ])
 
-// 위에서 만든 라우터를 React 앱에 실제로 적용합니다.
 export function AppRouter() { return <RouterProvider router={router} /> }

@@ -1,7 +1,23 @@
 from dataclasses import dataclass
-from typing import Protocol
+import json
+import logging
+from typing import NoReturn, Protocol
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
+from app.db import Settings
 from app.models import SecurityFinding
+
+
+logger = logging.getLogger(__name__)
+
+
+class ClassifierUnavailableError(Exception):
+    """Raised when the remote classifier could not be reached or answered.
+
+    Callers must treat this as a transient failure to retry, never as a
+    signal to save a permanent recommendation.
+    """
 
 
 @dataclass(frozen=True)
@@ -59,4 +75,91 @@ class LocalClassifierAdapter:
         )
 
 
-classifier: DocumentClassifier = LocalClassifierAdapter()
+class RemoteClassifierAdapter:
+    """Call a trusted internal GPU classifier without exposing it to browsers.
+
+    On transport or response errors the adapter raises
+    ``ClassifierUnavailableError`` instead of guessing a grade, so callers can
+    retry later. It never turns a failed model call into an allow decision.
+    """
+
+    def __init__(self, settings: Settings):
+        self.url = settings.classifier_service_url.strip()
+        self.token = settings.classifier_service_token.strip()
+        self.timeout = settings.classifier_timeout_seconds
+        self.model_version = settings.classifier_model.strip() or "remote-classifier"
+        self.policy_version = settings.classifier_policy_version.strip() or "unknown"
+
+    def recommend(
+        self, text: str, findings: list[SecurityFinding]
+    ) -> ClassificationRecommendation:
+        if not self.url:
+            self._unavailable("분류 서버 주소가 설정되지 않았습니다.")
+
+        payload = {
+            "text": text,
+            "findings": [
+                {
+                    "category": finding.category,
+                    "severity": finding.severity,
+                    "match_count": finding.match_count,
+                    "line_hint": finding.line_hint,
+                }
+                for finding in findings
+            ],
+            "policy_version": self.policy_version,
+        }
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
+        request = urllib_request.Request(
+            self.url,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib_request.urlopen(request, timeout=self.timeout) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except (OSError, TimeoutError, urllib_error.URLError, json.JSONDecodeError) as exc:
+            self._unavailable(f"분류 서버 응답을 확인하지 못했습니다: {exc}")
+
+        if not isinstance(body, dict):
+            self._unavailable("분류 서버 응답 형식이 올바르지 않습니다.")
+
+        grade = body.get("recommended_grade")
+        if grade not in {None, "C", "S", "O"}:
+            self._unavailable(f"분류 서버가 올바르지 않은 등급을 반환했습니다: {grade!r}")
+
+        confidence = body.get("confidence")
+        if not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+            confidence = None
+
+        reason = str(body.get("reason") or "담당자의 최종 검토가 필요합니다.")[:1000]
+        status = str(body.get("status") or ("PROVISIONAL" if grade else "REVIEW_REQUIRED"))
+        model_version = str(body.get("model_version") or self.model_version)[:120]
+        return ClassificationRecommendation(
+            recommended_grade=grade,
+            confidence=float(confidence) if confidence is not None else None,
+            reason=reason,
+            model_version=model_version,
+            status=status,
+        )
+
+    def _unavailable(self, reason: str) -> NoReturn:
+        logger.warning("원격 분류 서버 호출 실패: %s", reason)
+        raise ClassifierUnavailableError(reason)
+
+
+def build_classifier(settings: Settings | None = None) -> DocumentClassifier:
+    runtime_settings = settings or Settings()
+    if runtime_settings.classifier_mode.strip().upper() == "REMOTE":
+        return RemoteClassifierAdapter(runtime_settings)
+    return LocalClassifierAdapter()
+
+
+classifier: DocumentClassifier = build_classifier()

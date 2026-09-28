@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     gateway_mode: str = "MOCK"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-5"
+    classifier_mode: str = "LOCAL_RULES"
+    classifier_service_url: str = ""
+    classifier_service_token: str = ""
+    classifier_timeout_seconds: float = 10.0
+    classifier_model: str = "passbox-classifier-v0"
+    classifier_policy_version: str = "LOCAL-TEMPLATE-v1"
+    job_worker_threads: int = 1
     jwt_access_token_minutes: int = 60
     login_rate_limit_attempts: int = 5
     login_rate_limit_window_seconds: int = 60

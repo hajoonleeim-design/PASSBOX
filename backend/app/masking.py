@@ -1,8 +1,21 @@
 import re
 from dataclasses import dataclass
 
+from app.security_scan import (
+    ACCESS_TOKEN_PATTERN,
+    API_KEY_PATTERN,
+    BUSINESS_REG_NO_PATTERN,
+    CREDIT_CARD_PATTERN,
+    EMAIL_PATTERN,
+    PASSPORT_KR_PATTERN,
+    PERSONAL_ID_PATTERN,
+    PHONE_PATTERN,
+    PRIVATE_KEY_PATTERN,
+    SECRET_PATTERN,
+)
 
-MASKING_VERSION = "rules-mask-v1"
+
+MASKING_VERSION = "rules-mask-v2"
 
 
 @dataclass(frozen=True)
@@ -12,30 +25,25 @@ class MaskingResult:
     replacement_count: int
 
 
-# 순서는 SECRET 표현식을 먼저 처리해 API 키 값이 다시 부분 매칭되지 않도록 합니다.
+# Patterns are shared with app.security_scan so a category detected by the
+# scanner is guaranteed to also be masked here (kept as one source of truth).
+# Order matters here (unlike the scanner, which never rewrites the text):
+# SECRET runs before API_KEY/CREDIT_CARD so a "api_key: sk-..." style match
+# is masked as one SECRET span instead of leaving a partial key behind.
 _MASK_RULES: tuple[tuple[str, str], ...] = (
     (
         "PRIVATE_KEY",
         r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
     ),
-    (
-        "SECRET",
-        r"(?i)\b(?:api[_ -]?key|access[_ -]?token|client[_ -]?secret|secret|password)\s*[:=]\s*[^\s,;]{8,}",
-    ),
-    (
-        "API_KEY",
-        r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16})(?![A-Za-z0-9])",
-    ),
-    (
-        "ACCESS_TOKEN",
-        r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?![A-Za-z0-9_-])",
-    ),
-    ("PERSONAL_ID", r"(?<!\d)\d{6}[- ]?[1-4]\d{6}(?!\d)"),
-    ("PHONE", r"(?<!\d)01[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)"),
-    (
-        "EMAIL",
-        r"(?i)(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.-])",
-    ),
+    ("SECRET", SECRET_PATTERN),
+    ("API_KEY", API_KEY_PATTERN),
+    ("ACCESS_TOKEN", ACCESS_TOKEN_PATTERN),
+    ("CREDIT_CARD", CREDIT_CARD_PATTERN),
+    ("PASSPORT_KR", PASSPORT_KR_PATTERN),
+    ("BUSINESS_REG_NO", BUSINESS_REG_NO_PATTERN),
+    ("PERSONAL_ID", PERSONAL_ID_PATTERN),
+    ("PHONE", PHONE_PATTERN),
+    ("EMAIL", EMAIL_PATTERN),
 )
 
 

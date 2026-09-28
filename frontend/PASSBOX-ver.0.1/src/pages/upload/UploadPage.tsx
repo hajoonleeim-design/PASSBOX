@@ -9,21 +9,14 @@ import { DataTable, type DataTableColumn } from '../../components/common/DataTab
 import { EmptyState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
 import { FileDropzone } from '../../components/upload/FileDropzone'
+import { useUploadDraft } from '../../stores/useUploadDraft'
+import type { UploadDraftRow } from '../../stores/uploadDraftContext'
 import type { HashStatus, UploadFileResult, UploadPolicyHint, UploadStatus } from '../../types/upload'
 import { createId } from '../../utils/id'
 
-interface UploadRow {
-  id: string
-  file: File
-  extension: string
-  documentId?: number
-  uploadStatus: UploadStatus
-  validationStatus: UploadStatus
-  hashStatus: HashStatus
-  message?: string
-}
-
-const acceptedExtensions = new Set(['hwp', 'hwpx', 'pdf', 'ppt', 'pptx', 'xls', 'xlsx'])
+const acceptedExtensions = new Set([
+  'hwp', 'hwpx', 'pdf', 'pptx', 'xlsx', 'docx', 'md', 'txt', 'csv', 'html', 'htm',
+])
 const statusLabels: Record<UploadStatus, StatusLabel> = {
   PENDING: '대기',
   UPLOADING: '업로드 중',
@@ -43,7 +36,7 @@ const formatSize = (size: number) => `${(size / 1024 / 1024).toFixed(size < 1024
 const extensionOf = (file: File) => file.name.split('.').pop()?.toLowerCase() ?? ''
 
 export function UploadPage() {
-  const [files, setFiles] = useState<UploadRow[]>([])
+  const { files, setFiles } = useUploadDraft()
   const [error, setError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [policyHint, setPolicyHint] = useState<UploadPolicyHint>({
@@ -59,7 +52,7 @@ export function UploadPage() {
 
   function addFiles(selected: File[]) {
     setError('')
-    const next = selected.map((file): UploadRow => {
+    const next = selected.map((file): UploadDraftRow => {
       const extension = extensionOf(file)
       const allowed = acceptedExtensions.has(extension)
       return {
@@ -78,11 +71,11 @@ export function UploadPage() {
     }
   }
 
-  function updateFile(id: string, patch: Partial<UploadRow>) {
+  function updateFile(id: string, patch: Partial<UploadDraftRow>) {
     setFiles((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item))
   }
 
-  async function uploadOne(item: UploadRow) {
+  async function uploadOne(item: UploadDraftRow) {
     updateFile(item.id, {
       uploadStatus: 'UPLOADING',
       validationStatus: 'VALIDATING',
@@ -120,7 +113,7 @@ export function UploadPage() {
     setIsUploading(false)
   }
 
-  async function startAnalysis(item: UploadRow) {
+  async function startAnalysis(item: UploadDraftRow) {
     if (!item.documentId) {
       setError('서버 문서 ID가 없습니다. 파일을 먼저 검증해 주세요.')
       return
@@ -137,7 +130,7 @@ export function UploadPage() {
     }
   }
 
-  const columns: DataTableColumn<UploadRow>[] = [
+  const columns: DataTableColumn<UploadDraftRow>[] = [
     {
       key: 'name',
       header: '파일명',

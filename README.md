@@ -11,6 +11,7 @@ For a visual team handoff summary, open [docs/index.html](docs/index.html) or th
 ```text
 frontend/PASSBOX-ver.0.1/   React + Vite frontend
 backend/                    FastAPI + PostgreSQL backend
+classifier-service/         KLUE-RoBERTa C/S/O 분류 추론 서버 (FastAPI)
 ```
 
 ## Local development
@@ -59,6 +60,15 @@ npm install
 npm run dev
 ```
 
+### Classifier service (optional, `CLASSIFIER_MODE=REMOTE` only)
+
+1. Install `classifier-service/requirements.txt`.
+2. Place the fine-tuned KLUE-RoBERTa model in `classifier-service/model_out/`.
+3. Start it: `python -m uvicorn app:app --host 0.0.0.0 --port 8100` (from `classifier-service/`).
+4. Point the backend at it: set `CLASSIFIER_MODE=REMOTE`, `CLASSIFIER_SERVICE_URL=http://127.0.0.1:8100/classify`, and matching `CLASSIFIER_SERVICE_TOKEN` / `CLASSIFIER_AUTH_TOKEN` values in `backend/.env`.
+
+See `classifier-service/README.md` for details. Backend defaults to `CLASSIFIER_MODE=LOCAL_RULES`, so this service is not required for local development.
+
 ## What is not shared
 
-Do not commit API keys, database passwords, JWT secrets, `.env` files, uploaded documents, database dumps, `storage`, virtual environments, or `node_modules`. Each teammate creates their own local environment and database.
+Do not commit API keys, database passwords, JWT secrets, `.env` files, uploaded documents, database dumps, `storage`, virtual environments, `node_modules`, or trained model weights (`classifier-service/model_out/`). Each teammate creates their own local environment and database.

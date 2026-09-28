@@ -7,6 +7,7 @@ from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.api.jobs import _update_latest_job_for_document
+from app.audit_chain import append_audit_entry
 from app.db import get_session_factory
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.masking import MASKING_VERSION, mask_text
@@ -224,6 +225,19 @@ def forward_to_gateway(
         )
         db.add(transmission)
         db.flush()
+        append_audit_entry(
+            db,
+            tenant_id=document.tenant_id,
+            event_type="GATEWAY_FORWARD_DECIDED",
+            payload={
+                "document_id": document.id,
+                "transmission_id": transmission.id,
+                "provider": transmission.provider,
+                "confirmed_grade": classification.confirmed_grade,
+                "policy_decision": policy_decision.decision,
+                "requested_by": current_user.id,
+            },
+        )
 
         if policy_decision.decision in {"BLOCKED", "PROMPT_BLOCKED", "PROMPT_INJECTION_BLOCKED"}:
             _update_latest_job_for_document(

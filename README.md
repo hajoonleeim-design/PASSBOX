@@ -20,7 +20,7 @@ classifier-service/         KLUE-RoBERTa C/S/O 분류 추론 서버 (FastAPI)
 
 1. Create `backend/.venv` and install `backend/requirements.txt`.
 2. Copy `backend/.env.example` to `backend/.env` and fill in local PostgreSQL and JWT settings. Keep `APP_ENV=development` locally. `JWT_ACCESS_TOKEN_MINUTES` defaults to 60, `LOGIN_RATE_LIMIT_ATTEMPTS`/`LOGIN_RATE_LIMIT_WINDOW_SECONDS` control failed-login throttling, and `CORS_ALLOWED_ORIGINS` contains the comma-separated trusted frontend origins.
-3. Run `backend/create_tables.py`. For an existing database, run `backend/migrate_policy.py` once to add policy management tables.
+3. Run `backend/create_tables.py`. For an existing database, run `backend/migrate_policy.py` once to add policy management tables, and `backend/migrate_audit_chain.py` once to add the tamper-evident audit log table.
 4. Run `backend/seed_demo_user.py` to create a local user.
 5. Start the API:
 

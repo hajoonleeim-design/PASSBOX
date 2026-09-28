@@ -364,3 +364,30 @@ class SecurityPolicyHistory(Base):
     changed_fields: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     before_value: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     after_value: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class AuditLogEntry(Base):
+    """Append-only, hash-chained audit log.
+
+    Each row's record_hash covers its own fields plus the previous row's
+    record_hash (per tenant), so altering or deleting any past row breaks
+    the chain from that point on -- this is what makes the log tamper
+    *evident*, not just tamper-logged. See app/audit_chain.py.
+    """
+
+    __tablename__ = "audit_log_entries"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "sequence", name="uq_audit_log_tenant_sequence"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    sequence: Mapped[int] = mapped_column(nullable=False)
+    request_id: Mapped[int | None] = mapped_column(nullable=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    previous_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    record_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)

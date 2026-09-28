@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from sqlalchemy import desc, select
 
 from app.api.auth import require_roles
+from app.audit_chain import verify_chain
 from app.db import get_session_factory
 from app.models import (
+    AuditLogEntry,
     ClassificationDecision,
     Document,
     GatewayTransmission,
@@ -504,4 +506,40 @@ def get_operations_dashboard(
             approvals=approvals,
             policy=policy,
             now=datetime.now(timezone.utc),
+        )
+
+
+class AuditChainVerificationResponse(BaseModel):
+    valid: bool
+    checkedCount: int
+    brokenAtSequence: int | None = None
+    reason: str | None = None
+
+
+@router.get(
+    "/audit-chain/verify",
+    response_model=AuditChainVerificationResponse,
+    summary="감사 로그 해시 체인 무결성 검증",
+    description=(
+        "테넌트의 전체 감사 로그를 처음부터 다시 해시로 재계산해 위변조 여부를 "
+        "확인합니다. 어느 한 행이라도 수정, 삭제, 순서 변경되면 그 지점부터 "
+        "체인이 끊어진 것으로 탐지됩니다."
+    ),
+)
+def verify_audit_chain(
+    current_user: User = Depends(require_roles("SECURITY_ADMIN", "ADMIN")),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        entries = list(
+            db.scalars(
+                select(AuditLogEntry).where(AuditLogEntry.tenant_id == current_user.tenant_id)
+            ).all()
+        )
+        result = verify_chain(entries)
+        return AuditChainVerificationResponse(
+            valid=result.valid,
+            checkedCount=result.checked_count,
+            brokenAtSequence=result.broken_at_sequence,
+            reason=result.reason,
         )

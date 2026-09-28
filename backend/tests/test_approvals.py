@@ -6,11 +6,17 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.approvals import _allowed_approval_roles
-from app.api.approvals import retry_approved_request, retryable_approvals
+from app.api.approvals import (
+    ApprovalDecisionRequest,
+    _allowed_approval_roles,
+    reject_request,
+    retry_approved_request,
+    retryable_approvals,
+)
 from app.db import Base
 from app.gateway import GatewayConfigurationError
 from app.models import (
+    AuditLogEntry,
     Document,
     GatewayTransmission,
     Job,
@@ -192,6 +198,97 @@ class ApprovalRetryTests(unittest.TestCase):
             self.assertEqual(approval.status, "APPROVED")
             self.assertEqual(transmission.status, "FAILED")
             self.assertEqual(job.status, "FAILED")
+
+
+class ApprovalAuditChainTests(unittest.TestCase):
+    def setUp(self):
+        self.engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+
+    def tearDown(self):
+        self.engine.dispose()
+
+    def _seed_pending_approval(self):
+        with self.Session() as db:
+            tenant = Tenant(name="Audit Chain Tenant")
+            db.add(tenant)
+            db.flush()
+            user = User(
+                tenant_id=tenant.id,
+                username="chain.approver",
+                display_name="Chain Approver",
+                password_hash="unused",
+                role="APPROVER",
+            )
+            db.add(user)
+            db.flush()
+            document = Document(
+                tenant_id=tenant.id,
+                uploaded_by=user.id,
+                original_filename="safe.pdf",
+                storage_key="safe.pdf",
+                extension=".pdf",
+                mime_type="application/pdf",
+                size_bytes=10,
+                sha256="a" * 64,
+                status="READY_FOR_PARSING",
+            )
+            db.add(document)
+            db.flush()
+            transmission = GatewayTransmission(
+                tenant_id=tenant.id,
+                document_id=document.id,
+                user_id=user.id,
+                provider="openai",
+                model="gpt-4o-mini",
+                payload_hash="b" * 64,
+                policy_version="LOCAL-TEMPLATE-v1",
+                confirmed_grade="S",
+                policy_decision="APPROVAL_REQUIRED",
+                status="WAITING_APPROVAL",
+            )
+            db.add(transmission)
+            db.flush()
+            approval = OutboundApproval(
+                tenant_id=tenant.id,
+                document_id=document.id,
+                requested_by=user.id,
+                gateway_transmission_id=transmission.id,
+                provider="openai",
+                model="gpt-4o-mini",
+                payload_hash="b" * 64,
+                masked_payload_hash="c" * 64,
+                masked_payload="masked payload only",
+                masking_version="rules-mask-v1",
+                masking_categories="EMAIL",
+                status="PENDING",
+            )
+            db.add(approval)
+            db.commit()
+            return approval.id, user.id, tenant.id
+
+    def test_reject_decision_appends_a_hash_chained_audit_entry(self):
+        approval_id, user_id, tenant_id = self._seed_pending_approval()
+        with self.Session() as db:
+            user = db.get(User, user_id)
+        with patch("app.api.approvals.get_session_factory", return_value=self.Session):
+            reject_request(approval_id, ApprovalDecisionRequest(comment="정책 위반"), user)
+
+        with self.Session() as db:
+            entries = list(
+                db.scalars(select(AuditLogEntry).where(AuditLogEntry.tenant_id == tenant_id))
+            )
+            self.assertEqual(len(entries), 1)
+            entry = entries[0]
+            self.assertEqual(entry.event_type, "APPROVAL_DECIDED")
+            self.assertEqual(entry.sequence, 1)
+            self.assertEqual(entry.payload["decision"], "REJECTED")
+            self.assertEqual(entry.payload["approval_id"], approval_id)
 
 
 if __name__ == "__main__":

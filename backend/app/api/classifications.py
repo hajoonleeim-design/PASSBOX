@@ -6,6 +6,7 @@ from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
+from app.audit_chain import append_audit_entry
 from app.classifier import ClassifierUnavailableError, classifier
 from app.db import get_session_factory
 from app.models import (
@@ -272,6 +273,18 @@ def confirm_classification(
             comment=payload.comment,
         )
         db.add(decision)
+        db.flush()
+        append_audit_entry(
+            db,
+            tenant_id=document.tenant_id,
+            event_type="CLASSIFICATION_CONFIRMED",
+            payload={
+                "document_id": document.id,
+                "confirmed_grade": decision.confirmed_grade,
+                "confirmed_by": current_user.id,
+                "recommendation_id": recommendation.id,
+            },
+        )
         document.status = "CLASSIFICATION_CONFIRMED"
         _update_latest_job_for_document(
             db,

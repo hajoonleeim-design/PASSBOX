@@ -1,6 +1,6 @@
 import unittest
 
-from app.security_scan import scan_text
+from app.security_scan import scan_response_links, scan_text
 
 
 class SecurityScanTests(unittest.TestCase):
@@ -131,6 +131,62 @@ class PromptInjectionScanTests(unittest.TestCase):
         self.assertNotIn(
             "PROMPT_INJECTION",
             self._categories("관리자 권한 신청 절차가 어떻게 되나요?"),
+        )
+
+
+class SuspiciousLinkScanTests(unittest.TestCase):
+    """scan_response_links() only runs on AI responses (see post_inspector.py),
+    so these test that function directly rather than scan_text()."""
+
+    def _categories(self, text: str) -> set[str]:
+        return {finding.category for finding in scan_response_links(text)}
+
+    # --- 공격 예시: 반드시 탐지되어야 함 ---
+
+    def test_raw_ip_url_is_detected(self):
+        self.assertIn(
+            "SUSPICIOUS_URL",
+            self._categories("자세한 내용은 http://192.168.45.12/login 에서 확인하세요."),
+        )
+
+    def test_known_url_shortener_is_detected(self):
+        self.assertIn(
+            "SUSPICIOUS_URL",
+            self._categories("자료는 여기 https://bit.ly/3xAmPle 에서 받으세요."),
+        )
+
+    def test_punycode_homograph_domain_is_detected(self):
+        self.assertIn(
+            "SUSPICIOUS_URL",
+            self._categories("로그인은 https://xn--80ak6aa92e.com/login 에서 하세요."),
+        )
+
+    def test_direct_executable_download_link_is_detected(self):
+        self.assertIn(
+            "SUSPICIOUS_URL",
+            self._categories("업데이트 파일은 https://files.example-update.com/patch.exe 입니다."),
+        )
+
+    # --- 함정 케이스: 평범한 링크는 걸리면 안 됨 ---
+
+    def test_ordinary_https_domain_link_does_not_trigger(self):
+        self.assertNotIn(
+            "SUSPICIOUS_URL",
+            self._categories("공식 문서는 https://github.com/passbox/docs 에서 확인하세요."),
+        )
+
+    def test_government_domain_with_numbers_does_not_trigger(self):
+        self.assertNotIn(
+            "SUSPICIOUS_URL",
+            self._categories("공고는 https://www.gov.kr/portal/notice/2026 에 게시됩니다."),
+        )
+
+    def test_scan_text_itself_does_not_check_links(self):
+        """scan_text() (used on user prompts) must NOT flag links -- only
+        scan_response_links() (used on AI responses) does."""
+        self.assertNotIn(
+            "SUSPICIOUS_URL",
+            {finding.category for finding in scan_text("http://192.168.45.12/login 이 안전한가요?")},
         )
 
 

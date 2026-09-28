@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.security_scan import Finding, scan_text
+from app.security_scan import Finding, scan_response_links, scan_text
 
 
 @dataclass(frozen=True)
@@ -11,7 +11,7 @@ class PostInspectionResult:
 
 
 def inspect_response(text: str) -> PostInspectionResult:
-    findings = scan_text(text)
+    findings = scan_text(text) + scan_response_links(text)
     categories = sorted({finding.category for finding in findings})
     return PostInspectionResult(
         status="BLOCKED" if findings else "PASSED",

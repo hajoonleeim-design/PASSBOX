@@ -82,6 +82,20 @@ PROMPT_INJECTION_PATTERN = (
     r"|비밀\s*.{0,20}지시"
     r")"
 )
+# 악성 링크 탐지: 일반 URL 전체가 아니라, 피싱/멀웨어 배포에 흔히 쓰이는
+# "정상 링크에서는 드문 특징"만 좁게 잡습니다 (IP 주소 직접 노출, 잘 알려진
+# 단축 URL, 퓨니코드/동형이의 도메인, 실행파일 직접 다운로드 링크).
+# 사용자가 보내는 프롬프트가 아니라 AI 응답을 검사할 때만 쓰도록 설계되었습니다
+# (scan_response_links 참고) -- "이 링크 안전해?" 같은 정상 질문까지
+# 차단하지 않기 위해서입니다.
+SUSPICIOUS_URL_PATTERN = (
+    r"(?i)https?://(?:"
+    r"\d{1,3}(?:\.\d{1,3}){3}(?::\d{2,5})?(?:/\S*)?"
+    r"|(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|ow\.ly|rebrand\.ly|cutt\.ly|buff\.ly)/\S+"
+    r"|xn--[a-z0-9-]+(?:\.[a-z0-9-]+)+\S*"
+    r"|\S+\.(?:exe|scr|bat|cmd|msi|apk|jar)(?:\?\S*)?(?=\s|$)"
+    r")"
+)
 
 
 def _passes_luhn(raw_match: str) -> bool:
@@ -121,15 +135,19 @@ _RULES: tuple[_Rule, ...] = (
     _Rule("PROMPT_INJECTION", "HIGH", PROMPT_INJECTION_PATTERN),
 )
 
+_LINK_RULES: tuple[_Rule, ...] = (
+    _Rule("SUSPICIOUS_URL", "MEDIUM", SUSPICIOUS_URL_PATTERN),
+)
+
 
 def _hash_evidence(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def scan_text(text: str) -> list[Finding]:
+def scan_text(text: str, rules: tuple[_Rule, ...] = _RULES) -> list[Finding]:
     """Scan extracted text and return safe metadata without retaining matches."""
     findings: list[Finding] = []
-    for rule in _RULES:
+    for rule in rules:
         matches = list(re.finditer(rule.pattern, text))
         if rule.validator is not None:
             matches = [m for m in matches if rule.validator(m.group(0))]
@@ -147,3 +165,14 @@ def scan_text(text: str) -> list[Finding]:
             )
         )
     return findings
+
+
+def scan_response_links(text: str) -> list[Finding]:
+    """Malicious-link check for AI RESPONSES only.
+
+    Deliberately not part of the default scan_text() rule set: those
+    also run on user prompts (chat.py, gateway.py), and a user asking
+    "is this link safe?" shouldn't get blocked for pasting a suspicious
+    URL. This only ever runs on what the AI sends back (post_inspector.py).
+    """
+    return scan_text(text, rules=_LINK_RULES)

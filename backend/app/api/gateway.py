@@ -81,6 +81,20 @@ def _apply_prompt_policy(
     if confirmed_grade == "S" and not finding_categories & HARD_BLOCK_CATEGORIES:
         return policy_decision
 
+    if "PROMPT_INJECTION" in finding_categories:
+        # 문서 본문에 AI를 조작하려는 지시문이 숨어 있는 "간접 프롬프트 인젝션"
+        # 케이스입니다. 업로더가 아니라 문서 내용 자체가 공격 벡터이므로, 유출된
+        # 개인정보/키를 막는 것과는 다른 사유로 구분해 감사로그에 남깁니다.
+        return OutboundPolicyDecision(
+            decision="PROMPT_INJECTION_BLOCKED",
+            can_transmit=False,
+            masking_required=False,
+            reason=(
+                "문서 본문에서 AI 시스템을 조작하려는 지시문(간접 프롬프트 인젝션)이 "
+                "발견되어 Gateway 전송을 차단했습니다."
+            ),
+        )
+
     return OutboundPolicyDecision(
         decision="PROMPT_BLOCKED",
         can_transmit=False,
@@ -198,7 +212,7 @@ def forward_to_gateway(
             policy_decision=policy_decision.decision,
             status=(
                 "BLOCKED"
-                if policy_decision.decision in {"BLOCKED", "PROMPT_BLOCKED"}
+                if policy_decision.decision in {"BLOCKED", "PROMPT_BLOCKED", "PROMPT_INJECTION_BLOCKED"}
                 else "WAITING_APPROVAL"
                 if policy_decision.decision == "APPROVAL_REQUIRED"
                 else "QUEUED"
@@ -211,7 +225,7 @@ def forward_to_gateway(
         db.add(transmission)
         db.flush()
 
-        if policy_decision.decision in {"BLOCKED", "PROMPT_BLOCKED"}:
+        if policy_decision.decision in {"BLOCKED", "PROMPT_BLOCKED", "PROMPT_INJECTION_BLOCKED"}:
             _update_latest_job_for_document(
                 db,
                 document_id=document.id,

@@ -77,6 +77,8 @@ def _status_for(
 ) -> str:
     if transmission is None:
         return "BLOCKED" if grade == "C" else "UNKNOWN"
+    if transmission.policy_decision == "PROMPT_INJECTION_BLOCKED":
+        return "INJECTION_BLOCKED"
     if transmission.status == "BLOCKED" or transmission.policy_decision in {
         "BLOCKED",
         "PROMPT_BLOCKED",

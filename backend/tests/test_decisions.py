@@ -29,6 +29,10 @@ class DecisionMappingTests(unittest.TestCase):
         approval = SimpleNamespace(status="APPROVED")
         self.assertEqual(_status_for("S", transmission, approval), "FAILED")
 
+    def test_prompt_injection_transmission_is_reported_distinctly(self):
+        transmission = SimpleNamespace(status="BLOCKED", policy_decision="PROMPT_INJECTION_BLOCKED")
+        self.assertEqual(_status_for("O", transmission, None), "INJECTION_BLOCKED")
+
 
 if __name__ == "__main__":
     unittest.main()

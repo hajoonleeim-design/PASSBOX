@@ -839,50 +839,6 @@ html.home-scroll-mode .story-end-grid {
   html.home-scroll-mode { scroll-snap-type: none; scroll-behavior: auto; }
 }
 
-/* Keep the showroom canvas full-width; only the sidebar becomes an overlay. */
-@media (min-width: 768px) {
-  .service-layout:has(.palantir-showroom) {
-    display: block;
-  }
-
-  .service-layout:has(.palantir-showroom)::before {
-    inset: var(--header-height) 0 0;
-  }
-
-  .service-layout:has(.palantir-showroom) .header {
-    position: sticky;
-    z-index: 13;
-    top: 0;
-  }
-
-  .service-layout:has(.palantir-showroom) .sidebar-shell {
-    position: fixed;
-    z-index: 12;
-    top: var(--header-height);
-    bottom: 0;
-    left: 0;
-    width: var(--sidebar-width);
-    min-height: 0;
-    overflow-y: auto;
-    border-right: 1px solid var(--color-border);
-    opacity: 1;
-    box-shadow: 12px 0 28px rgb(38 73 88 / 12%);
-    transform: translateX(0);
-    transition: transform .24s ease;
-  }
-
-  .service-layout:has(.palantir-showroom) .sidebar-shell--collapsed {
-    width: var(--sidebar-width);
-    border-right: 1px solid var(--color-border);
-    opacity: 1;
-    transform: translateX(-100%);
-  }
-
-  .service-layout:has(.palantir-showroom) .main-content {
-    width: 100%;
-  }
-}
-
 /* Page onboarding: only the active control is emphasized; no continuous motion. */
 .onboarding-tour-target {
   position: relative !important;
@@ -1057,13 +1013,13 @@ html.home-scroll-mode .story-end-grid {
 }
 
 .showroom-hero-copy h1 {
-  max-width: 11ch;
+  max-width: 640px;
   margin: 0;
   color: var(--color-text-primary);
-  font-size: clamp(2.75rem, 5.5vw, 5.5rem);
+  font-size: clamp(2.25rem, 3.6vw, 3.35rem);
   font-weight: 700;
-  letter-spacing: -.065em;
-  line-height: .94;
+  letter-spacing: -.03em;
+  line-height: 1.25;
 }
 
 .showroom-hero-copy h1 em {
@@ -1711,8 +1667,6 @@ body:has(.showroom-shell) .sidebar a span[aria-hidden="true"] { color: #52cbb5; 
 .showroom-end-actions button { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border: 0; border-bottom: 1px solid var(--showroom-line); color: #b7d4df; background: transparent; font-size: 13px; text-align: left; cursor: pointer; transition: color .25s ease, padding .25s ease; }
 .showroom-end-actions button:hover { padding-left: 9px; color: var(--showroom-mint); }
 .showroom-end-actions span { color: var(--showroom-cyan); font-size: 20px; }
-.showroom-visual { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; }
-.showroom-visual::before { position: absolute; top: 50%; left: 50%; width: min(42vw, 660px); aspect-ratio: 1; border: 1px solid rgb(96 228 224 / 12%); border-radius: 50%; box-shadow: 0 0 0 48px rgb(96 228 224 / 3%), 0 0 0 118px rgb(96 228 224 / 2%); content: ""; transform: translate(-50%, -50%); }
 .showroom-visual__frame { position: relative; width: min(100%, 760px); aspect-ratio: 1.13; min-height: 500px; overflow: hidden; border: 1px solid rgb(125 193 215 / 26%); border-radius: 22px; background: linear-gradient(145deg, rgb(17 38 61 / 88%), rgb(6 17 31 / 93%)); box-shadow: 0 30px 100px rgb(0 0 0 / 28%), inset 0 0 70px rgb(96 228 224 / 3%); }
 .showroom-visual__frame::after { position: absolute; z-index: 0; inset: 16px; border: 1px solid rgb(96 228 224 / 8%); border-radius: 15px; content: ""; pointer-events: none; }
 .showroom-visual__topline, .showroom-visual__footer { position: absolute; z-index: 4; right: 28px; left: 28px; display: flex; align-items: center; gap: 12px; color: #7f9ead; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px; letter-spacing: .08em; }

@@ -22,7 +22,6 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
     >
       <nav className="sidebar" aria-label="주 메뉴">
         {link('/', '홈')}
-        {link('/home-showroom', '홈 쇼룸 (임시)')}
         {link('/upload', '문서 업로드')}
         {link('/analysis/recent', '문서 분석 작업')}
         {link('/chat', '일상 AI 대화')}

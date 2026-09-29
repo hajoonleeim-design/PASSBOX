@@ -47,6 +47,7 @@ class ApprovalHistoryResponse(BaseModel):
 class DecisionResponse(BaseModel):
     request_id: int
     job_id: int | None
+    document_id: int
     file_name: str
     grade: str
     grade_name: str
@@ -236,6 +237,7 @@ def get_decision(
         return DecisionResponse(
             request_id=request.id,
             job_id=job.id if job is not None else None,
+            document_id=document.id,
             file_name=document.original_filename,
             grade=classification.confirmed_grade,
             grade_name=grade_name,

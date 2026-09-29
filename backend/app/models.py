@@ -366,6 +366,38 @@ class SecurityPolicyHistory(Base):
     after_value: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
+class ReviewRequest(Base):
+    """C등급(전송 차단) 판정에 대한 재검토 요청.
+
+    일반 사용자가 "이 판정은 잘못됐다"고 신고하면 OPERATOR/SECURITY_ADMIN/ADMIN
+    큐에 쌓이고, 담당자가 등급을 재조정하거나 반려합니다. flag_for_retraining은
+    분류기 재학습 데이터 후보로 표시만 할 뿐, 실제 재학습 파이프라인과는
+    아직 연결되어 있지 않습니다.
+    """
+
+    __tablename__ = "review_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id"), nullable=False
+    )
+    requested_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    original_grade: Mapped[str] = mapped_column(String(1), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    flag_for_retraining: Mapped[bool] = mapped_column(nullable=False, default=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING")
+    resolved_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    resolution_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_grade: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+
 class AuditLogEntry(Base):
     """Append-only, hash-chained audit log.
 

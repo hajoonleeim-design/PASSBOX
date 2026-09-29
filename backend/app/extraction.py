@@ -5,6 +5,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 import zipfile
 
+import fitz  # PyMuPDF
 from docx import Document as WordDocument
 from hwp5.dataio import ParseError as Hwp5ParseError
 from hwp5.errors import InvalidHwp5FileError
@@ -17,6 +18,23 @@ from pypdf import PdfReader
 
 MAX_EXTRACTED_CHARS = 2_000_000
 TEXT_ENCODINGS = ("utf-8-sig", "cp949")
+OCR_MIN_PAGE_CHARS = 15  # 이보다 텍스트가 적은 페이지는 스캔본으로 간주해 OCR 시도
+OCR_RENDER_DPI = 300
+
+_ocr_reader = None
+
+
+def _get_ocr_reader():
+    """easyocr.Reader는 모델을 디스크에서 읽어들이는 데 시간이 걸리므로 지연 초기화한다."""
+    global _ocr_reader
+    if _ocr_reader is None:
+        import easyocr
+
+        # verbose=False: 모델 최초 다운로드 시 진행률 표시줄이 유니코드 블록 문자를
+        # print()로 출력하는데, 콘솔 코드페이지가 cp949인 Windows 환경(리다이렉트된
+        # 출력 포함)에서 UnicodeEncodeError로 죽는 문제가 있어 항상 끈다.
+        _ocr_reader = easyocr.Reader(["ko", "en"], verbose=False)
+    return _ocr_reader
 
 
 class UnsupportedDocumentError(Exception):
@@ -38,8 +56,8 @@ def extract_document(path: Path, extension: str) -> ExtractionResult:
         text = _extract_html(path)
         extractor = "html-parser"
     elif extension == ".pdf":
-        text = _extract_pdf(path)
-        extractor = "pypdf"
+        text, ocr_used = _extract_pdf(path)
+        extractor = "pypdf+easyocr" if ocr_used else "pypdf"
     elif extension == ".hwpx":
         text = _extract_hwpx(path)
         extractor = "hwpx-xml"
@@ -128,9 +146,28 @@ def _extract_html(path: Path) -> str:
     return parser.get_text()
 
 
-def _extract_pdf(path: Path) -> str:
+def _extract_pdf(path: Path) -> tuple[str, bool]:
+    """pypdf로 텍스트 레이어를 읽고, 텍스트가 거의 없는 페이지(스캔본)는 EasyOCR로 보완한다."""
     reader = PdfReader(str(path))
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+    pages_text = [page.extract_text() or "" for page in reader.pages]
+
+    scanned_indices = [i for i, t in enumerate(pages_text) if len(t.strip()) < OCR_MIN_PAGE_CHARS]
+    if not scanned_indices:
+        return "\n".join(pages_text), False
+
+    ocr_used = False
+    ocr_reader = _get_ocr_reader()
+    with fitz.open(str(path)) as doc:
+        for i in scanned_indices:
+            pixmap = doc[i].get_pixmap(dpi=OCR_RENDER_DPI)
+            image_bytes = pixmap.tobytes("png")
+            lines = ocr_reader.readtext(image_bytes, detail=0, paragraph=True)
+            ocr_text = "\n".join(lines).strip()
+            if ocr_text:
+                pages_text[i] = ocr_text
+                ocr_used = True
+
+    return "\n".join(pages_text), ocr_used
 
 
 def _extract_hwpx(path: Path) -> str:

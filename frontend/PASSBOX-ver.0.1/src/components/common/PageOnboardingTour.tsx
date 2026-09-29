@@ -17,6 +17,7 @@ type PageOnboardingTourProps = {
   targetReadyKey?: number | null
   markerNumber?: number
   initiallyOpen?: boolean
+  calloutPlacement?: 'target' | 'bottom'
 }
 
 const readCompleted = (storageKey: string) => {
@@ -27,11 +28,14 @@ const readCompleted = (storageKey: string) => {
   }
 }
 
-export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targetReadyKey, markerNumber, initiallyOpen = false }: PageOnboardingTourProps) {
+export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targetReadyKey, markerNumber, initiallyOpen = false, calloutPlacement = 'target' }: PageOnboardingTourProps) {
   const [isOpen, setIsOpen] = useState(() => initiallyOpen || !readCompleted(storageKey))
   const [stepIndex, setStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState<HighlightRect | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const ignoreNextScreenClick = useRef(false)
+  const transitionTimer = useRef<number | null>(null)
+  const isTransitioningRef = useRef(false)
   const step = steps[stepIndex]
 
   const complete = useCallback(() => {
@@ -44,12 +48,23 @@ export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targ
   }, [storageKey])
 
   const advance = useCallback(() => {
-    if (stepIndex === steps.length - 1) complete()
-    else {
-      setTargetRect(null)
-      setStepIndex((current) => current + 1)
-    }
+    if (isTransitioningRef.current) return
+    isTransitioningRef.current = true
+    setIsTransitioning(true)
+    transitionTimer.current = window.setTimeout(() => {
+      if (stepIndex === steps.length - 1) complete()
+      else {
+        setTargetRect(null)
+        setStepIndex((current) => current + 1)
+      }
+      isTransitioningRef.current = false
+      setIsTransitioning(false)
+    }, 220)
   }, [complete, stepIndex, steps.length])
+
+  useEffect(() => () => {
+    if (transitionTimer.current !== null) window.clearTimeout(transitionTimer.current)
+  }, [])
 
   useEffect(() => {
     if (!isOpen || !step) return undefined
@@ -111,6 +126,9 @@ export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targ
       }
       // The click on "사용 안내 다시 보기" must not also advance the newly opened tour.
       ignoreNextScreenClick.current = true
+      if (transitionTimer.current !== null) window.clearTimeout(transitionTimer.current)
+      isTransitioningRef.current = false
+      setIsTransitioning(false)
       setStepIndex(0)
       setTargetRect(null)
       setIsOpen(true)
@@ -134,8 +152,8 @@ export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targ
     : 24
 
   return (
-    <div className="onboarding-tour" aria-live="polite">
-      <aside className="onboarding-tour__callout" aria-label={`온보딩 ${stepIndex + 1}단계`} data-onboarding-tour-control style={{ top: calloutTop, left: calloutLeft }}>
+    <div className={`onboarding-tour ${calloutPlacement === 'bottom' ? 'onboarding-tour--bottom' : ''}`.trim()} aria-live="polite">
+      <aside key={stepIndex} className={`onboarding-tour__callout ${isTransitioning ? 'onboarding-tour__callout--leaving' : ''}`.trim()} aria-label={`온보딩 ${stepIndex + 1}단계`} data-onboarding-tour-control style={{ top: calloutTop, left: calloutLeft }}>
         <p>시작 안내 · {stepIndex + 1} / {steps.length}</p>
         <h2>{step.title}</h2>
         <span>{step.description}</span>

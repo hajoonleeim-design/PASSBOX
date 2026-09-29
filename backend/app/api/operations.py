@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from sqlalchemy import desc, select
 
 from app.api.auth import require_roles
+from app.audit_chain import verify_chain
 from app.db import get_session_factory
 from app.models import (
+    AuditLogEntry,
     ClassificationDecision,
     Document,
     GatewayTransmission,
@@ -363,25 +365,47 @@ def _dashboard_response(
         for job in jobs
         if (request := request_by_id.get(job.request_id)) is not None
     }
-    incidents = [
+
+    def _related_job_id(transmission: GatewayTransmission) -> str | None:
+        job = job_by_document.get(transmission.document_id)
+        return f"JOB-{job.id}" if job is not None else None
+
+    failure_incidents = [
         OperationsIncidentResponse(
             incidentId=f"INC-TRANSMISSION-{transmission.id}",
             severity="HIGH",
             status="OPEN",
             occurredAt=transmission.created_at,
             summary=transmission.error_message or "Gateway 호출에 실패했습니다.",
-            relatedJobId=(
-                f"JOB-{job_by_document[transmission.document_id].id}"
-                if transmission.document_id in job_by_document
-                else None
-            ),
+            relatedJobId=_related_job_id(transmission),
         )
-        for transmission in sorted(
-            (item for item in transmissions if item.status == "FAILED"),
-            key=lambda item: _timestamp(item.created_at),
-            reverse=True,
-        )[:10]
+        for transmission in transmissions
+        if transmission.status == "FAILED"
     ]
+    # 프롬프트 인젝션 차단은 시스템 오류가 아니라 "탐지가 정상 동작한" 보안
+    # 이벤트이므로, 관리자가 공격 시도 이력을 따로 훑어볼 수 있도록 실패
+    # incident와 구분해 RESOLVED 상태로 표시합니다.
+    injection_incidents = [
+        OperationsIncidentResponse(
+            incidentId=f"INC-INJECTION-{transmission.id}",
+            severity="MEDIUM",
+            status="RESOLVED",
+            occurredAt=transmission.created_at,
+            summary=(
+                transmission.error_message
+                or "문서 본문에서 프롬프트 인젝션 시도가 탐지되어 전송을 차단했습니다."
+            ),
+            relatedJobId=_related_job_id(transmission),
+            resolvedAt=transmission.created_at,
+        )
+        for transmission in transmissions
+        if transmission.policy_decision == "PROMPT_INJECTION_BLOCKED"
+    ]
+    incidents = sorted(
+        failure_incidents + injection_incidents,
+        key=lambda item: _timestamp(item.occurredAt),
+        reverse=True,
+    )[:10]
 
     success_rate = round(completed / total * 100, 1) if total else 0.0
     failure_rate = round(failed / total * 100, 1) if total else 0.0
@@ -482,4 +506,40 @@ def get_operations_dashboard(
             approvals=approvals,
             policy=policy,
             now=datetime.now(timezone.utc),
+        )
+
+
+class AuditChainVerificationResponse(BaseModel):
+    valid: bool
+    checkedCount: int
+    brokenAtSequence: int | None = None
+    reason: str | None = None
+
+
+@router.get(
+    "/audit-chain/verify",
+    response_model=AuditChainVerificationResponse,
+    summary="감사 로그 해시 체인 무결성 검증",
+    description=(
+        "테넌트의 전체 감사 로그를 처음부터 다시 해시로 재계산해 위변조 여부를 "
+        "확인합니다. 어느 한 행이라도 수정, 삭제, 순서 변경되면 그 지점부터 "
+        "체인이 끊어진 것으로 탐지됩니다."
+    ),
+)
+def verify_audit_chain(
+    current_user: User = Depends(require_roles("SECURITY_ADMIN", "ADMIN")),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        entries = list(
+            db.scalars(
+                select(AuditLogEntry).where(AuditLogEntry.tenant_id == current_user.tenant_id)
+            ).all()
+        )
+        result = verify_chain(entries)
+        return AuditChainVerificationResponse(
+            valid=result.valid,
+            checkedCount=result.checked_count,
+            brokenAtSequence=result.broken_at_sequence,
+            reason=result.reason,
         )

@@ -1,6 +1,6 @@
 // 로그인 후 서비스 화면에서 헤더·사이드바와 본문 영역을 함께 배치하는 레이아웃입니다.
 import { Outlet } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Header } from '../components/layout/Header'
 import { Sidebar } from '../components/layout/Sidebar'
 import { UploadDraftProvider } from '../stores/UploadDraftProvider'
@@ -21,16 +21,6 @@ export function ServiceLayout() {
   const closeMenu = () => {
     setIsMenuOpen(false)
   }
-
-  useEffect(() => {
-    const resetShowroomState = () => {
-      document.documentElement.classList.remove('passbox-showroom-mode')
-      document.body.style.overflow = ''
-    }
-
-    resetShowroomState()
-    return resetShowroomState
-  }, [])
 
   return <div className={`service-layout ${isSidebarCollapsed ? 'service-layout--sidebar-collapsed' : ''}`}>
     <Header isMenuOpen={isMenuOpen} onMenuToggle={toggleMenu} />

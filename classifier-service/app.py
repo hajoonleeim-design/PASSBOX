@@ -35,6 +35,7 @@ TOKENIZER_NAME = "klue/roberta-base"  # 학습 파이프라인과 항상 동일�
 MODEL_DIR = os.environ.get("CLASSIFIER_MODEL_DIR", "./model_out")
 AUTH_TOKEN = os.environ.get("CLASSIFIER_AUTH_TOKEN", "").strip()
 MAX_CHUNK_TOKENS = 490
+MIN_TAIL_TOKENS = 200  # 이보다 짧은 마지막 조각은 문맥이 끊겨 오분류되기 쉬워 직전 조각에 합친다
 # 표 2-9: 혼재 시 최고등급 우선. 숫자가 작을수록 심각하다.
 GRADE_SEVERITY = {"C": 0, "S": 1, "O": 2}
 
@@ -78,13 +79,33 @@ def _chunk_text(text: str) -> list[str]:
     """chunk_corpus.py와 동일한 오프셋 기반 분할(디코딩 왜곡 없음)."""
     encoding = _tokenizer(text, add_special_tokens=False, return_offsets_mapping=True, truncation=False)
     offsets = [o for o in encoding["offset_mapping"] if o != (0, 0)]
-    if len(offsets) <= MAX_CHUNK_TOKENS:
+    total = len(offsets)
+    if total <= MAX_CHUNK_TOKENS:
         return [text]
 
+    boundaries = list(range(0, total, MAX_CHUNK_TOKENS))  # 각 구간의 시작 토큰 인덱스
+
+    # 마지막 조각이 짧으면 앞뒤 문맥 없이 단어 몇 개만 남아 모델이 헷갈리기 쉽다.
+    # (예: "중요 문서(C/S)의 외부 AI 유출을 원천 차단" 같은 조각만 떼어놓으면
+    # 실제로는 공개 문서인데도 보안 관련 단어만 보고 S로 오판하는 사례를 확인했다.)
+    # 단순히 직전 조각에 이어붙이면 합친 길이가 MAX_CHUNK_TOKENS를 넘어 모델의
+    # max_length=512 절단에 걸려 오히려 방금 붙인 꼬리 부분이 잘려나간다.
+    # 그래서 마지막 두 조각을 절반씩 재분배해 둘 다 MAX_CHUNK_TOKENS 이내로 유지한다.
+    if len(boundaries) > 1:
+        last_start = boundaries[-1]
+        tail_len = total - last_start
+        if tail_len < MIN_TAIL_TOKENS:
+            merge_start = boundaries[-2]
+            half = (total - merge_start) // 2
+            boundaries = boundaries[:-2] + [merge_start, merge_start + half]
+
+    windows: list[tuple[int, int]] = []
+    for i, start in enumerate(boundaries):
+        end = boundaries[i + 1] if i + 1 < len(boundaries) else total
+        windows.append((offsets[start][0], offsets[end - 1][1]))
+
     chunks: list[str] = []
-    for start in range(0, len(offsets), MAX_CHUNK_TOKENS):
-        window = offsets[start : start + MAX_CHUNK_TOKENS]
-        char_start, char_end = window[0][0], window[-1][1]
+    for char_start, char_end in windows:
         piece = text[char_start:char_end].strip()
         if piece:
             chunks.append(piece)

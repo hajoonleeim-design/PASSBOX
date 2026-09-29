@@ -15,6 +15,7 @@ interface BackendApprovalHistoryEntry {
 interface BackendDecisionResponse {
   request_id: number
   job_id: number | null
+  document_id: number
   file_name: string
   grade: 'C' | 'S' | 'O'
   grade_name: string
@@ -40,6 +41,7 @@ function mapDecision(data: BackendDecisionResponse): ClassificationDecision {
   return {
     requestId: String(data.request_id),
     jobId: data.job_id === null ? undefined : String(data.job_id),
+    documentId: data.document_id,
     fileName: data.file_name,
     grade: data.grade,
     gradeName: data.grade_name,

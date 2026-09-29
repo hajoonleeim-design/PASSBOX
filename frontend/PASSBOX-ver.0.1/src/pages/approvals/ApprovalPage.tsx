@@ -97,6 +97,10 @@ export function ApprovalPage() {
           <p className="eyebrow">외부 전송 승인</p>
           <h1>S등급 외부 전송 승인</h1>
           <p>민감정보가 포함된 문서의 외부 AI 전송 요청을 검토하고 처리합니다.</p>
+          <p className="approval-note">
+            사용자가 S등급 문서를 외부 AI로 전송 요청하면 이 목록에 자동으로 올라옵니다.
+            "승인 후 전송"을 누르면 마스킹된 payload가 즉시 Gateway로 전송되고, "반려"를 누르면 전송이 중단됩니다.
+          </p>
         </div>
         <Button variant="secondary" onClick={() => void loadApprovals()} disabled={isLoading}>
           {isLoading ? '조회 중' : '새로고침'}

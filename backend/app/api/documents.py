@@ -11,6 +11,7 @@ from app.api.auth import get_current_user
 from app.db import Settings, get_session_factory
 from app.extraction import UnsupportedDocumentError, decode_plain_text
 from app.models import Document, User
+from app.security_scan import EICAR_TEST_SIGNATURE, contains_eicar_signature
 
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -84,6 +85,21 @@ def _file_sha256_and_size(path: Path) -> tuple[str, int]:
             digest.update(chunk)
             size_bytes += len(chunk)
     return digest.hexdigest(), size_bytes
+
+
+def _scan_for_eicar(path: Path) -> bool:
+    """Chunked EICAR signature scan (see security_scan.py for what this
+    does and does not prove). Keeps an overlap window between reads so the
+    signature can't slip through by landing across a chunk boundary."""
+    overlap = len(EICAR_TEST_SIGNATURE) - 1
+    tail = b""
+    with path.open("rb") as source:
+        while chunk := source.read(CHUNK_SIZE):
+            window = tail + chunk
+            if contains_eicar_signature(window):
+                return True
+            tail = window[-overlap:]
+    return False
 
 
 @router.post(
@@ -185,8 +201,11 @@ def upload_document(
     response_model=InspectionResponse,
     summary="격리 문서 기본 안전성 검사",
     description=(
-        "격리 저장된 파일의 확장자와 실제 파일 서명, 크기, SHA-256을 확인합니다. "
-        "이 단계는 백신·샌드박스 검사를 대체하지 않으며, 통과 파일을 파싱 대기 상태로 바꿉니다."
+        "격리 저장된 파일의 확장자와 실제 파일 서명, 크기, SHA-256을 확인하고, "
+        "EICAR 표준 안티바이러스 테스트 시그니처를 검사합니다. EICAR 탐지는 "
+        "실제 악성코드에 대한 방어가 아니라 이 체크포인트가 배선되어 동작한다는 "
+        "것을 증명하는 자리 표시자이며, 실제 백신·샌드박스 검사를 대체하지 "
+        "않습니다. 통과한 파일만 파싱 대기 상태로 바뀝니다."
     ),
 )
 def inspect_document(
@@ -233,6 +252,17 @@ def inspect_document(
             raise HTTPException(
                 status_code=422,
                 detail="파일 형식 또는 무결성 검사에 실패했습니다.",
+            )
+
+        if _scan_for_eicar(storage_path):
+            document.status = "REJECTED"
+            db.commit()
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "악성코드 검사(EICAR 표준 테스트 시그니처)에서 탐지되어 파일을 "
+                    "거부했습니다."
+                ),
             )
 
         document.status = "READY_FOR_PARSING"

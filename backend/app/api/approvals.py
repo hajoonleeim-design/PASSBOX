@@ -7,6 +7,7 @@ from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.api.jobs import _update_latest_job_for_document
+from app.audit_chain import append_audit_entry
 from app.db import get_session_factory
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.models import GatewayTransmission, OutboundApproval, User
@@ -311,6 +312,17 @@ def approve_request(
             progress=85,
             error_message=None,
         )
+        append_audit_entry(
+            db,
+            tenant_id=approval.tenant_id,
+            event_type="APPROVAL_DECIDED",
+            payload={
+                "approval_id": approval.id,
+                "document_id": approval.document_id,
+                "decision": "APPROVED",
+                "decided_by": current_user.id,
+            },
+        )
         db.commit()
         db.refresh(approval)
         db.refresh(transmission)
@@ -437,6 +449,17 @@ def reject_request(
             status_value="BLOCKED",
             progress=100,
             error_message=transmission.error_message,
+        )
+        append_audit_entry(
+            db,
+            tenant_id=approval.tenant_id,
+            event_type="APPROVAL_DECIDED",
+            payload={
+                "approval_id": approval.id,
+                "document_id": approval.document_id,
+                "decision": "REJECTED",
+                "decided_by": current_user.id,
+            },
         )
         db.commit()
         db.refresh(approval)

@@ -229,8 +229,10 @@ def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> N
                 )
                 return
 
-            if not _set_job_state(db, job, request, status="CLASSIFICATION_REVIEW", progress=85):
-                return
+            # 분류 서버 호출(_save_recommendation)이 끝나 추천 결과가 커밋되기 전까지는
+            # 상태를 CLASSIFICATION_REVIEW로 바꾸지 않는다. 먼저 바꾸면, 프론트엔드가
+            # "분류 검토" 상태를 보고 추천 결과를 조회했을 때 아직 저장되지 않은
+            # 레코드를 404로 받고, 재시도 로직이 없어 영구적으로 실패 화면에 멈춘다.
             _save_recommendation(db, document, scan, text_record)
             has_decision = db.scalar(
                 select(ClassificationDecision.id).where(

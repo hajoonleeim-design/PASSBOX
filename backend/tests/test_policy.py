@@ -141,6 +141,25 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(decision.decision, "PROMPT_BLOCKED")
         self.assertFalse(decision.can_transmit)
 
+    def test_document_with_embedded_prompt_injection_gets_distinct_decision(self):
+        """Indirect prompt injection: the DOCUMENT text itself carries an
+        instruction meant to manipulate the AI, not the uploader's own
+        request. This must not be lumped in with a plain PII/secret leak."""
+        base_decision = check_outbound_policy(
+            confirmed_grade="O",
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+        decision = _apply_prompt_policy(
+            confirmed_grade="O",
+            prompt_findings=[SimpleNamespace(category="PROMPT_INJECTION")],
+            policy_decision=base_decision,
+        )
+
+        self.assertEqual(decision.decision, "PROMPT_INJECTION_BLOCKED")
+        self.assertFalse(decision.can_transmit)
+        self.assertIn("간접 프롬프트 인젝션", decision.reason)
+
 
 if __name__ == "__main__":
     unittest.main()

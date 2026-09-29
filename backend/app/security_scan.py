@@ -16,6 +16,23 @@ class Finding:
     line_hint: int | None
 
 
+# EICAR 표준 안티바이러스 테스트 시그니처. 실제 악성코드가 아니라 전 세계
+# 백신 업체들이 "탐지 기능이 켜져 있는지" 자체 검증할 때 쓰는 업계 표준
+# 68바이트 문자열입니다 (https://www.eicar.org/download-anti-malware-testfile/).
+#
+# 이 시그니처만 탐지하는 것은 실제 랜섬웨어/바이러스에 대한 방어가 아닙니다.
+# "파일 업로드 -> 악성코드 검사 -> 격리/거부" 체크포인트가 실제로 배선되어
+# 동작한다는 것을 증명하는 자리 표시자이며, 운영 배포 시에는 이 위치에
+# ClamAV 같은 실제 백신 엔진을 붙여야 합니다.
+EICAR_TEST_SIGNATURE = (
+    rb"X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+)
+
+
+def contains_eicar_signature(data: bytes) -> bool:
+    return EICAR_TEST_SIGNATURE in data
+
+
 # Pattern strings are exported so app.masking can reuse the exact same
 # definitions instead of maintaining a second, drift-prone copy.
 PERSONAL_ID_PATTERN = r"(?<!\d)\d{6}[- ]?[1-4]\d{6}(?!\d)"
@@ -45,10 +62,56 @@ CREDIT_CARD_PATTERN = (
 PASSPORT_KR_PATTERN = r"(?<![A-Za-z0-9])[MSRODT]\d{8}(?![A-Za-z0-9])"
 # Korean business registration number: 3-2-5 digit groups.
 BUSINESS_REG_NO_PATTERN = r"(?<!\d)\d{3}-\d{2}-\d{5}(?!\d)"
+# PROMPT_INJECTION은 "지시를 그대로 따르는 명령형 문장"만 잡도록 설계했습니다.
+# 'jailbreak'나 'DAN' 같은 단어가 보안 교육 질문("탈옥이 뭐야?")에도 등장할 수
+# 있어서, 페르소나/탈옥 관련 표현은 반드시 명령형(~해줘, act as, enable 등)과
+# 함께 나타날 때만 매칭하여 오탐(false positive)을 줄입니다.
 PROMPT_INJECTION_PATTERN = (
-    r"(?i)(?:ignore\s+(?:all\s+)?previous\s+instructions|system\s+prompt|"
-    r"reveal\s+.{0,30}prompt|jailbreak|이전\s*지시(?:사항)?\s*무시|"
-    r"시스템\s*프롬프트|프롬프트를\s*무시|비밀\s*.{0,20}지시)"
+    r"(?i)("
+    # 1. 지시 무효화 시도
+    r"ignore\s+(?:all\s+|any\s+)?(?:the\s+)?(?:previous|prior|above)\s+instructions?"
+    r"|disregard\s+(?:the\s+)?(?:above|previous|prior)\s+instructions?"
+    r"|forget\s+(?:everything|all)\s+(?:you\s+were\s+told|above)"
+    r"|이전\s*(?:지시|명령)\s*사항?\s*(?:은|는|을|를)?\s*(?:모두\s*)?무시"
+    r"|위\s*(?:내용|지시|명령)\s*(?:은|는|을|를)?\s*무시하고"
+    r"|지금까지\s*(?:의\s*)?규칙\s*(?:은|는|을|를)?\s*(?:잊어|무시)"
+    # 2. 시스템 프롬프트 탈취 시도
+    r"|(?:reveal|print|show|output|repeat)\s+.{0,30}(?:system\s+prompt|your\s+instructions)"
+    r"|repeat\s+everything\s+above"
+    r"|시스템\s*프롬프트\s*(?:를|을)?\s*(?:그대로\s*)?(?:보여|출력|알려)"
+    r"|(?:너의|당신의)\s*(?:지시사항|시스템\s*프롬프트)\s*(?:을|를)?\s*(?:알려|보여|출력)"
+    r"|위에\s*(?:적힌|있는)\s*(?:내용|지시)\s*(?:을|를)?\s*그대로\s*(?:보여|반복|출력)"
+    # 3. 탈옥/페르소나 우회 (반드시 명령형과 결합될 때만 매칭)
+    r"|(?:너는|당신은|you\s+are)\s*(?:이제|now)?\s*(?:DAN|무제한\s*AI|제약\s*없는\s*AI)"
+    r"|act\s+as\s+(?:an?\s+)?(?:unrestricted|unfiltered|jailbroken)\s+AI"
+    r"|pretend\s+(?:you\s+are|to\s+be)\s+.{0,20}(?:unrestricted|no\s+rules|DAN)"
+    r"|(?:enable|activate)\s*.{0,10}(?:developer\s+mode)"
+    r"|(?:개발자\s*모드|탈옥\s*모드|무제한\s*모드)\s*(?:을|를)?\s*(?:켜|시작해|활성화)"
+    r"|제약\s*(?:이|가)?\s*없는\s*(?:AI|인공지능)(?:처럼|인\s*것처럼)?\s*(?:행동|답변)해"
+    # 4. 권한/핑계를 이용한 안전장치 해제 시도
+    r"|as\s+the\s+system\s+administrator,?\s*override"
+    r"|관리자\s*권한으로\s*(?:안전\s*장치|필터)\s*(?:를)?\s*(?:해제|꺼)"
+    r"|(?:테스트|가상)\s*(?:목적|시나리오)(?:이니|니까)\s*.{0,15}(?:무시해도|해제해|꺼줘)"
+    # 5. 가짜 역할/구분자 주입 (일반 대화에 등장할 가능성이 거의 없는 패턴)
+    r"|<\|im_start\|>"
+    r"|\[INST\]"
+    r"|###\s*(?:system|instruction)"
+    r"|비밀\s*.{0,20}지시"
+    r")"
+)
+# 악성 링크 탐지: 일반 URL 전체가 아니라, 피싱/멀웨어 배포에 흔히 쓰이는
+# "정상 링크에서는 드문 특징"만 좁게 잡습니다 (IP 주소 직접 노출, 잘 알려진
+# 단축 URL, 퓨니코드/동형이의 도메인, 실행파일 직접 다운로드 링크).
+# 사용자가 보내는 프롬프트가 아니라 AI 응답을 검사할 때만 쓰도록 설계되었습니다
+# (scan_response_links 참고) -- "이 링크 안전해?" 같은 정상 질문까지
+# 차단하지 않기 위해서입니다.
+SUSPICIOUS_URL_PATTERN = (
+    r"(?i)https?://(?:"
+    r"\d{1,3}(?:\.\d{1,3}){3}(?::\d{2,5})?(?:/\S*)?"
+    r"|(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|ow\.ly|rebrand\.ly|cutt\.ly|buff\.ly)/\S+"
+    r"|xn--[a-z0-9-]+(?:\.[a-z0-9-]+)+\S*"
+    r"|\S+\.(?:exe|scr|bat|cmd|msi|apk|jar)(?:\?\S*)?(?=\s|$)"
+    r")"
 )
 
 
@@ -89,15 +152,19 @@ _RULES: tuple[_Rule, ...] = (
     _Rule("PROMPT_INJECTION", "HIGH", PROMPT_INJECTION_PATTERN),
 )
 
+_LINK_RULES: tuple[_Rule, ...] = (
+    _Rule("SUSPICIOUS_URL", "MEDIUM", SUSPICIOUS_URL_PATTERN),
+)
+
 
 def _hash_evidence(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def scan_text(text: str) -> list[Finding]:
+def scan_text(text: str, rules: tuple[_Rule, ...] = _RULES) -> list[Finding]:
     """Scan extracted text and return safe metadata without retaining matches."""
     findings: list[Finding] = []
-    for rule in _RULES:
+    for rule in rules:
         matches = list(re.finditer(rule.pattern, text))
         if rule.validator is not None:
             matches = [m for m in matches if rule.validator(m.group(0))]
@@ -115,3 +182,14 @@ def scan_text(text: str) -> list[Finding]:
             )
         )
     return findings
+
+
+def scan_response_links(text: str) -> list[Finding]:
+    """Malicious-link check for AI RESPONSES only.
+
+    Deliberately not part of the default scan_text() rule set: those
+    also run on user prompts (chat.py, gateway.py), and a user asking
+    "is this link safe?" shouldn't get blocked for pasting a suspicious
+    URL. This only ever runs on what the AI sends back (post_inspector.py).
+    """
+    return scan_text(text, rules=_LINK_RULES)

@@ -83,6 +83,15 @@ const gradeNames: Record<SecurityGrade, string> = {
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
 
+const TOTAL_STEPS = 10
+
+const formatDuration = (fromIso: string, toIso: string) => {
+  const seconds = Math.max(0, Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 1000))
+  const minutes = Math.floor(seconds / 60)
+  const remaining = seconds % 60
+  return minutes > 0 ? `${minutes}분 ${remaining}초` : `${remaining}초`
+}
+
 const terminalState = (
   status: JobStatus,
 ): 'completed' | 'failed' | 'blocked' | 'cancelled' | undefined =>
@@ -114,7 +123,7 @@ function Notice({ job, status }: { job: AnalysisJob; status: JobStatus }) {
   return <Alert variant="info" title="현재 처리 내용">{detail[status]}</Alert>
 }
 
-function ClassificationCard({ documentId, onConfirmed }: { documentId: number; onConfirmed?: (decision: ClassificationDecision) => void }) {
+function ClassificationCard({ documentId, jobStatus, onConfirmed }: { documentId: number; jobStatus: JobStatus; onConfirmed?: (decision: ClassificationDecision) => void }) {
   const { session } = useAuth()
   const [recommendation, setRecommendation] = useState<ClassificationRecommendation | null>(null)
   const [decision, setDecision] = useState<ClassificationDecision | null>(null)
@@ -153,7 +162,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
     return () => {
       cancelled = true
     }
-  }, [documentId])
+  }, [documentId, jobStatus])
 
   async function submitConfirmation() {
     setIsConfirming(true)
@@ -218,6 +227,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
             <div className="section-gap">
               <Alert variant="warning" title="최종 확정 권한 필요">
                 AI 추천 결과는 조회할 수 있지만, C/S/O 최종 확정은 담당자 권한이 필요합니다.
+                담당자가 확정하면 이 화면이 자동으로 갱신됩니다. 별도로 새로고침하지 않아도 됩니다.
               </Alert>
             </div>
           )}
@@ -352,7 +362,6 @@ export function AnalysisPage() {
   const [isActing, setIsActing] = useState(false)
   const [toast, setToast] = useState('')
   const [classificationVersion, setClassificationVersion] = useState(0)
-
   async function copyJobId() {
     if (!job?.jobId) return
     try {
@@ -416,8 +425,15 @@ export function AnalysisPage() {
         <Card><div className="job-id-row"><div><p className="eyebrow">작업 ID</p><code>{job.jobId}</code></div><Button size="sm" variant="ghost" onClick={() => void copyJobId()}>복사</Button></div><dl className="info-list"><div><dt>파일</dt><dd>{job.file.fileName}</dd></div><div><dt>현재 상태</dt><dd><StatusBadge label={statuses[status]} /></dd></div><div><dt>생성 시각</dt><dd>{formatDate(job.createdAt)}</dd></div><div><dt>마지막 업데이트</dt><dd>{formatDate(job.updatedAt)}</dd></div></dl></Card>
         <Card><p className="eyebrow">진행률</p><div className="progress-value">{job.progress}%</div><div className="progress-bar" role="progressbar" aria-label="분석 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={job.progress}><span style={{ width: `${job.progress}%` }} /></div><p>{terminal ? '처리가 종료되었습니다.' : `${job.currentStep} 단계를 처리 중입니다.`}</p></Card>
       </div>
-      <Card className="analysis-step-card"><h2>분석 단계</h2><Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} /></Card>
-      {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
+      <Card className="analysis-step-card">
+        <h2>분석 단계</h2>
+        <p className="analysis-step-card__meta">
+          <span><strong>{Math.min(stepIndex[status] + 1, TOTAL_STEPS)}</strong> / {TOTAL_STEPS}단계</span>
+          <span>소요시간 <strong>{formatDuration(job.createdAt, job.updatedAt)}</strong></span>
+        </p>
+        <Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} />
+      </Card>
+      {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} jobStatus={status} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
       {job.documentId && classificationReady && <GatewayCard documentId={job.documentId} refreshKey={classificationVersion} />}
       <div className="section-gap"><Notice job={job} status={status} /></div>
       <div className="job-actions">{job.canCancel && <Button variant="danger" onClick={() => setShowCancel(true)}>분석 취소</Button>}{status === 'FAILED' && <Button onClick={() => void retry()} disabled={isActing}>다시 시도</Button>}{(status === 'COMPLETED' || status === 'BLOCKED') && job.requestId && <Button variant="secondary" onClick={() => navigate(`/result/${job.requestId}`)}>결과 확인</Button>}</div>

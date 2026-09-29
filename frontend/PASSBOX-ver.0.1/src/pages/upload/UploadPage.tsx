@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import analysisStartExample from '../../assets/onboarding-upload-analysis-example.png'
 import { getUploadPolicyHint, uploadDocument } from '../../api/upload'
 import { createJob } from '../../api/jobs'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
 import { DataTable, type DataTableColumn } from '../../components/common/DataTable'
+import { PageOnboardingTour, type OnboardingTourStep } from '../../components/common/PageOnboardingTour'
 import { EmptyState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
 import { FileDropzone } from '../../components/upload/FileDropzone'
@@ -33,16 +35,44 @@ const hashLabels: Record<HashStatus, string> = {
 const formatSize = (size: number) => `${(size / 1024 / 1024).toFixed(size < 1024 * 1024 ? 2 : 1)} MB`
 const extensionOf = (file: File) => file.name.split('.').pop()?.toLowerCase() ?? ''
 
+const uploadOnboardingSteps: OnboardingTourStep[] = [
+  {
+    id: 'file-picker',
+    target: '[data-onboarding-target="upload-file-picker"]',
+    title: '파일을 선택하세요',
+    description: '문서를 끌어놓거나 파일 선택 버튼을 눌러 업로드할 파일을 추가합니다.',
+  },
+  {
+    id: 'validation-request',
+    target: '[data-onboarding-target="upload-analysis-area"]',
+    title: '검증을 요청하세요',
+    description: '파일을 선택한 뒤 검증 요청을 누르면 업로드와 서버 검증이 시작됩니다.',
+  },
+  {
+    id: 'analysis-start',
+    target: '[data-onboarding-target="upload-analysis-example"]',
+    title: '검증 완료 후 분석을 시작하세요',
+    description: '검증이 완료되면 파일 행의 분석 시작 버튼을 눌러 분석 Job을 생성합니다.',
+  },
+]
+
 export function UploadPage() {
   const { files, setFiles } = useUploadDraft()
   const [error, setError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [activeOnboardingStep, setActiveOnboardingStep] = useState<number | null>(null)
   const [policyHint, setPolicyHint] = useState<UploadPolicyHint>({
     allowedExtensions: Array.from(acceptedExtensions),
     maxFileSizeText: '서버 정책에 따라 제한됩니다.',
     maxFileCountText: '서버 정책에 따라 제한됩니다.',
   })
   const navigate = useNavigate()
+
+  function restartUploadOnboarding() {
+    window.dispatchEvent(new CustomEvent('passbox:onboarding-restart', {
+      detail: 'passbox:onboarding:upload:v1',
+    }))
+  }
 
   useEffect(() => {
     void getUploadPolicyHint().then(setPolicyHint).catch(() => undefined)
@@ -153,6 +183,7 @@ export function UploadPage() {
     <p className="eyebrow">파일 보안 검사</p>
     <h1>문서 업로드</h1>
     <p>문서를 추가하면 서버 정책에 따라 파일 signature, MIME, 확장자, 크기, 무결성을 검증합니다.</p>
+    <Button className="onboarding-restart-button" size="sm" variant="ghost" onClick={restartUploadOnboarding}>사용 안내 다시 보기</Button>
     <div className="upload-layout">
       <FileDropzone onFiles={addFiles} />
       <Card className="upload-policy">
@@ -166,10 +197,25 @@ export function UploadPage() {
       </Card>
     </div>
     {error && <div className="section-gap"><Alert variant="danger" title="업로드 확인 필요">{error}</Alert></div>}
-    <div className="section-heading">
+    <div className="section-heading" data-onboarding-target="upload-analysis-area">
       <div><h2>선택한 파일</h2><p>각 파일은 독립적으로 업로드 및 검증됩니다.</p></div>
-      <Button onClick={() => void uploadAll()} disabled={isUploading || files.length === 0}>{isUploading ? '업로드 중' : '검증 요청'}</Button>
+      <Button data-onboarding-target="upload-validation-request" onClick={() => void uploadAll()} disabled={isUploading || files.length === 0}>{isUploading ? '업로드 중' : '검증 요청'}</Button>
     </div>
-    {files.length === 0 ? <Card><EmptyState label="선택한 파일이 없습니다. 파일을 끌어 놓거나 파일 선택 버튼을 사용해 주세요." /></Card> : <DataTable columns={columns} rows={files} />}
+    {activeOnboardingStep === 2 && (
+      <Card className="upload-onboarding-example">
+        <div className="upload-onboarding-example__frame" data-onboarding-target="upload-analysis-example">
+          <img src={analysisStartExample} alt="검증 완료 파일 행의 분석 시작 버튼 예시" />
+          <span className="upload-onboarding-example__analysis-button" aria-hidden="true" />
+        </div>
+        <p>온보딩 예시 · 실제 파일이 추가되거나 저장되지는 않습니다.</p>
+      </Card>
+    )}
+    {activeOnboardingStep !== 2 && (files.length === 0 ? <Card><EmptyState label="선택한 파일이 없습니다. 파일을 끌어 놓거나 파일 선택 버튼을 사용해 주세요." /></Card> : <DataTable columns={columns} rows={files} />)}
+    <PageOnboardingTour
+      storageKey="passbox:onboarding:upload:v1"
+      steps={uploadOnboardingSteps}
+      onActiveStepChange={setActiveOnboardingStep}
+      targetReadyKey={activeOnboardingStep}
+    />
   </section>
 }

@@ -352,7 +352,6 @@ export function AnalysisPage() {
   const [isActing, setIsActing] = useState(false)
   const [toast, setToast] = useState('')
   const [classificationVersion, setClassificationVersion] = useState(0)
-
   async function copyJobId() {
     if (!job?.jobId) return
     try {

@@ -3,6 +3,7 @@ import { AuthLayout } from '../layouts/AuthLayout'
 import { ServiceLayout } from '../layouts/ServiceLayout'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { HomePageRedesign } from '../pages/home/HomePageRedesign'
+import { HomeShowroomPage } from '../pages/home/HomeShowroomPage'
 import { UploadPage } from '../pages/upload/UploadPage'
 import { ChatPage } from '../pages/chat/ChatPage'
 import { AnalysisPage } from '../pages/analysis/AnalysisPage'
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
     children: [{
       element: <ServiceLayout />,
       children: [
+        { path: '/home-showroom', element: <HomeShowroomPage /> },
         { path: '/upload', element: <UploadPage /> },
         { path: '/analysis/recent', element: <AnalysisJobsPage /> },
         { path: '/analysis/:jobId', element: <AnalysisPage /> },

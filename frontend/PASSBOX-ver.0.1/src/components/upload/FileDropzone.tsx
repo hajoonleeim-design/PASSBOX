@@ -12,7 +12,7 @@ export function FileDropzone({ onFiles }: { onFiles: (files: File[]) => void }) 
   }
 
   return (
-    <div className="file-dropzone" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+    <div className="file-dropzone" data-onboarding-target="upload-file-picker" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
       <input
         ref={inputRef}
         className="visually-hidden"

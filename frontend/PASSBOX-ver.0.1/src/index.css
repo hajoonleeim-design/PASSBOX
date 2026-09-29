@@ -2839,3 +2839,45 @@ body {
   .landing-audit { grid-template-columns: 1fr; }
   .landing-nav__links { display: none; }
 }
+
+/* ==========================================================================
+   Login screen: re-themed to match the public landing page's clearance-pass
+   identity, so the public → login → app hand-off reads as one brand moment.
+   Hardcoded colors on purpose, same reasoning as .landing above.
+   ========================================================================== */
+.auth-layout {
+  background:
+    radial-gradient(circle at 78% 20%, rgba(0, 229, 255, .07), transparent 26rem),
+    radial-gradient(circle at 12% 82%, rgba(16, 185, 129, .06), transparent 28rem),
+    #070B11;
+}
+.auth-layout::before {
+  opacity: .5;
+  background-image: linear-gradient(rgba(0, 229, 255, .04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, .04) 1px, transparent 1px);
+}
+.auth-card {
+  border-color: rgba(255, 255, 255, .1);
+  background: linear-gradient(165deg, #0F1B2E, #070B11 65%);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, .5), inset 0 0 60px rgba(0, 229, 255, .03);
+}
+.auth-card::before {
+  border-color: rgba(16, 185, 129, .4);
+  color: #10B981;
+  background: rgba(16, 185, 129, .08);
+  box-shadow: 0 0 20px rgba(16, 185, 129, .18);
+}
+.auth-card h1 { color: #F5F8FC; }
+.auth-card p { color: #AFC0D3; }
+.auth-card small { color: #6E85A0; }
+.auth-card .eyebrow { color: #10B981; }
+.auth-card .form-field span { color: #9FB0C3; }
+.auth-card .form-control { border-color: rgba(255, 255, 255, .12); color: #EDF3FA; background: rgba(255, 255, 255, .03); }
+.auth-card .form-control::placeholder { color: #56677E; }
+.auth-card .form-control:focus-visible { outline-color: #00E5FF; }
+.auth-card .alert { border-color: rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .03); }
+.auth-card .alert--info { color: #7FE8FF; background: rgba(0, 229, 255, .07); }
+.auth-card .alert--warning { color: #F59E0B; background: rgba(245, 158, 11, .08); }
+.auth-card .alert--danger { color: #FF8B93; background: rgba(239, 68, 68, .1); }
+.auth-card .alert strong { color: inherit; }
+.auth-card .button--primary { color: #04131B; background: linear-gradient(135deg, #10B981, #00E5FF); }
+.auth-card .button--primary:hover { background: linear-gradient(135deg, #35d19a, #45ecff); }

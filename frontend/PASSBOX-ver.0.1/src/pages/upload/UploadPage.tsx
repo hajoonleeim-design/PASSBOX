@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import analysisStartExample from '../../assets/onboarding-upload-analysis-example.png'
 import { getUploadPolicyHint, uploadDocument } from '../../api/upload'
@@ -69,6 +69,7 @@ export function UploadPage() {
     maxFileCountText: '서버 정책에 따라 제한됩니다.',
   })
   const navigate = useNavigate()
+  const fileListRef = useRef<HTMLDivElement>(null)
 
   function restartUploadOnboarding() {
     window.dispatchEvent(new CustomEvent('passbox:onboarding-restart', {
@@ -99,6 +100,7 @@ export function UploadPage() {
     if (next.some((item) => item.uploadStatus === 'FAILED')) {
       setError('지원하지 않는 파일 형식이 포함되어 있습니다. 허용 형식을 확인해 주세요.')
     }
+    requestAnimationFrame(() => fileListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
   function updateFile(id: string, patch: Partial<UploadDraftRow>) {
@@ -199,7 +201,7 @@ export function UploadPage() {
       </Card>
     </div>
     {error && <div className="section-gap"><Alert variant="danger" title="업로드 확인 필요">{error}</Alert></div>}
-    <div className="section-heading" data-onboarding-target="upload-analysis-area">
+    <div ref={fileListRef} className="section-heading" data-onboarding-target="upload-analysis-area">
       <div><h2>선택한 파일</h2><p>각 파일은 독립적으로 업로드 및 검증됩니다.</p></div>
       <Button data-onboarding-target="upload-validation-request" onClick={() => void uploadAll()} disabled={isUploading || files.length === 0}>{isUploading ? '업로드 중' : '검증 요청'}</Button>
     </div>

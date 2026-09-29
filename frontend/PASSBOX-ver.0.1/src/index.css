@@ -1538,9 +1538,12 @@ textarea.form-control { min-height: 96px; resize: vertical; line-height: 1.65; }
 .table-note { max-width: 300px; overflow-wrap: anywhere; line-height: 1.45; }
 .table-actions { align-items: center; }
 
-.stepper { scrollbar-width: none; padding: 11px 4px 7px; }
+.stepper { flex-wrap: wrap; row-gap: 18px; scrollbar-width: none; padding: 14px 4px 7px; }
 .stepper::-webkit-scrollbar { display: none; }
-.stepper__item { position: relative; flex: 1 0 118px; min-height: 54px; padding-right: 15px; }
+.stepper__item { position: relative; flex: 1 0 96px; min-height: 54px; padding-right: 12px; }
+.analysis-step-card__meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 4px; color: var(--color-text-muted); font-size: 13px; }
+.analysis-step-card__meta strong { color: var(--color-primary); font-weight: 700; }
+.result-back-button { margin-bottom: 14px; }
 .stepper__item:not(:last-child)::after { position: absolute; top: 12px; right: 5px; left: 32px; height: 1px; background: var(--color-border); content: ""; }
 .stepper__item--complete:not(:last-child)::after { background: rgb(20 173 130 / 48%); }
 .stepper__marker { position: relative; z-index: 1; background: #ffffff; box-shadow: 0 0 0 4px #ffffff; }

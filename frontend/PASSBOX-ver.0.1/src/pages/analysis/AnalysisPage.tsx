@@ -83,6 +83,15 @@ const gradeNames: Record<SecurityGrade, string> = {
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
 
+const TOTAL_STEPS = 10
+
+const formatDuration = (fromIso: string, toIso: string) => {
+  const seconds = Math.max(0, Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 1000))
+  const minutes = Math.floor(seconds / 60)
+  const remaining = seconds % 60
+  return minutes > 0 ? `${minutes}분 ${remaining}초` : `${remaining}초`
+}
+
 const terminalState = (
   status: JobStatus,
 ): 'completed' | 'failed' | 'blocked' | 'cancelled' | undefined =>
@@ -415,7 +424,14 @@ export function AnalysisPage() {
         <Card><div className="job-id-row"><div><p className="eyebrow">작업 ID</p><code>{job.jobId}</code></div><Button size="sm" variant="ghost" onClick={() => void copyJobId()}>복사</Button></div><dl className="info-list"><div><dt>파일</dt><dd>{job.file.fileName}</dd></div><div><dt>현재 상태</dt><dd><StatusBadge label={statuses[status]} /></dd></div><div><dt>생성 시각</dt><dd>{formatDate(job.createdAt)}</dd></div><div><dt>마지막 업데이트</dt><dd>{formatDate(job.updatedAt)}</dd></div></dl></Card>
         <Card><p className="eyebrow">진행률</p><div className="progress-value">{job.progress}%</div><div className="progress-bar" role="progressbar" aria-label="분석 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={job.progress}><span style={{ width: `${job.progress}%` }} /></div><p>{terminal ? '처리가 종료되었습니다.' : `${job.currentStep} 단계를 처리 중입니다.`}</p></Card>
       </div>
-      <Card className="analysis-step-card"><h2>분석 단계</h2><Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} /></Card>
+      <Card className="analysis-step-card">
+        <h2>분석 단계</h2>
+        <p className="analysis-step-card__meta">
+          <span><strong>{Math.min(stepIndex[status] + 1, TOTAL_STEPS)}</strong> / {TOTAL_STEPS}단계</span>
+          <span>소요시간 <strong>{formatDuration(job.createdAt, job.updatedAt)}</strong></span>
+        </p>
+        <Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} />
+      </Card>
       {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
       {job.documentId && classificationReady && <GatewayCard documentId={job.documentId} refreshKey={classificationVersion} />}
       <div className="section-gap"><Notice job={job} status={status} /></div>

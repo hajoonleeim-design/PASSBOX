@@ -58,15 +58,15 @@ export function LandingPage() {
 
       <section className="landing-hero">
         <div className="landing-hero__copy">
-          <p className="landing-hero__kicker">N2SF MLS · ZERO TRUST AI GATEWAY</p>
+          <p className="landing-hero__kicker">N2SF MLS · 제로 트러스트 AI 게이트웨이</p>
           <h1>
-            Your secure gateway<br />
-            to Public AI with <em>N2SF MLS</em>
+            공공을 위한<br />
+            <em>안전한 AI 관문</em>
           </h1>
           <p className="landing-hero__sub">
             정부 행정망과 외부 생성형 AI를 완벽히 격리하는 국내 유일의 샌드박스 패스박스.
           </p>
-          <p className="landing-hero__statement">Never send uninspected data to Public AI again.</p>
+          <p className="landing-hero__statement">검증되지 않은 문서는 단 한 글자도 내보내지 않습니다.</p>
           <div className="landing-hero__actions">
             <Link to="/login" className="button button--primary button--lg">지금 시작하기</Link>
             <a href="#features" className="button button--ghost button--lg">핵심 기능 보기</a>

@@ -14,6 +14,11 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
       {label}
     </NavLink>
   )
+  const subLink = (to: string, label: string) => (
+    <NavLink key={to} to={to} className="sidebar-submenu__link" onClick={onNavigate}>
+      {label}
+    </NavLink>
+  )
 
   return (
     <aside
@@ -25,8 +30,16 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
         {link('/upload', '문서 업로드')}
         {link('/analysis/recent', '문서 분석 작업')}
         {link('/chat', '일상 AI 대화')}
-        <PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>
-          {link('/approvals', 'S등급 승인')}
+        <PermissionGuard roles={['APPROVER', 'OPERATOR', 'SECURITY_ADMIN', 'ADMIN']}>
+          <div className="sidebar-submenu">
+            <p className="sidebar-submenu__label">승인</p>
+            <PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>
+              {subLink('/approvals', 'S등급 승인')}
+            </PermissionGuard>
+            <PermissionGuard roles={['OPERATOR', 'SECURITY_ADMIN', 'ADMIN']}>
+              {subLink('/reviews', 'C등급 재검토')}
+            </PermissionGuard>
+          </div>
         </PermissionGuard>
         <PermissionGuard roles={['OPERATOR', 'ADMIN']}>
           {link('/audit/mock-request', '감사·증적')}

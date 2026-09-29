@@ -123,7 +123,7 @@ function Notice({ job, status }: { job: AnalysisJob; status: JobStatus }) {
   return <Alert variant="info" title="현재 처리 내용">{detail[status]}</Alert>
 }
 
-function ClassificationCard({ documentId, onConfirmed }: { documentId: number; onConfirmed?: (decision: ClassificationDecision) => void }) {
+function ClassificationCard({ documentId, jobStatus, onConfirmed }: { documentId: number; jobStatus: JobStatus; onConfirmed?: (decision: ClassificationDecision) => void }) {
   const { session } = useAuth()
   const [recommendation, setRecommendation] = useState<ClassificationRecommendation | null>(null)
   const [decision, setDecision] = useState<ClassificationDecision | null>(null)
@@ -162,7 +162,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
     return () => {
       cancelled = true
     }
-  }, [documentId])
+  }, [documentId, jobStatus])
 
   async function submitConfirmation() {
     setIsConfirming(true)
@@ -227,6 +227,7 @@ function ClassificationCard({ documentId, onConfirmed }: { documentId: number; o
             <div className="section-gap">
               <Alert variant="warning" title="최종 확정 권한 필요">
                 AI 추천 결과는 조회할 수 있지만, C/S/O 최종 확정은 담당자 권한이 필요합니다.
+                담당자가 확정하면 이 화면이 자동으로 갱신됩니다. 별도로 새로고침하지 않아도 됩니다.
               </Alert>
             </div>
           )}
@@ -432,7 +433,7 @@ export function AnalysisPage() {
         </p>
         <Stepper activeStep={stepIndex[status]} terminalState={terminalState(status)} />
       </Card>
-      {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
+      {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} jobStatus={status} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
       {job.documentId && classificationReady && <GatewayCard documentId={job.documentId} refreshKey={classificationVersion} />}
       <div className="section-gap"><Notice job={job} status={status} /></div>
       <div className="job-actions">{job.canCancel && <Button variant="danger" onClick={() => setShowCancel(true)}>분석 취소</Button>}{status === 'FAILED' && <Button onClick={() => void retry()} disabled={isActing}>다시 시도</Button>}{(status === 'COMPLETED' || status === 'BLOCKED') && job.requestId && <Button variant="secondary" onClick={() => navigate(`/result/${job.requestId}`)}>결과 확인</Button>}</div>

@@ -14,6 +14,7 @@ import { PolicyPage } from '../pages/policy/PolicyPage'
 import { OperationsDashboardPage } from '../pages/dashboard/OperationsDashboardPage'
 import { SupportPage } from '../pages/support/SupportPage'
 import { ApprovalPage } from '../pages/approvals/ApprovalPage'
+import { ReviewQueuePage } from '../pages/reviews/ReviewQueuePage'
 import { AccountPage } from '../pages/account/AccountPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
         { path: '/support', element: <SupportPage /> },
         { path: '/support/:scenario', element: <SupportPage /> },
         { path: '/approvals', element: <ApprovalPage /> },
+        { path: '/reviews', element: <ReviewQueuePage /> },
         { path: '/account', element: <AccountPage /> },
       ],
     }],

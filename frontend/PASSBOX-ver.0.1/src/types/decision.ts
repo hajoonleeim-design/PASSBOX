@@ -8,6 +8,7 @@ export interface ApprovalHistoryEntry { id: string; action: 'APPROVED' | 'REJECT
 export interface ClassificationDecision {
   requestId: string
   jobId?: string
+  documentId: number
   fileName: string
   grade: SecurityGrade
   gradeName: string

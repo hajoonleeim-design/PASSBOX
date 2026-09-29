@@ -2882,3 +2882,13 @@ body {
 .auth-card .alert strong { color: inherit; }
 .auth-card .button--primary { color: #04131B; background: linear-gradient(135deg, #10B981, #00E5FF); }
 .auth-card .button--primary:hover { background: linear-gradient(135deg, #35d19a, #45ecff); }
+
+/* Sidebar submenu (e.g. 승인 > S등급 승인 / C등급 재검토) */
+.sidebar-submenu { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 4px 12px; }
+.sidebar-submenu__label { margin: 4px 0 2px 15px; color: var(--color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.sidebar-submenu__link { display: flex; align-items: center; min-height: 36px; padding: 0 15px 0 30px; border-radius: 10px; color: var(--color-text-secondary); font-size: 13px; text-decoration: none; }
+.sidebar-submenu__link:hover { color: var(--color-primary); background: var(--color-surface-hover); }
+.sidebar-submenu__link.active { color: var(--color-accent); background: rgba(31, 122, 82, .08); font-weight: 700; }
+
+.review-request-panel__checkbox { display: flex; align-items: center; gap: 8px; margin: 14px 0; color: var(--color-text-secondary); font-size: 14px; }
+.review-request-panel__checkbox input { width: 16px; height: 16px; }

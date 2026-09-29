@@ -1,12 +1,16 @@
-// 서비스의 주요 페이지로 이동하는 좌측 메뉴입니다.
 import { NavLink } from 'react-router-dom'
 import { PermissionGuard } from '../security/PermissionGuard'
 
+type SidebarProps = {
+  isOpen: boolean
+  isCollapsed: boolean
+  onNavigate: () => void
+}
 
-export function Sidebar({ isOpen, isCollapsed, onNavigate }: { isOpen: boolean; isCollapsed: boolean; onNavigate: () => void }) {
+export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
   const link = (to: string, label: string) => (
     <NavLink key={to} to={to} end={to === '/'} onClick={onNavigate}>
-      <span aria-hidden="true">◈</span>
+      <span aria-hidden="true">◆</span>
       {label}
     </NavLink>
   )
@@ -17,10 +21,11 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: { isOpen: boolean; 
       className={`sidebar-shell ${isOpen ? 'sidebar-shell--open' : ''} ${isCollapsed ? 'sidebar-shell--collapsed' : ''}`}
     >
       <nav className="sidebar" aria-label="주 메뉴">
-        {link('/', '홈 쇼룸')}
+        {link('/', '홈')}
+        {link('/home-showroom', '홈 쇼룸 (임시)')}
         {link('/upload', '문서 업로드')}
         {link('/analysis/recent', '문서 분석 작업')}
-        {link('/chat', '안전한 AI 대화')}
+        {link('/chat', '일상 AI 대화')}
         <PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>
           {link('/approvals', 'S등급 승인')}
         </PermissionGuard>

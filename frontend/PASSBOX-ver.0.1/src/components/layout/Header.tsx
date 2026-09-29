@@ -10,7 +10,7 @@ export function Header({ isMenuOpen, onMenuToggle }: { isMenuOpen: boolean; onMe
   return <header className="header">
     <div className="header__brand">
       <button type="button" className="icon-button header__menu" aria-label={isMenuOpen ? '메뉴 닫기' : '메뉴 열기'} aria-expanded={isMenuOpen} aria-controls="passbox-sidebar" onClick={onMenuToggle}><span aria-hidden="true">☰</span></button>
-      <Link to="/" className="header__logo" aria-label="PASSBOX 홈"><img src="/passbox-logo.svg" alt="PASSBOX" /></Link>
+      <Link to="/home" className="header__logo" aria-label="PASSBOX 홈"><img src="/passbox-logo.svg" alt="PASSBOX" /></Link>
       <span className="header__brand-text">공공기관 문서 보안 플랫폼 · {session?.institutionName}</span>
     </div>
     <div className="header__account">

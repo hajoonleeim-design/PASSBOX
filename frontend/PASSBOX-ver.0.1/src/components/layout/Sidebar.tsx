@@ -9,7 +9,7 @@ type SidebarProps = {
 
 export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
   const link = (to: string, label: string) => (
-    <NavLink key={to} to={to} end={to === '/'} onClick={onNavigate}>
+    <NavLink key={to} to={to} end={to === '/home'} onClick={onNavigate}>
       <span aria-hidden="true">◆</span>
       {label}
     </NavLink>
@@ -21,7 +21,7 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
       className={`sidebar-shell ${isOpen ? 'sidebar-shell--open' : ''} ${isCollapsed ? 'sidebar-shell--collapsed' : ''}`}
     >
       <nav className="sidebar" aria-label="주 메뉴">
-        {link('/', '홈')}
+        {link('/home', '홈')}
         {link('/upload', '문서 업로드')}
         {link('/analysis/recent', '문서 분석 작업')}
         {link('/chat', '일상 AI 대화')}

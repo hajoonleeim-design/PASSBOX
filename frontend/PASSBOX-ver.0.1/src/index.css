@@ -2706,7 +2706,7 @@ body {
 }
 .landing-hero__kicker {
   margin: 0 0 18px;
-  color: #10B981;
+  color: #00E5FF;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: .04em;
@@ -2798,7 +2798,7 @@ body {
 .clearance-pass__hash { color: #56677E; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; }
 
 /* Shared section chrome */
-.landing-section__kicker { margin: 0 0 12px; color: #10B981; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-align: center; }
+.landing-section__kicker { margin: 0 0 12px; color: #00E5FF; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-align: center; }
 .landing-features, .landing-generations, .landing-audit, .landing-cta { max-width: 1200px; margin: 0 auto; padding: clamp(48px, 8vw, 96px) clamp(20px, 5vw, 64px); }
 .landing-features h2, .landing-generations h2 { max-width: 26ch; margin: 0 auto 44px; color: #F5F8FC; font-size: clamp(1.7rem, 3vw, 2.3rem); text-align: center; }
 
@@ -2867,7 +2867,7 @@ body {
 .auth-card h1 { color: #F5F8FC; }
 .auth-card p { color: #AFC0D3; }
 .auth-card small { color: #6E85A0; }
-.auth-card .eyebrow { color: #10B981; }
+.auth-card .eyebrow { color: #00E5FF; }
 .auth-card .form-field span { color: #9FB0C3; }
 .auth-card .form-control { border-color: rgba(255, 255, 255, .12); color: #EDF3FA; background: rgba(255, 255, 255, .03); }
 .auth-card .form-control::placeholder { color: #56677E; }

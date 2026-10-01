@@ -48,9 +48,9 @@ export function OperationsDashboardPage() {
   const { dashboard, isLoading, errorCode, refresh } = useOperations(scenario, session?.role)
 
   if (isLoading && !dashboard) return <LoadingState label="운영 데이터를 불러오는 중입니다." />
-  if (errorCode === 'FORBIDDEN') return <section><h1>운영 대시보드 권한이 없습니다.</h1><ErrorState label="관리자만 운영 현황을 조회할 수 있습니다." /></section>
-  if (errorCode === 'NOT_FOUND') return <section><h1>대시보드 시나리오를 찾을 수 없습니다.</h1><ErrorState label="요청한 운영 데이터 시나리오가 없습니다." /></section>
-  if (errorCode || !dashboard) return <section><h1>운영 데이터를 불러오지 못했습니다.</h1><ErrorState label="네트워크 연결을 확인한 뒤 다시 시도해 주세요." /><Button onClick={() => void refresh()}>다시 조회</Button></section>
+  if (errorCode === 'FORBIDDEN') return <section className="state-action-page"><h1>운영 대시보드 권한이 없습니다.</h1><ErrorState label="관리자만 운영 현황을 조회할 수 있습니다." /></section>
+  if (errorCode === 'NOT_FOUND') return <section className="state-action-page"><h1>대시보드 시나리오를 찾을 수 없습니다.</h1><ErrorState label="요청한 운영 데이터 시나리오가 없습니다." /></section>
+  if (errorCode || !dashboard) return <section className="state-action-page"><h1>운영 데이터를 불러오지 못했습니다.</h1><ErrorState label="네트워크 연결을 확인한 뒤 다시 시도해 주세요." /><Button onClick={() => void refresh()}>다시 조회</Button></section>
 
   const summary = [
     ['전체 요청', dashboard.summary.totalRequests, '현재 집계 기준 요청'],

@@ -47,8 +47,8 @@ const uploadOnboardingSteps: OnboardingTourStep[] = [
   {
     id: 'validation-request',
     target: '[data-onboarding-target="upload-analysis-area"]',
-    title: '검증을 요청하세요',
-    description: '파일을 선택한 뒤 검증 요청을 누르면 업로드와 서버 검증이 시작됩니다.',
+    title: '업로드와 검증이 시작됩니다',
+    description: '파일을 추가하면 업로드와 서버 검증이 자동으로 시작됩니다.',
   },
   {
     id: 'analysis-start',
@@ -101,6 +101,11 @@ export function UploadPage() {
       setError('지원하지 않는 파일 형식이 포함되어 있습니다. 허용 형식을 확인해 주세요.')
     }
     requestAnimationFrame(() => fileListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+
+    const uploadable = next.filter((item) => item.uploadStatus === 'PENDING')
+    if (uploadable.length > 0) {
+      void uploadFiles(uploadable)
+    }
   }
 
   function updateFile(id: string, patch: Partial<UploadDraftRow>) {
@@ -133,8 +138,7 @@ export function UploadPage() {
     }
   }
 
-  async function uploadAll() {
-    const pending = files.filter((item) => item.uploadStatus === 'PENDING')
+  async function uploadFiles(pending: UploadDraftRow[]) {
     if (pending.length === 0) {
       setError('업로드할 수 있는 대기 파일이 없습니다.')
       return
@@ -143,6 +147,10 @@ export function UploadPage() {
     setIsUploading(true)
     await Promise.all(pending.map(uploadOne))
     setIsUploading(false)
+  }
+
+  async function uploadAll() {
+    await uploadFiles(files.filter((item) => item.uploadStatus === 'PENDING'))
   }
 
   async function startAnalysis(item: UploadDraftRow) {
@@ -189,7 +197,7 @@ export function UploadPage() {
     <p>문서를 추가하면 서버 정책에 따라 파일 signature, MIME, 확장자, 크기, 무결성을 검증합니다.</p>
     <Button className="onboarding-restart-button" size="sm" variant="ghost" onClick={restartUploadOnboarding}>사용 안내 다시 보기</Button>
     <div className="upload-layout">
-      <FileDropzone onFiles={addFiles} />
+      <FileDropzone files={files} isUploading={isUploading} onFiles={addFiles} onRemove={(id) => setFiles((current) => current.filter((item) => item.id !== id))} />
       <Card className="upload-policy">
         <h2>업로드 전 안내</h2>
         <dl>
@@ -202,8 +210,8 @@ export function UploadPage() {
     </div>
     {error && <div className="section-gap"><Alert variant="danger" title="업로드 확인 필요">{error}</Alert></div>}
     <div ref={fileListRef} className="section-heading" data-onboarding-target="upload-analysis-area">
-      <div><h2>선택한 파일</h2><p>각 파일은 독립적으로 업로드 및 검증됩니다.</p></div>
-      <Button data-onboarding-target="upload-validation-request" onClick={() => void uploadAll()} disabled={isUploading || files.length === 0}>{isUploading ? '업로드 중' : '검증 요청'}</Button>
+      <div><h2>업로드 및 검증 결과</h2><p>파일을 추가하면 각 파일의 업로드와 서버 검증이 자동으로 시작됩니다.</p></div>
+      {files.some((item) => item.uploadStatus === 'PENDING') && <Button data-onboarding-target="upload-validation-request" onClick={() => void uploadAll()} disabled={isUploading}>대기 파일 검증 시작</Button>}
     </div>
     {activeOnboardingStep === 2 && (
       <Card className="upload-onboarding-example">

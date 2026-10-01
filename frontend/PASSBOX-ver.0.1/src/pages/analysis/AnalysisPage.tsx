@@ -400,8 +400,8 @@ export function AnalysisPage() {
   }
 
   if (isLoading && !job) return <LoadingState label="분석 작업 상태를 불러오는 중입니다." />
-  if (notFound) return <section><h1>분석 작업을 찾을 수 없습니다.</h1><ErrorState label="입력한 Job ID에 해당하는 분석 작업이 없습니다." /><Button variant="secondary" onClick={() => navigate('/upload')}>문서 업로드로 이동</Button></section>
-  if (!job) return <section><h1>분석 상태를 확인할 수 없습니다.</h1><ErrorState label="Job 정보를 불러오지 못했습니다." /><Button onClick={() => void refresh()}>다시 조회</Button></section>
+  if (notFound) return <section className="state-action-page"><h1>분석 작업을 찾을 수 없습니다.</h1><ErrorState label="입력한 Job ID에 해당하는 분석 작업이 없습니다." /><Button variant="secondary" onClick={() => navigate('/upload')}>문서 업로드로 이동</Button></section>
+  if (!job) return <section className="state-action-page"><h1>분석 상태를 확인할 수 없습니다.</h1><ErrorState label="Job 정보를 불러오지 못했습니다." /><Button onClick={() => void refresh()}>다시 조회</Button></section>
 
   const status = normalizeStatus(job.status)
   const terminal = isTerminalJob(job)

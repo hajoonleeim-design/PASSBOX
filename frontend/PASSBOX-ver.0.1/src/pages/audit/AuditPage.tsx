@@ -19,8 +19,8 @@ import type { ApprovalHistoryEntry } from '../../types/decision'
 const auditOnboardingSteps: OnboardingTourStep[] = [
   { id: 'lookup', target: '[data-onboarding-target="audit-lookup"]', title: 'Request ID로 감사 이력을 조회하세요', description: '요청에 연결된 처리 이력과 증적을 확인하려면 Request ID를 입력한 뒤 조회를 선택하세요.' },
   { id: 'timeline', target: '[data-onboarding-target="audit-timeline"]', title: '처리 Timeline을 확인하세요', description: '요청 생성부터 분석, 판정, 승인과 보안 검증까지의 처리 순서와 수행 주체를 시간순으로 확인할 수 있습니다.' },
-  { id: 'evidence', target: '[data-onboarding-target="audit-evidence"]', title: 'Evidence 요약을 확인하세요', description: '파일 내용이나 AI 원문 대신 파일 유형, 해시, 정책 버전, 승인 및 Post-Inspector 상태 같은 안전한 메타데이터만 제공합니다.' },
-  { id: 'report', target: '[data-onboarding-target="audit-pdf"]', title: 'PDF 보고서를 생성하세요', description: '감사 메타데이터를 PDF 보고서로 생성할 수 있습니다. 원본 문서와 AI 원문은 보고서에 포함되지 않습니다.' },
+  { id: 'evidence', target: '[data-onboarding-target="audit-evidence"]', title: 'Evidence 요약을 확인하세요', description: '파일 내용이나 AI 원문 대신 파일 유형, 해시, 정책 버전, 승인 및 Post-Inspector 상태 같은 안전한 메타데이터만 제공합니다.', calloutAlign: 'center' },
+  { id: 'report', target: '[data-onboarding-target="audit-pdf"]', title: 'PDF 보고서를 생성하세요', description: '감사 메타데이터를 PDF 보고서로 생성할 수 있습니다. 원본 문서와 AI 원문은 보고서에 포함되지 않습니다.', calloutAlign: 'center' },
 ]
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
@@ -87,7 +87,7 @@ export function AuditPage() {
     }
   }
 
-  const onboarding = <PageOnboardingTour storageKey="passbox:onboarding:audit:v1" steps={auditOnboardingSteps} calloutPlacement="bottom" />
+  const onboarding = <PageOnboardingTour storageKey="passbox:onboarding:audit:v1" steps={auditOnboardingSteps} />
   const lookup = <Card className="audit-lookup" data-onboarding-target="audit-lookup"><form onSubmit={search}><FormField label="Request ID"><TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Request ID를 입력하세요" /></FormField><Button type="submit">조회</Button></form></Card>
 
   if (isLoading && !audit) return <section>{lookup}<LoadingState label="감사 기록을 불러오는 중입니다." />{onboarding}</section>

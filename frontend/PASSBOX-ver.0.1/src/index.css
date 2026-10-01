@@ -842,7 +842,7 @@ html.home-scroll-mode .story-end-grid {
 /* Page onboarding: only the active control is emphasized; no continuous motion. */
 .onboarding-tour-target {
   position: relative !important;
-  z-index: 30 !important;
+  z-index: 50 !important;
   outline: 3px solid var(--color-accent);
   outline-offset: 5px;
   box-shadow: 0 0 0 8px rgb(20 173 130 / 14%), 0 0 28px rgb(20 173 130 / 28%);
@@ -851,14 +851,14 @@ html.home-scroll-mode .story-end-grid {
 
 .onboarding-tour {
   position: fixed;
-  z-index: 40;
+  z-index: 60;
   inset: 0;
   pointer-events: none;
 }
 
 .onboarding-tour-target__step {
   position: absolute !important;
-  z-index: 100 !important;
+  z-index: 120 !important;
   top: -1rem;
   left: -1rem;
   display: grid;
@@ -900,7 +900,7 @@ html.home-scroll-mode .story-end-grid {
 
 .onboarding-tour__callout {
   position: fixed;
-  z-index: 41;
+  z-index: 61;
   width: min(336px, calc(100vw - 32px));
   padding: 1rem;
   border: 1px solid #9BCFC0;
@@ -934,9 +934,18 @@ html.home-scroll-mode .story-end-grid {
 .onboarding-tour__actions { display: inline-flex; flex: 0 0 auto; gap: .35rem; }
 .onboarding-tour--bottom .onboarding-tour__callout { top: auto !important; right: auto; bottom: 24px; left: 50% !important; transform: translateX(-50%); }
 
-/* The first two audit steps use broad cards; keep their badges outside the content. */
-[data-onboarding-target="audit-lookup"] > .onboarding-tour-target__step,
-[data-onboarding-target="audit-timeline"] > .onboarding-tour-target__step { top: -1.35rem; right: auto; left: -1.35rem; }
+/* Keep audit step numbers visible inside each highlighted card. */
+.onboarding-tour-target[data-onboarding-target^="audit-"] { overflow: visible !important; }
+.onboarding-tour-target[data-onboarding-target^="audit-"] > .onboarding-tour-target__step {
+  top: 12px;
+  right: auto;
+  left: 12px;
+  z-index: 120 !important;
+}
+.onboarding-tour-target[data-onboarding-target^="audit-"]:not([data-onboarding-step="3"]) > .onboarding-tour-target__step {
+  top: -16px;
+  left: -16px;
+}
 .onboarding-restart-button { margin-top: 12px; }
 
 .upload-onboarding-example {
@@ -3768,6 +3777,40 @@ p { color: var(--color-text-secondary); }
 .file-dropzone__remove:disabled { color: #aeb8b1; cursor: not-allowed; }
 .file-dropzone__selection-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .file-dropzone__selection-footer small { color: var(--color-text-muted); font-size: 12px; }
+.header__status {
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.header__status:hover { border-color: #8fcab0; background: #e8f7ef; box-shadow: 0 2px 8px rgb(18 100 68 / 8%); }
+.header__status:focus-visible { outline: 3px solid #4e9a76; outline-offset: 3px; }
+.header__status-chevron { margin-left: 1px; font-size: 13px; line-height: 1; }
+.security-status-demo { display: grid; gap: 16px; }
+.security-status-demo__notice { padding: 12px 14px; border: 1px solid #ead49b; border-radius: 9px; background: #fff9e9; }
+.security-status-demo__demo-label { display: inline-flex; padding: 3px 8px; border-radius: 999px; color: #694b0c; background: #f7e6b8; font-size: 11px; font-weight: 800; }
+.security-status-demo__notice p { margin: 7px 0 0; color: #584a2d; font-size: 13px; line-height: 1.5; }
+.security-status-demo__summary { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #d8e8dc; border-radius: 10px; background: #f5faf6; }
+.security-status-demo__summary-icon { display: grid; flex: 0 0 36px; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: #126344; background: #e2f2e7; font-size: 19px; font-weight: 800; }
+.security-status-demo__summary div, .security-status-demo__check-copy { display: grid; min-width: 0; gap: 3px; }
+.security-status-demo__summary strong { color: var(--color-text-primary); font-size: 14px; }
+.security-status-demo__summary small, .security-status-demo__check-copy small { color: var(--color-text-muted); font-size: 12px; }
+.security-status-demo__checks { display: grid; gap: 0; padding: 0; margin: 0; border: 1px solid var(--color-border); border-radius: 10px; list-style: none; overflow: hidden; }
+.security-status-demo__checks li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 58px; padding: 9px 12px; background: #fff; }
+.security-status-demo__checks li + li { border-top: 1px solid var(--color-border-subtle); }
+.security-status-demo__check-icon { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #126344; background: #e8f5ec; font-size: 12px; font-weight: 800; }
+.security-status-demo__check-copy strong { color: var(--color-text-primary); font-size: 12px; }
+.security-status-demo__check-state { color: #126344; font-size: 12px; font-weight: 750; white-space: nowrap; }
+.security-status-demo__evidence { display: grid; gap: 10px; padding: 13px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: #f8faf9; }
+.security-status-demo__evidence > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 14px; }
+.security-status-demo__evidence span, .security-status-demo__evidence > div > strong { color: var(--color-text-secondary); font-size: 12px; }
+.security-status-demo__evidence code { color: #294b39; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+.security-status-demo__evidence > small { color: var(--color-text-muted); font-size: 11px; }
+.security-status-demo__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.security-status-demo__actions > small { color: var(--color-text-muted); font-size: 11px; line-height: 1.4; }
+@media (max-width: 520px) {
+  .security-status-demo__actions { align-items: stretch; flex-direction: column; }
+  .security-status-demo__actions .button { width: 100%; }
+}
 @media (max-width: 767px) {
   .file-dropzone--has-files { min-height: 0; padding: 18px; }
   .file-dropzone__file { grid-template-columns: 40px minmax(0, 1fr) 30px; gap: 9px; padding: 9px; }

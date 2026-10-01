@@ -6,6 +6,7 @@ export type OnboardingTourStep = {
   target: string
   title: string
   description: string
+  calloutAlign?: 'target' | 'center'
 }
 
 type HighlightRect = { top: number; left: number; width: number; height: number }
@@ -32,7 +33,10 @@ export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targ
   const [isOpen, setIsOpen] = useState(() => initiallyOpen || !readCompleted(storageKey))
   const [stepIndex, setStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState<HighlightRect | null>(null)
+  const [calloutHeight, setCalloutHeight] = useState(220)
+  const [calloutWidth, setCalloutWidth] = useState(336)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const calloutRef = useRef<HTMLElement>(null)
   const ignoreNextScreenClick = useRef(false)
   const transitionTimer = useRef<number | null>(null)
   const isTransitioningRef = useRef(false)
@@ -65,6 +69,20 @@ export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targ
   useEffect(() => () => {
     if (transitionTimer.current !== null) window.clearTimeout(transitionTimer.current)
   }, [])
+
+  useEffect(() => {
+    const callout = calloutRef.current
+    if (!isOpen || !callout) return undefined
+    const measure = () => {
+      const rect = callout.getBoundingClientRect()
+      setCalloutHeight(rect.height)
+      setCalloutWidth(rect.width)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(callout)
+    return () => observer.disconnect()
+  }, [isOpen, stepIndex])
 
   useEffect(() => {
     if (!isOpen || !step) return undefined
@@ -144,16 +162,28 @@ export function PageOnboardingTour({ storageKey, steps, onActiveStepChange, targ
 
   if (!isOpen || !step) return null
 
+  const gap = 12
+  const belowTarget = targetRect ? targetRect.top + targetRect.height + gap : 96
+  const aboveTarget = targetRect ? targetRect.top - calloutHeight - gap : 96
+  const hasRoomBelow = targetRect !== null && belowTarget + calloutHeight <= window.innerHeight - 16
+  const hasRoomAbove = targetRect !== null && aboveTarget >= 16
   const calloutTop = targetRect
-    ? Math.min(targetRect.top + targetRect.height + 16, window.innerHeight - 176)
+    ? hasRoomBelow
+      ? belowTarget
+      : hasRoomAbove
+        ? aboveTarget
+        : Math.max(16, Math.min(belowTarget, window.innerHeight - calloutHeight - 16))
     : 96
-  const calloutLeft = targetRect
-    ? Math.min(Math.max(targetRect.left, 16), window.innerWidth - 352)
-    : 24
+  const maxCalloutLeft = Math.max(16, window.innerWidth - calloutWidth - 16)
+  const calloutLeft = step.calloutAlign === 'center'
+    ? Math.max(16, Math.min((window.innerWidth - calloutWidth) / 2, maxCalloutLeft))
+    : targetRect
+      ? Math.max(16, Math.min(targetRect.left, maxCalloutLeft))
+      : 24
 
   return (
     <div className={`onboarding-tour ${calloutPlacement === 'bottom' ? 'onboarding-tour--bottom' : ''}`.trim()} aria-live="polite">
-      <aside key={stepIndex} className={`onboarding-tour__callout ${isTransitioning ? 'onboarding-tour__callout--leaving' : ''}`.trim()} aria-label={`온보딩 ${stepIndex + 1}단계`} data-onboarding-tour-control style={{ top: calloutTop, left: calloutLeft }}>
+      <aside ref={calloutRef} key={stepIndex} className={`onboarding-tour__callout ${isTransitioning ? 'onboarding-tour__callout--leaving' : ''}`.trim()} aria-label={`온보딩 ${stepIndex + 1}단계`} data-onboarding-tour-control style={{ top: calloutTop, left: calloutLeft }}>
         <p>시작 안내 · {stepIndex + 1} / {steps.length}</p>
         <h2>{step.title}</h2>
         <span>{step.description}</span>

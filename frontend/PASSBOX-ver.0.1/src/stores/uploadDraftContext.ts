@@ -6,6 +6,7 @@ export interface UploadDraftRow {
   file: File
   extension: string
   documentId?: number
+  analysisJobId?: string
   uploadStatus: UploadStatus
   validationStatus: UploadStatus
   hashStatus: HashStatus

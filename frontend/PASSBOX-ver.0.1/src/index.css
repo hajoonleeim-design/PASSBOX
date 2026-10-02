@@ -5,7 +5,7 @@
   --color-border: #1c4e7d; --color-border-subtle: rgb(130 180 227 / 20%);
   --color-success: #4caf7d; --color-warning: #e5ad45; --color-danger: #df5b63; --color-info: #2e82d1;
   --color-grade-c: #df5b63; --color-grade-s: #e5ad45; --color-grade-o: #4caf7d;
-  --header-height: 64px; --sidebar-width: 240px; --sidebar-collapsed-width: 72px; --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+  --header-height: 64px; --sidebar-width: 240px; --sidebar-collapsed-width: 136px; --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
   font-family: Inter, "Segoe UI", system-ui, sans-serif; color: var(--color-text-primary); background: var(--color-background); font-synthesis: none;
 }
 * { box-sizing: border-box; } body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--color-background); } button, input, select, textarea { font: inherit; } button { color: inherit; } a { color: inherit; } h1, h2, h3, p { margin-top: 0; } h1 { font-size: clamp(1.65rem, 3vw, 2.1rem); line-height: 1.25; } h2 { font-size: 1.1rem; } p { color: var(--color-text-secondary); line-height: 1.6; }
@@ -106,7 +106,7 @@ body::selection { color: #052019; background: var(--color-accent); }
   height: 34px;
   border: 1px solid rgb(89 225 181 / 60%);
   border-radius: 12px;
-  content: "✦";
+  content: "??;
   color: var(--color-accent);
   background: linear-gradient(145deg, rgb(89 225 181 / 20%), rgb(105 184 255 / 12%));
   display: grid;
@@ -297,7 +297,7 @@ p { color: var(--color-text-secondary); }
   margin-bottom: 24px;
   border: 1px solid rgb(89 225 181 / 55%);
   border-radius: 15px;
-  content: "✦";
+  content: "??;
   color: #052019;
   background: var(--color-accent);
   box-shadow: 0 0 30px rgb(89 225 181 / 22%);
@@ -2169,7 +2169,7 @@ body:has(.showroom-shell) .sidebar a span[aria-hidden="true"] { color: #078B68; 
   .audit-report, .audit-chain { padding: 8px; }
 }
 
-/* 오전 기준 쇼룸 복구: 첫 화면은 텍스트 카드가 아닌 보안 통제 코어 한 장면으로 표시합니다. */
+/* ?�전 기�? ?�룸 복구: �??�면?� ?�스??카드가 ?�닌 보안 ?�제 코어 ???�면?�로 ?�시?�니?? */
 .main-content:has(.showroom-shell) { height: calc(100vh - var(--header-height)); min-height: 0; }
 .showroom-shell { height: 100vh; min-height: 720px; }
 .showroom-stage { padding-top: 126px; padding-left: 80px; }
@@ -3077,7 +3077,7 @@ body {
 
 /* ==========================================================================
    Login screen: re-themed to match the public landing page's clearance-pass
-   identity, so the public → login → app hand-off reads as one brand moment.
+   identity, so the public ??login ??app hand-off reads as one brand moment.
    Hardcoded colors on purpose, same reasoning as .landing above.
    ========================================================================== */
 .auth-layout {
@@ -3117,7 +3117,7 @@ body {
 .auth-card .button--primary { color: #04131B; background: linear-gradient(135deg, #10B981, #00E5FF); }
 .auth-card .button--primary:hover { background: linear-gradient(135deg, #35d19a, #45ecff); }
 
-/* Sidebar submenu (e.g. 승인 > S등급 승인 / C등급 재검토) */
+/* Sidebar submenu (e.g. ?�인 > S?�급 ?�인 / C?�급 ?��??? */
 .sidebar-submenu { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 4px 12px; }
 .sidebar-submenu__label { margin: 4px 0 2px 15px; color: var(--color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .sidebar-submenu__link { display: flex; align-items: center; min-height: 36px; padding: 0 15px 0 30px; border-radius: 10px; color: var(--color-text-secondary); font-size: 13px; text-decoration: none; }
@@ -3807,9 +3807,11 @@ p { color: var(--color-text-secondary); }
 .security-status-demo__evidence > small { color: var(--color-text-muted); font-size: 11px; }
 .security-status-demo__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .security-status-demo__actions > small { color: var(--color-text-muted); font-size: 11px; line-height: 1.4; }
+.upload-result-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 @media (max-width: 520px) {
   .security-status-demo__actions { align-items: stretch; flex-direction: column; }
   .security-status-demo__actions .button { width: 100%; }
+  .upload-result-actions { width: 100%; }
 }
 @media (max-width: 767px) {
   .file-dropzone--has-files { min-height: 0; padding: 18px; }
@@ -3817,4 +3819,73 @@ p { color: var(--color-text-secondary); }
   .file-dropzone__status { grid-column: 2; grid-row: 2; white-space: normal; }
   .file-dropzone__remove { grid-column: 3; grid-row: 1 / span 2; }
   .file-dropzone__selection-footer { align-items: flex-start; flex-direction: column; }
+}
+
+/* Desktop sidebar collapse becomes a compact icon rail; mobile keeps its overlay drawer. */
+@media (min-width: 768px) {
+  .service-layout--sidebar-collapsed {
+    grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+  }
+  /* Keep the content surface close to the compact rail so its rounded
+     upper-left corner does not look like a tab protruding into the gap. */
+  .service-layout--sidebar-collapsed .main-content {
+    padding-left: 12px;
+  }
+  .sidebar-shell--collapsed {
+    width: var(--sidebar-collapsed-width);
+    overflow: visible;
+    border-right: 1px solid var(--color-border);
+    opacity: 1;
+  }
+  .sidebar-shell--collapsed .sidebar {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    padding: 18px 10px;
+    overflow: visible;
+  }
+  .sidebar-shell--collapsed .sidebar::before {
+    margin: 0 4px 18px;
+    font-size: 9px;
+    letter-spacing: .04em;
+    content: "WORK\A SPACE";
+    line-height: 1.15;
+    white-space: pre;
+  }
+  .sidebar-shell--collapsed .sidebar > a,
+  .sidebar-shell--collapsed .sidebar__group-trigger {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 46px;
+    padding: 0;
+    margin: 0 auto;
+    border-left: 1px solid transparent;
+    border-radius: 9px;
+  }
+  .sidebar-shell--collapsed .sidebar-link__label,
+  .sidebar-shell--collapsed .sidebar__chevron { display: none; }
+  .sidebar-shell--collapsed .sidebar__group { position: relative; width: 100%; min-width: 0; }
+  .sidebar-shell--collapsed .sidebar-submenu { display: none !important; }
+  .sidebar-shell--collapsed .sidebar__group:hover > .sidebar-submenu,
+  .sidebar-shell--collapsed .sidebar__group:focus-within > .sidebar-submenu {
+    position: absolute;
+    z-index: 20;
+    top: 0;
+    left: calc(100% + 8px);
+    display: grid !important;
+    width: 210px;
+    padding: 8px;
+    margin: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgb(18 49 33 / 14%);
+  }
+  .sidebar-shell--collapsed .sidebar-submenu__link { min-height: 38px; }
 }

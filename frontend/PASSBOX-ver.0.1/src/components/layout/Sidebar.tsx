@@ -37,7 +37,7 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
   }, [isApprovalRoute])
 
   const link = (to: string, label: string, icon: IconName) => (
-    <NavLink key={to} to={to} end={to === '/home'} onClick={onNavigate}>
+    <NavLink key={to} to={to} end={to === '/home'} aria-label={label} title={label} onClick={onNavigate}>
       <SidebarIcon name={icon} />
       <span className="sidebar-link__label">{label}</span>
     </NavLink>
@@ -65,6 +65,8 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
             <button
               type="button"
               className={`sidebar__group-trigger ${isApprovalOpen ? 'is-open' : ''}`}
+              aria-label="승인 메뉴"
+              title="승인 메뉴"
               aria-expanded={isApprovalOpen}
               aria-controls="sidebar-approval-pages"
               onClick={() => setIsApprovalOpen((open) => !open)}

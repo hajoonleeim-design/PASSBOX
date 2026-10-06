@@ -7,11 +7,14 @@ import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
 import { DataTable, type DataTableColumn } from '../../components/common/DataTable'
+import { Pagination } from '../../components/common/Pagination'
 import { EmptyState, LoadingState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
 import type { AnalysisJob, JobStatus } from '../../types/security'
+import { paginate } from '../../utils/paginate'
 
 const terminalStatuses = new Set<JobStatus>(['COMPLETED', 'BLOCKED', 'FAILED', 'CANCELLED'])
+const JOBS_PAGE_SIZE = 10
 type AnalysisJobRow = AnalysisJob & { id: string }
 const statusLabels: Record<JobStatus, StatusLabel> = {
   RECEIVED: '접수',
@@ -47,6 +50,7 @@ const shouldShowDetailTour = () => {
 
 export function AnalysisJobsPage() {
   const [jobs, setJobs] = useState<AnalysisJobRow[]>([])
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [analysisTourStep, setAnalysisTourStep] = useState<0 | 1 | 2 | null>(() => (shouldShowDetailTour() ? 0 : null))
@@ -88,7 +92,7 @@ export function AnalysisJobsPage() {
   const loadJobs = useCallback(async () => {
     try {
       setError('')
-      const nextJobs = await getRecentJobs()
+      const nextJobs = await getRecentJobs(100)
       setJobs(nextJobs.map((job) => ({ ...job, id: job.jobId })))
     } catch {
       setError('문서 분석 작업 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -121,6 +125,8 @@ export function AnalysisJobsPage() {
   ]
 
   if (isLoading) return <LoadingState label="문서 분석 작업을 불러오는 중입니다." />
+
+  const jobsPage = paginate(jobs, page, JOBS_PAGE_SIZE)
 
   return (
     <section>
@@ -182,7 +188,8 @@ export function AnalysisJobsPage() {
             <strong>최근 분석 작업 {jobs.length}건</strong>
             <span>{jobs.some((job) => !terminalStatuses.has(job.status)) ? '진행 중인 작업은 자동으로 갱신됩니다.' : '모든 작업이 현재 상태로 반영되었습니다.'}</span>
           </div>
-          <DataTable columns={columns} rows={jobs} />
+          <DataTable columns={columns} rows={jobsPage.pageItems} />
+          <Pagination page={jobsPage.safePage} pageCount={jobsPage.pageCount} pageSize={JOBS_PAGE_SIZE} totalCount={jobs.length} onPageChange={setPage} />
         </>
       )}
     </section>

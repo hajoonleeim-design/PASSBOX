@@ -7,6 +7,7 @@ import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
 import { DataTable, type DataTableColumn } from '../../components/common/DataTable'
+import { Pagination } from '../../components/common/Pagination'
 import { PageOnboardingTour, type OnboardingTourStep } from '../../components/common/PageOnboardingTour'
 import { EmptyState } from '../../components/common/StateViews'
 import { StatusBadge, type StatusLabel } from '../../components/common/StatusBadge'
@@ -15,6 +16,7 @@ import { useUploadDraft } from '../../stores/useUploadDraft'
 import type { UploadDraftRow } from '../../stores/uploadDraftContext'
 import type { HashStatus, UploadFileResult, UploadPolicyHint, UploadStatus } from '../../types/upload'
 import { createId } from '../../utils/id'
+import { paginate } from '../../utils/paginate'
 
 const acceptedExtensions = new Set([
   'hwp', 'hwpx', 'pdf', 'pptx', 'xlsx', 'docx', 'md', 'txt', 'csv', 'html', 'htm',
@@ -58,8 +60,11 @@ const uploadOnboardingSteps: OnboardingTourStep[] = [
   },
 ]
 
+const UPLOAD_PAGE_SIZE = 10
+
 export function UploadPage() {
   const { files, setFiles } = useUploadDraft()
+  const [page, setPage] = useState(1)
   const [error, setError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [isStartingAnalysis, setIsStartingAnalysis] = useState(false)
@@ -238,6 +243,8 @@ export function UploadPage() {
     },
   ]
 
+  const { pageItems, pageCount, safePage } = paginate(files, page, UPLOAD_PAGE_SIZE)
+
   return <section>
     <p className="eyebrow">파일 보안 검사</p>
     <h1>문서 업로드</h1>
@@ -274,7 +281,10 @@ export function UploadPage() {
         <p>온보딩 예시 · 실제 파일이 추가되거나 저장되지는 않습니다.</p>
       </Card>
     )}
-    {activeOnboardingStep !== 2 && (files.length === 0 ? <Card><EmptyState label="선택한 파일이 없습니다. 파일을 끌어 놓거나 파일 선택 버튼을 사용해 주세요." /></Card> : <DataTable columns={columns} rows={files} />)}
+    {activeOnboardingStep !== 2 && (files.length === 0 ? <Card><EmptyState label="선택한 파일이 없습니다. 파일을 끌어 놓거나 파일 선택 버튼을 사용해 주세요." /></Card> : <>
+      <DataTable columns={columns} rows={pageItems} />
+      <Pagination page={safePage} pageCount={pageCount} pageSize={UPLOAD_PAGE_SIZE} totalCount={files.length} onPageChange={setPage} />
+    </>)}
     <PageOnboardingTour
       storageKey="passbox:onboarding:upload:v1"
       steps={uploadOnboardingSteps}

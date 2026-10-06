@@ -117,7 +117,7 @@ export function AnalysisJobsPage() {
     { key: 'status', header: '현재 상태', render: (job) => <StatusBadge label={statusLabels[job.status] ?? statusLabels.UNKNOWN} /> },
     { key: 'progress', header: '진행률', render: (job) => `${job.progress}% · ${job.currentStep}` },
     { key: 'created', header: '시작 시각', render: (job) => formatDate(job.createdAt) },
-    { key: 'action', header: '상세', render: (job) => <Link to={`/analysis/${job.jobId}`} className={`table-link ${analysisTourStep === 0 ? 'analysis-detail-tour__target' : ''}`.trim()}>상세 보기</Link> },
+    { key: 'action', header: '상세', render: (job) => <Link to={`/analysis/${job.jobId}`} className={`table-link ${analysisTourStep === 0 && job.id === jobs[0]?.id ? 'analysis-detail-tour__target' : ''}`.trim()}>상세 보기</Link> },
   ]
 
   if (isLoading) return <LoadingState label="문서 분석 작업을 불러오는 중입니다." />
@@ -136,20 +136,6 @@ export function AnalysisJobsPage() {
         </div>
       </div>
       {error && <div className="section-gap"><Alert variant="danger" title="목록 조회 실패">{error}</Alert></div>}
-      {jobs.length === 0 ? (
-        <Card>
-          <EmptyState label="아직 시작한 문서 분석 작업이 없습니다. 문서를 업로드하고 분석을 시작해 주세요." />
-          <div className="form-actions"><Link to="/upload" className="button button--primary">문서 업로드</Link></div>
-        </Card>
-      ) : (
-        <>
-          <div className="analysis-list-summary">
-            <strong>최근 분석 작업 {jobs.length}건</strong>
-            <span>{jobs.some((job) => !terminalStatuses.has(job.status)) ? '진행 중인 작업은 자동으로 갱신됩니다.' : '모든 작업이 현재 상태로 반영되었습니다.'}</span>
-          </div>
-          <DataTable columns={columns} rows={jobs} />
-        </>
-      )}
       {analysisTourStep === 0 && (
         <Card className={`analysis-detail-tour__example ${isTourTransitioning ? 'onboarding-panel--leaving' : ''}`.trim()}>
           <div className="analysis-detail-tour__example-frame">
@@ -184,6 +170,20 @@ export function AnalysisJobsPage() {
             <Button size="sm" onClick={advanceAnalysisListOnboarding}>{analysisTourStep === 1 ? '다음 안내' : '완료'}</Button>
           </aside>
         </div>
+      )}
+      {jobs.length === 0 ? (
+        <Card>
+          <EmptyState label="아직 시작한 문서 분석 작업이 없습니다. 문서를 업로드하고 분석을 시작해 주세요." />
+          <div className="form-actions"><Link to="/upload" className="button button--primary">문서 업로드</Link></div>
+        </Card>
+      ) : (
+        <>
+          <div className="analysis-list-summary">
+            <strong>최근 분석 작업 {jobs.length}건</strong>
+            <span>{jobs.some((job) => !terminalStatuses.has(job.status)) ? '진행 중인 작업은 자동으로 갱신됩니다.' : '모든 작업이 현재 상태로 반영되었습니다.'}</span>
+          </div>
+          <DataTable columns={columns} rows={jobs} />
+        </>
       )}
     </section>
   )

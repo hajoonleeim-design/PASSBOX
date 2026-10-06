@@ -1222,7 +1222,7 @@ html.home-scroll-mode .story-end-grid {
   left: 7%;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(84px, 1fr) 20px minmax(84px, 1fr) 20px minmax(84px, 1fr) 20px minmax(84px, 1fr);
+  grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 14px minmax(0, 1fr) 14px minmax(0, 1fr);
   gap: .3rem;
   align-items: center;
   transform: translateY(-50%);
@@ -1230,9 +1230,9 @@ html.home-scroll-mode .story-end-grid {
 
 .showroom-control-node {
   display: grid;
-  gap: .45rem;
+  gap: .4rem;
   min-height: 112px;
-  padding: .85rem .7rem;
+  padding: .7rem .55rem;
   border: 1px solid rgba(130, 180, 227, .38);
   background: rgba(8, 23, 37, .92);
   box-shadow: 0 12px 28px rgba(0, 0, 0, .2);
@@ -1247,7 +1247,7 @@ html.home-scroll-mode .story-end-grid {
 .showroom-control-node--policy { border-color: rgba(114, 195, 255, .75); background: rgba(16, 43, 67, .95); }
 .showroom-control-node--result { border-color: rgba(76, 175, 125, .65); }
 
-.showroom-control-arrow { color: #72c3ff; font-size: 1.2rem; font-style: normal; text-align: center; }
+.showroom-control-arrow { overflow: visible; color: #72c3ff; font-size: .85rem; font-style: normal; text-align: center; }
 
 .showroom-control-foot {
   bottom: 1rem;

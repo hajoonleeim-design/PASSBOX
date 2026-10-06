@@ -8,6 +8,7 @@ from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
 from app.db import get_session_factory
+from app.escalation import hours_pending, is_escalated
 from app.models import (
     ClassificationDecision,
     ClassificationRecommendation,
@@ -47,6 +48,8 @@ class ReviewRequestResponse(BaseModel):
     resolved_grade: str | None
     created_at: datetime
     resolved_at: datetime | None
+    hours_pending: float
+    is_escalated: bool
 
 
 def _latest_decision(db, document_id: int, tenant_id: int) -> ClassificationDecision | None:
@@ -87,6 +90,8 @@ def _to_response(item: ReviewRequest, document: Document, requester: User) -> Re
         resolved_grade=item.resolved_grade,
         created_at=item.created_at,
         resolved_at=item.resolved_at,
+        hours_pending=round(hours_pending(item.created_at), 1) if item.status == "PENDING" else 0.0,
+        is_escalated=item.status == "PENDING" and is_escalated(item.created_at),
     )
 
 
@@ -177,7 +182,7 @@ def list_review_requests(
                 ReviewRequest.tenant_id == current_user.tenant_id,
                 ReviewRequest.status == "PENDING",
             )
-            .order_by(desc(ReviewRequest.created_at))
+            .order_by(ReviewRequest.created_at)
         ).all()
         if not items:
             return []

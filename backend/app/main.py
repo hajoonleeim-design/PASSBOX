@@ -24,6 +24,7 @@ from app.api.operations import router as operations_router
 from app.api.chat import router as chat_router
 from app.api.support import router as support_router
 from app.api.review_requests import router as review_requests_router
+from app.api.siem import router as siem_router
 from app.db import Settings, check_database
 from app.job_worker import start_worker, stop_worker
 
@@ -417,6 +418,7 @@ app.include_router(operations_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(support_router, prefix="/api/v1")
 app.include_router(review_requests_router, prefix="/api/v1")
+app.include_router(siem_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")

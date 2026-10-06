@@ -9,6 +9,7 @@ from app.api.auth import get_current_user
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
 from app.db import get_session_factory
+from app.escalation import hours_pending, is_escalated
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.models import GatewayTransmission, OutboundApproval, User
 from app.policy import get_active_policy_configuration
@@ -69,6 +70,8 @@ class ApprovalResponse(BaseModel):
     decision_comment: str | None
     created_at: datetime
     decided_at: datetime | None
+    hours_pending: float
+    is_escalated: bool
 
 
 def _hash_text(value: str) -> str:
@@ -102,6 +105,8 @@ def _to_response(
         decision_comment=approval.decision_comment,
         created_at=approval.created_at,
         decided_at=approval.decided_at,
+        hours_pending=round(hours_pending(approval.created_at), 1) if approval.status == "PENDING" else 0.0,
+        is_escalated=approval.status == "PENDING" and is_escalated(approval.created_at),
     )
 
 
@@ -238,7 +243,7 @@ def pending_approvals(
                 OutboundApproval.tenant_id == current_user.tenant_id,
                 OutboundApproval.status == "PENDING",
             )
-            .order_by(desc(OutboundApproval.created_at))
+            .order_by(OutboundApproval.created_at)
         ).all()
         return [
             _to_response(approval, _get_transmission(db, approval))

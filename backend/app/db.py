@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     login_rate_limit_attempts: int = 5
     login_rate_limit_window_seconds: int = 60
     cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173"
+    escalation_hours: float = 4.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -74,6 +74,13 @@ class ApprovalResponse(BaseModel):
     is_escalated: bool
 
 
+class MaskedPayloadResponse(BaseModel):
+    approval_id: int
+    masked_payload: str
+    masking_version: str
+    masking_categories: list[str]
+
+
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -132,6 +139,32 @@ def _get_transmission(db, approval: OutboundApproval) -> GatewayTransmission:
     if transmission is None:
         raise HTTPException(status_code=500, detail="Gateway 전송 감사 기록이 없습니다.")
     return transmission
+
+
+@router.get("/{approval_id}/masked-payload", response_model=MaskedPayloadResponse)
+def get_masked_payload(
+    approval_id: int,
+    current_user: User = Depends(require_approval_role),
+):
+    """Return the exact masked text for an approver to inspect before transmission."""
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        approval = db.scalar(
+            select(OutboundApproval).where(
+                OutboundApproval.id == approval_id,
+                OutboundApproval.tenant_id == current_user.tenant_id,
+            )
+        )
+        if approval is None:
+            raise HTTPException(status_code=404, detail="Approval request not found.")
+        if approval.status != "PENDING":
+            raise HTTPException(status_code=409, detail="Only pending payloads can be previewed.")
+        return MaskedPayloadResponse(
+            approval_id=approval.id,
+            masked_payload=approval.masked_payload,
+            masking_version=approval.masking_version,
+            masking_categories=[item for item in (approval.masking_categories or "").split(",") if item],
+        )
 
 
 def _prepare_gateway_attempt(

@@ -23,6 +23,13 @@ export interface ApprovalItem {
   isEscalated: boolean
 }
 
+export interface MaskedPayloadPreview {
+  approvalId: number
+  maskedPayload: string
+  maskingVersion: string
+  maskingCategories: string[]
+}
+
 interface BackendApprovalResponse {
   approval_id: number
   document_id: number
@@ -74,6 +81,21 @@ function mapApproval(data: BackendApprovalResponse): ApprovalItem {
 export async function getPendingApprovals(): Promise<ApprovalItem[]> {
   const { data } = await apiClient.get<BackendApprovalResponse[]>('/approvals/pending')
   return data.map(mapApproval)
+}
+
+export async function getMaskedPayloadPreview(approvalId: number): Promise<MaskedPayloadPreview> {
+  const { data } = await apiClient.get<{
+    approval_id: number
+    masked_payload: string
+    masking_version: string
+    masking_categories: string[]
+  }>(`/approvals/${approvalId}/masked-payload`)
+  return {
+    approvalId: data.approval_id,
+    maskedPayload: data.masked_payload,
+    maskingVersion: data.masking_version,
+    maskingCategories: data.masking_categories,
+  }
 }
 
 export async function getApprovalHistory(): Promise<ApprovalItem[]> {

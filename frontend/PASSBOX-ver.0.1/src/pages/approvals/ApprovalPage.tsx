@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { decideApproval, getApprovalHistory, getPendingApprovals, type ApprovalItem } from '../../api/approvals'
+import { decideApproval, getApprovalHistory, getMaskedPayloadPreview, getPendingApprovals, type ApprovalItem, type MaskedPayloadPreview } from '../../api/approvals'
 import type { ApiError } from '../../api/client'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
@@ -10,6 +10,7 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/common/St
 import { useAuth } from '../../hooks/useAuth'
 import { usePermission } from '../../hooks/usePermission'
 import { RetryableApprovalsPanel } from '../../components/security/RetryableApprovalsPanel'
+import { Modal } from '../../components/common/Modal'
 import { paginate } from '../../utils/paginate'
 
 const HISTORY_PAGE_SIZE = 10
@@ -37,6 +38,9 @@ export function ApprovalPage() {
   const [history, setHistory] = useState<ApprovalItem[]>([])
   const [isHistoryLoading, setIsHistoryLoading] = useState(true)
   const [historyPage, setHistoryPage] = useState(1)
+  const [preview, setPreview] = useState<MaskedPayloadPreview | null>(null)
+  const [previewLoadingId, setPreviewLoadingId] = useState<number | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     if (!isApprover) {
@@ -87,6 +91,18 @@ export function ApprovalPage() {
       setError(requestError as ApiError)
     } finally {
       setActingId(null)
+    }
+  }
+
+  async function handlePreview(item: ApprovalItem) {
+    setPreviewLoadingId(item.approvalId)
+    setPreviewError(null)
+    try {
+      setPreview(await getMaskedPayloadPreview(item.approvalId))
+    } catch (requestError) {
+      setPreviewError((requestError as ApiError).message ?? '마스킹 내용을 불러오지 못했습니다.')
+    } finally {
+      setPreviewLoadingId(null)
     }
   }
 
@@ -188,7 +204,13 @@ export function ApprovalPage() {
                 </div>
               </dl>
 
-              <p className="approval-note">원문은 승인 화면에 표시하지 않습니다. 승인 후에도 마스킹된 payload만 Gateway로 전달됩니다.</p>
+              <p className="approval-note">승인 전에 외부 AI로 전달될 마스킹 텍스트를 확인하세요. 승인하면 아래 미리보기와 같은 내용이 Gateway로 전송됩니다.</p>
+              <div className="form-actions section-gap">
+                <Button variant="secondary" onClick={() => void handlePreview(item)} disabled={previewLoadingId !== null || actingId !== null}>
+                  {previewLoadingId === item.approvalId ? '불러오는 중…' : '전송 전 마스킹 내용 확인'}
+                </Button>
+                {previewError && <span role="alert" className="form-error">{previewError}</span>}
+              </div>
               <label className="form-field section-gap">
                 처리 의견 <small>선택 사항</small>
                 <textarea
@@ -231,6 +253,12 @@ export function ApprovalPage() {
       )}
 
       <p className="approval-session-note">현재 로그인: {session?.displayName} · {session?.role}</p>
+      {preview && <Modal title={`전송 전 마스킹 내용 · 요청 #${preview.approvalId}`} onClose={() => setPreview(null)}>
+        <p>아래 내용이 승인 시 외부 AI에 전달됩니다. 원본 문서 파일이 아니라 전송용 텍스트 미리보기입니다.</p>
+        <p><small>마스킹 버전: {preview.maskingVersion} · 탐지 유형: {preview.maskingCategories.join(', ') || '없음'}</small></p>
+        <pre style={{ maxHeight: '55vh', overflow: 'auto', padding: 16, border: '1px solid var(--color-border)', borderRadius: 8, color: 'var(--color-text)', background: 'var(--color-surface-elevated)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', font: 'inherit' }}>{preview.maskedPayload || '(전송할 텍스트가 비어 있습니다)'}</pre>
+        <div className="modal-actions"><Button variant="secondary" onClick={() => setPreview(null)}>닫기</Button></div>
+      </Modal>}
     </section>
   )
 }

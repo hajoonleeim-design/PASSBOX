@@ -61,7 +61,7 @@ const stepIndex: Record<JobStatus, number> = {
 
 const detail: Record<JobStatus, string> = {
   RECEIVED: '분석 요청을 접수했습니다.',
-  INSPECTING: '파일 안전성과 정책 적용 범위를 검사하는 중입니다.',
+  INSPECTING: '업로드 시 통과한 안전성 검사 결과를 바탕으로 분석 작업을 준비하는 중입니다.',
   PARSING: '문서 구조를 안전하게 파싱하는 중입니다.',
   DETECTING: '민감정보와 정책 위반 패턴을 탐지하는 중입니다.',
   CLASSIFICATION_REVIEW: '보안등급 추천이 완료되었습니다. 담당자의 최종 확정을 기다립니다.',
@@ -117,7 +117,7 @@ const isNotFound = (error: unknown) =>
   typeof error === 'object' && error !== null && (error as ApiError).status === 404
 
 function Notice({ job, status }: { job: AnalysisJob; status: JobStatus }) {
-  if (status === 'BLOCKED') return <Alert variant="danger" title="처리 차단">{detail.BLOCKED}</Alert>
+  if (status === 'BLOCKED') return <Alert variant="danger" title="처리 차단">{job.failureMessage ?? detail.BLOCKED}</Alert>
   if (status === 'FAILED') return <Alert variant="danger" title="분석 실패">{job.failureMessage ?? detail.FAILED}</Alert>
   if (status === 'WAITING_APPROVAL') return <Alert variant="warning" title="승인 대기">{detail.WAITING_APPROVAL}</Alert>
   if (status === 'COMPLETED') return <Alert variant="success" title="분석 완료">{detail.COMPLETED}</Alert>

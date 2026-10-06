@@ -36,7 +36,7 @@ export interface ProviderStatus {
   providerId: string
   providerName: string
   status: ProviderHealth
-  responseTimeMs?: number
+  responseTimeMs?: number | null
   lastCheckedAt: string
   message: string
 }
@@ -50,7 +50,7 @@ export interface RecentOperationsJob {
   grade: SecurityGrade
   startedAt: string
   updatedAt: string
-  processingTimeMs?: number
+  processingTimeMs?: number | null
 }
 
 export interface OperationsIncident {

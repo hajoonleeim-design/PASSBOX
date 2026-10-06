@@ -15,7 +15,7 @@ const providerVariant: Record<ProviderHealth, BadgeVariant> = { HEALTHY: 'succes
 const providerLabel: Record<ProviderHealth, string> = { HEALTHY: '정상', DEGRADED: '지연', DOWN: '장애', UNKNOWN: '확인 불가' }
 const incidentVariant: Record<OperationsIncident['severity'], BadgeVariant> = { LOW: 'info', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
-const formatDuration = (milliseconds: number | undefined) => milliseconds === undefined ? 'N/A' : `${(milliseconds / 1000).toFixed(1)}초`
+const formatDuration = (milliseconds: number | null | undefined) => milliseconds == null ? 'N/A' : `${(milliseconds / 1000).toFixed(1)}초`
 
 function StatusPill({ status }: { status: string }) {
   const variant: BadgeVariant = ['COMPLETED', 'ALLOWED'].includes(status) ? 'success' : ['BLOCKED', 'FAILED', 'DOWN'].includes(status) ? 'danger' : ['WAITING_APPROVAL', 'DEGRADED'].includes(status) ? 'warning' : 'info'
@@ -26,7 +26,7 @@ function StatusPill({ status }: { status: string }) {
 const providerColumns: DataTableColumn<ProviderStatus>[] = [
   { key: 'name', header: 'Provider', render: (row) => row.providerName },
   { key: 'status', header: '상태', render: (row) => <Badge variant={providerVariant[row.status]}><span aria-hidden="true">●</span> {row.status} · {providerLabel[row.status]}</Badge> },
-  { key: 'response', header: '응답 시간', render: (row) => row.responseTimeMs === undefined ? 'N/A' : `${row.responseTimeMs.toLocaleString()} ms` },
+  { key: 'response', header: '응답 시간', render: (row) => row.responseTimeMs == null ? 'N/A' : `${row.responseTimeMs.toLocaleString()} ms` },
   { key: 'checked', header: '마지막 확인', render: (row) => formatDate(row.lastCheckedAt) },
   { key: 'message', header: '메시지', render: (row) => row.message },
 ]

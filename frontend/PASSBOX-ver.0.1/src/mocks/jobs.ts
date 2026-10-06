@@ -32,8 +32,12 @@ export async function mockGetJob(jobId: string): Promise<AnalysisJob> {
   return clone(job)
 }
 
-export async function mockListJobs(limit = 30): Promise<AnalysisJob[]> {
+export async function mockListJobs(limit = 30, query?: string): Promise<AnalysisJob[]> {
+  const needle = query?.trim().toLowerCase()
+  // 목 모드에는 추출된 문서 본문이 없어 파일명만 검색 대상으로 삼습니다.
+  const matches = needle ? (job: AnalysisJob) => job.file.fileName.toLowerCase().includes(needle) : () => true
   return Array.from(jobs.values())
+    .filter(matches)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit)
     .map(clone)

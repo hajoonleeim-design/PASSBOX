@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import analysisDetailExample from '../../assets/onboarding-analysis-detail-example.png'
 import analysisProgressExample from '../../assets/onboarding-analysis-progress-example.png'
@@ -39,6 +40,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', {
 }).format(new Date(value))
 
 const analysisDetailTourStorageKey = 'passbox:onboarding:analysis-list-detail:v1'
+const JOBS_PAGE_STORAGE_KEY = 'passbox:analysis-jobs:page'
 
 const shouldShowDetailTour = () => {
   try {
@@ -48,11 +50,43 @@ const shouldShowDetailTour = () => {
   }
 }
 
+// 작업 상세로 들어갔다가 돌아왔을 때 보던 페이지가 1페이지로 초기화되지 않도록
+// 세션 스토리지에 마지막 페이지를 기억해 둔다. 새 창/다른 탭에는 영향 없음.
+function readStoredPage(): number {
+  try {
+    const raw = window.sessionStorage.getItem(JOBS_PAGE_STORAGE_KEY)
+    const parsed = raw ? Number.parseInt(raw, 10) : 1
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+  } catch {
+    return 1
+  }
+}
+
+function storePage(page: number) {
+  try {
+    window.sessionStorage.setItem(JOBS_PAGE_STORAGE_KEY, String(page))
+  } catch {
+    // 세션 스토리지를 쓸 수 없는 환경이면 페이지 기억만 건너뛴다.
+  }
+}
+
 export function AnalysisJobsPage() {
   const [jobs, setJobs] = useState<AnalysisJobRow[]>([])
-  const [page, setPage] = useState(1)
+  const [page, setPageState] = useState(() => readStoredPage())
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const previousQuery = useRef(searchQuery)
+
+  function setPage(next: number) {
+    setPageState(next)
+    storePage(next)
+  }
+
+  function handleSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    setSearchInput(event.target.value)
+  }
   const [analysisTourStep, setAnalysisTourStep] = useState<0 | 1 | 2 | null>(() => (shouldShowDetailTour() ? 0 : null))
   const [isTourTransitioning, setIsTourTransitioning] = useState(false)
   const tourTransitionTimer = useRef<number | null>(null)
@@ -92,20 +126,35 @@ export function AnalysisJobsPage() {
   const loadJobs = useCallback(async () => {
     try {
       setError('')
-      const nextJobs = await getRecentJobs(100)
+      const nextJobs = await getRecentJobs(100, searchQuery)
       setJobs(nextJobs.map((job) => ({ ...job, id: job.jobId })))
     } catch {
       setError('문서 분석 작업 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [searchQuery])
 
   useEffect(() => {
     void loadJobs()
     const timer = window.setInterval(() => void loadJobs(), 5_000)
     return () => window.clearInterval(timer)
   }, [loadJobs])
+
+  // 입력 후 300ms 동안 추가 입력이 없으면 실제 조회 조건에 반영한다(타자마다 요청하지 않도록).
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchQuery(searchInput.trim()), 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
+
+  // 검색 조건이 실제로 바뀐 경우에만 1페이지로 되돌린다 — 세션에 저장된 페이지를
+  // 마운트 시점에 복원하는 것까지 덮어쓰지 않기 위해 이전 값과 비교한다.
+  useEffect(() => {
+    if (previousQuery.current !== searchQuery) {
+      previousQuery.current = searchQuery
+      setPage(1)
+    }
+  }, [searchQuery])
 
   useEffect(() => () => {
     if (tourTransitionTimer.current !== null) window.clearTimeout(tourTransitionTimer.current)
@@ -141,6 +190,16 @@ export function AnalysisJobsPage() {
           <Button variant="secondary" onClick={() => void loadJobs()}>새로고침</Button>
         </div>
       </div>
+      <label className="form-field analysis-search section-gap">
+        문서 검색
+        <input
+          type="search"
+          className="form-control"
+          value={searchInput}
+          onChange={handleSearchChange}
+          placeholder="파일명 또는 문서 내용으로 이전 작업을 검색하세요."
+        />
+      </label>
       {error && <div className="section-gap"><Alert variant="danger" title="목록 조회 실패">{error}</Alert></div>}
       {analysisTourStep === 0 && (
         <Card className={`analysis-detail-tour__example ${isTourTransitioning ? 'onboarding-panel--leaving' : ''}`.trim()}>
@@ -179,13 +238,19 @@ export function AnalysisJobsPage() {
       )}
       {jobs.length === 0 ? (
         <Card>
-          <EmptyState label="아직 시작한 문서 분석 작업이 없습니다. 문서를 업로드하고 분석을 시작해 주세요." />
-          <div className="form-actions"><Link to="/upload" className="button button--primary">문서 업로드</Link></div>
+          {searchQuery ? (
+            <EmptyState label={`'${searchQuery}'와 일치하는 작업이 없습니다. 파일명이나 문서 내용을 다시 확인해 주세요.`} />
+          ) : (
+            <>
+              <EmptyState label="아직 시작한 문서 분석 작업이 없습니다. 문서를 업로드하고 분석을 시작해 주세요." />
+              <div className="form-actions"><Link to="/upload" className="button button--primary">문서 업로드</Link></div>
+            </>
+          )}
         </Card>
       ) : (
         <>
           <div className="analysis-list-summary">
-            <strong>최근 분석 작업 {jobs.length}건</strong>
+            <strong>{searchQuery ? `'${searchQuery}' 검색 결과 ${jobs.length}건` : `최근 분석 작업 ${jobs.length}건`}</strong>
             <span>{jobs.some((job) => !terminalStatuses.has(job.status)) ? '진행 중인 작업은 자동으로 갱신됩니다.' : '모든 작업이 현재 상태로 반영되었습니다.'}</span>
           </div>
           <DataTable columns={columns} rows={jobsPage.pageItems} />

@@ -19,7 +19,7 @@ import { createId } from '../../utils/id'
 import { paginate } from '../../utils/paginate'
 
 const acceptedExtensions = new Set([
-  'hwp', 'hwpx', 'pdf', 'pptx', 'xlsx', 'docx', 'md', 'txt', 'csv', 'html', 'htm',
+  'hwpx', 'pdf', 'pptx', 'xlsx', 'docx', 'md', 'txt', 'csv', 'html',
 ])
 const statusLabels: Record<UploadStatus, StatusLabel> = {
   PENDING: '대기',

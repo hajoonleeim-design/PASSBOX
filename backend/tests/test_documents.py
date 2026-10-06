@@ -18,12 +18,16 @@ class DocumentFormatTests(unittest.TestCase):
         self.assertIn(".docx", ALLOWED_EXTENSIONS)
         self.assertEqual(_expected_format(".docx"), ("ZIP",))
 
-    def test_hwp_is_an_allowed_ole_format(self):
-        self.assertIn(".hwp", ALLOWED_EXTENSIONS)
-        self.assertEqual(_expected_format(".hwp"), ("OLE",))
+    def test_hwp_and_htm_are_no_longer_allowed(self):
+        self.assertNotIn(".hwp", ALLOWED_EXTENSIONS)
+        self.assertNotIn(".htm", ALLOWED_EXTENSIONS)
+
+    def test_hwpx_is_an_allowed_zip_format(self):
+        self.assertIn(".hwpx", ALLOWED_EXTENSIONS)
+        self.assertEqual(_expected_format(".hwpx"), ("ZIP",))
 
     def test_csv_and_html_are_allowed_text_formats(self):
-        for extension in (".csv", ".html", ".htm"):
+        for extension in (".csv", ".html"):
             self.assertIn(extension, ALLOWED_EXTENSIONS)
             self.assertEqual(_expected_format(extension), ("TEXT",))
 

@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react'
 import { Button } from '../common/Button'
 import type { UploadDraftRow } from '../../stores/uploadDraftContext'
 
-const acceptedFileTypes = '.hwp,.hwpx,.pdf,.pptx,.xlsx,.docx,.md,.txt,.csv,.html,.htm'
+const acceptedFileTypes = '.hwpx,.pdf,.pptx,.xlsx,.docx,.md,.txt,.csv,.html'
 
 function formatFileSize(size: number) {
   if (size < 1024) return `${size} B`

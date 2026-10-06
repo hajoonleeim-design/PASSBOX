@@ -88,7 +88,7 @@ export function AuditPage() {
   }
 
   const onboarding = <PageOnboardingTour storageKey="passbox:onboarding:audit:v1" steps={auditOnboardingSteps} />
-  const lookup = <Card className="audit-lookup" data-onboarding-target="audit-lookup"><form onSubmit={search}><FormField label="Request ID"><TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Request ID를 입력하세요" /></FormField><Button type="submit">조회</Button></form></Card>
+  const lookup = <Card className="audit-lookup" data-onboarding-target="audit-lookup"><form onSubmit={search}><FormField label="Request ID" helpText="Job ID나 문서 ID가 아닌, 분석 결과 페이지(결과 확인)에 표시된 Request ID입니다."><TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Request ID를 입력하세요" /></FormField><Button type="submit">조회</Button></form></Card>
 
   if (isLoading && !audit) return <section>{lookup}<LoadingState label="감사 기록을 불러오는 중입니다." />{onboarding}</section>
   if (errorCode === 'NOT_FOUND') return <section className="state-action-page">{lookup}<h1>감사 기록을 찾을 수 없습니다.</h1><ErrorState label="입력한 Request ID에 해당하는 감사 기록이 없습니다." />{onboarding}</section>

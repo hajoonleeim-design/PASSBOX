@@ -17,10 +17,10 @@ from app.security_scan import EICAR_TEST_SIGNATURE, contains_eicar_signature
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 ALLOWED_EXTENSIONS = {
-    ".hwp", ".hwpx", ".pdf", ".pptx", ".xlsx", ".docx",
-    ".md", ".txt", ".csv", ".html", ".htm",
+    ".hwpx", ".pdf", ".pptx", ".xlsx", ".docx",
+    ".md", ".txt", ".csv", ".html",
 }
-TEXT_EXTENSIONS = {".md", ".txt", ".csv", ".html", ".htm"}
+TEXT_EXTENSIONS = {".md", ".txt", ".csv", ".html"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 

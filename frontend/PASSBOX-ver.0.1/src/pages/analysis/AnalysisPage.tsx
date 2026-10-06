@@ -46,11 +46,13 @@ const stepIndex: Record<JobStatus, number> = {
   PARSING: 2,
   DETECTING: 3,
   CLASSIFICATION_REVIEW: 4,
-  MASKING: 5,
-  WAITING_APPROVAL: 6,
-  TRANSMITTING: 7,
-  POST_INSPECTING: 8,
-  COMPLETED: 9,
+  // 이 네 상태는 분류 확정 후 별도로 시작하는 Gateway 전송 흐름에서만 쓰이고, 이
+  // Job의 단계 표시기에는 나타나지 않는 단계라 "분류 검토"에 머무른 것으로 둔다.
+  MASKING: 4,
+  WAITING_APPROVAL: 4,
+  TRANSMITTING: 4,
+  POST_INSPECTING: 4,
+  COMPLETED: 5,
   BLOCKED: 3,
   FAILED: 0,
   CANCELLED: 0,
@@ -83,7 +85,7 @@ const gradeNames: Record<SecurityGrade, string> = {
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
 
-const TOTAL_STEPS = 10
+const TOTAL_STEPS = 6
 
 const formatDuration = (fromIso: string, toIso: string) => {
   const seconds = Math.max(0, Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 1000))

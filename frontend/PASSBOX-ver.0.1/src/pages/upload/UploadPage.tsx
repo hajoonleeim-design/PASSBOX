@@ -202,14 +202,15 @@ export function UploadPage() {
     }))
     setIsStartingAnalysis(false)
 
-    const created = results.filter((result) => result.jobId !== null)
+    const created = results.filter((result): result is { item: UploadDraftRow; jobId: string } => result.jobId !== null)
     const failed = results.filter((result) => result.jobId === null)
     if (failed.length > 0) {
       const failedNames = failed.map((result) => result.item.file.name).join(', ')
       setError(`${created.length}개 문서의 분석 작업을 시작했고, ${failed.length}개는 실패했습니다: ${failedNames}. 실패한 문서는 다시 시도할 수 있습니다.`)
       return
     }
-    navigate('/analysis/recent')
+    // 파일 하나만 분석을 시작했을 땐 30건짜리 전체 목록 대신 그 작업 상세 화면으로 바로 이동한다.
+    navigate(created.length === 1 ? `/analysis/${created[0].jobId}` : '/analysis/recent')
   }
 
   const analyzableFiles = files.filter((item) => item.validationStatus === 'VALIDATED' && item.documentId && !item.analysisJobId)

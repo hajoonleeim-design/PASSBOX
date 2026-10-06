@@ -252,6 +252,36 @@ def pending_approvals(
 
 
 @router.get(
+    "/history",
+    response_model=list[ApprovalResponse],
+    summary="처리 완료된 S등급 승인·전송 기록 조회",
+    description=(
+        "승인되었거나 반려된 S등급 외부 전송 요청을 처리 시각 역순으로 반환합니다. "
+        "AI 응답 원문은 승인 직후에만 한 번 보여주고 저장하지 않으므로, "
+        "이 기록에는 포함되지 않습니다."
+    ),
+)
+def approval_history(
+    current_user: User = Depends(require_approval_role),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        approvals = db.scalars(
+            select(OutboundApproval)
+            .where(
+                OutboundApproval.tenant_id == current_user.tenant_id,
+                OutboundApproval.status != "PENDING",
+            )
+            .order_by(desc(OutboundApproval.decided_at))
+            .limit(100)
+        ).all()
+        return [
+            _to_response(approval, _get_transmission(db, approval))
+            for approval in approvals
+        ]
+
+
+@router.get(
     "/retryable",
     response_model=list[ApprovalResponse],
     summary="Gateway 재시도 가능 승인 건 조회",

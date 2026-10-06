@@ -76,11 +76,11 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
               <svg className="sidebar__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4 6 4 4 4-4" /></svg>
             </button>
             <div id="sidebar-approval-pages" className="sidebar-submenu" hidden={!isApprovalOpen}>
-              <PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>
-                {subLink('/approvals', 'S등급 승인', 'S')}
-              </PermissionGuard>
               <PermissionGuard roles={['OPERATOR', 'SECURITY_ADMIN', 'ADMIN']}>
                 {subLink('/reviews', 'C등급 재검토', 'C')}
+              </PermissionGuard>
+              <PermissionGuard roles={['APPROVER', 'SECURITY_ADMIN', 'ADMIN']}>
+                {subLink('/approvals', 'S등급 승인', 'S')}
               </PermissionGuard>
             </div>
           </div>

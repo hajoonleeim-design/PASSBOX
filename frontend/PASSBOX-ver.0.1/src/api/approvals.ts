@@ -76,6 +76,11 @@ export async function getPendingApprovals(): Promise<ApprovalItem[]> {
   return data.map(mapApproval)
 }
 
+export async function getApprovalHistory(): Promise<ApprovalItem[]> {
+  const { data } = await apiClient.get<BackendApprovalResponse[]>('/approvals/history')
+  return data.map(mapApproval)
+}
+
 export async function getRetryableApprovals(): Promise<ApprovalItem[]> {
   const { data } = await apiClient.get<BackendApprovalResponse[]>('/approvals/retryable')
   return data.map(mapApproval)

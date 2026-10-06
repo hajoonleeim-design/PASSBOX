@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
-import { decideApproval, getPendingApprovals, type ApprovalItem } from '../../api/approvals'
+import { decideApproval, getApprovalHistory, getPendingApprovals, type ApprovalItem } from '../../api/approvals'
 import type { ApiError } from '../../api/client'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
+import { DataTable, type DataTableColumn } from '../../components/common/DataTable'
+import { Pagination } from '../../components/common/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/StateViews'
 import { useAuth } from '../../hooks/useAuth'
 import { usePermission } from '../../hooks/usePermission'
 import { RetryableApprovalsPanel } from '../../components/security/RetryableApprovalsPanel'
+import { paginate } from '../../utils/paginate'
+
+const HISTORY_PAGE_SIZE = 10
+type ApprovalHistoryRow = ApprovalItem & { id: string }
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
@@ -28,6 +34,9 @@ export function ApprovalPage() {
   const [comments, setComments] = useState<Record<number, string>>({})
   const [error, setError] = useState<ApiError | null>(null)
   const [lastAction, setLastAction] = useState<ApprovalItem | null>(null)
+  const [history, setHistory] = useState<ApprovalItem[]>([])
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true)
+  const [historyPage, setHistoryPage] = useState(1)
 
   const loadApprovals = useCallback(async () => {
     if (!isApprover) {
@@ -45,9 +54,25 @@ export function ApprovalPage() {
     }
   }, [isApprover])
 
+  const loadHistory = useCallback(async () => {
+    if (!isApprover) {
+      setIsHistoryLoading(false)
+      return
+    }
+    setIsHistoryLoading(true)
+    try {
+      setHistory(await getApprovalHistory())
+    } catch {
+      // 전송 기록은 보조 정보라 조회가 실패해도 승인 큐 자체는 계속 쓸 수 있게 둔다.
+    } finally {
+      setIsHistoryLoading(false)
+    }
+  }, [isApprover])
+
   useEffect(() => {
     void loadApprovals()
-  }, [loadApprovals])
+    void loadHistory()
+  }, [loadApprovals, loadHistory])
 
   async function handleDecision(item: ApprovalItem, action: 'approve' | 'reject') {
     setActingId(item.approvalId)
@@ -57,6 +82,7 @@ export function ApprovalPage() {
       const updated = await decideApproval(item.approvalId, action, comments[item.approvalId])
       setItems((current) => current?.filter((approval) => approval.approvalId !== item.approvalId) ?? [])
       setLastAction(updated)
+      void loadHistory()
     } catch (requestError) {
       setError(requestError as ApiError)
     } finally {
@@ -89,6 +115,18 @@ export function ApprovalPage() {
   if (error && !items) {
     return <section className="state-action-page"><h1>승인 요청을 불러오지 못했습니다.</h1><ErrorState label={error.message} /><Button onClick={() => void loadApprovals()}>다시 조회</Button></section>
   }
+
+  const historyRows: ApprovalHistoryRow[] = history.map((item) => ({ ...item, id: String(item.approvalId) }))
+  const historySlice = paginate(historyRows, historyPage, HISTORY_PAGE_SIZE)
+  const historyColumns: DataTableColumn<ApprovalHistoryRow>[] = [
+    { key: 'document', header: '문서 ID', render: (item) => `#${item.documentId}` },
+    { key: 'provider', header: 'Provider / Model', render: (item) => <code>{item.provider} / {item.model}</code> },
+    { key: 'decision', header: '결정', render: (item) => <span className={`badge ${item.status === 'APPROVED' ? 'badge--success' : 'badge--danger'}`}>{statusLabel(item)}</span> },
+    { key: 'transmission', header: '전송 상태', render: (item) => item.transmissionStatus },
+    { key: 'postInspection', header: 'Post-Inspector', render: (item) => item.postInspectionStatus ?? '-' },
+    { key: 'decidedBy', header: '결정자', render: (item) => item.decidedBy ? `User ID ${item.decidedBy}` : '-' },
+    { key: 'decidedAt', header: '결정 시각', render: (item) => item.decidedAt ? formatDate(item.decidedAt) : '-' },
+  ]
 
   return (
     <section className="approval-page" aria-live="polite">
@@ -174,6 +212,24 @@ export function ApprovalPage() {
           ))}
         </div>
       )}
+
+      <div className="page-title-row section-gap">
+        <div>
+          <h2>전송 기록</h2>
+          <p>승인하거나 반려해서 처리가 끝난 S등급 요청입니다. AI 응답 원문은 승인 직후 한 번만 보여주고 저장하지 않아 이 기록에는 나오지 않습니다.</p>
+        </div>
+      </div>
+      {isHistoryLoading && historyRows.length === 0 ? (
+        <LoadingState label="전송 기록을 불러오는 중입니다." />
+      ) : historyRows.length === 0 ? (
+        <Card><EmptyState label="아직 처리된 승인 요청이 없습니다." /></Card>
+      ) : (
+        <>
+          <DataTable columns={historyColumns} rows={historySlice.pageItems} />
+          <Pagination page={historySlice.safePage} pageCount={historySlice.pageCount} pageSize={HISTORY_PAGE_SIZE} totalCount={historyRows.length} onPageChange={setHistoryPage} />
+        </>
+      )}
+
       <p className="approval-session-note">현재 로그인: {session?.displayName} · {session?.role}</p>
     </section>
   )

@@ -23,6 +23,7 @@ function SecurityNotice({ chat }: { chat: AIChatResponse }) { const post = chat.
 function ChatOverviewNotice() {
   return <div className="chat-overview-notice" aria-label="안전한 AI 대화 안내">
     <div className="chat-overview-notice__heading"><span className="sr-indicator-dot sr-indicator-dot--emerald" />검사된 요청만 외부 AI로 전달됩니다.</div>
+    <p className="chat-overview-notice__why">개인 ChatGPT 등에 업무 내용을 직접 붙여넣으면 기관 정보가 외부로 그대로 유출될 수 있습니다. 여기서 질문하면 개인정보·기밀 정보가 자동으로 걸러진 뒤에만 AI로 전송되어, 외부 AI를 안전하게 활용할 수 있습니다.</p>
     <p>질문은 개인정보·Secret·프롬프트 인젝션 검사를 거친 뒤, 정책을 통과한 Payload만 선택한 제공자(OpenAI 또는 Anthropic)로 전송됩니다. AI 답변도 보안 검증이 완료된 후 표시됩니다.</p>
     <div className="chat-overview-notice__flow" aria-label="AI 대화 보안 처리 흐름"><span>질문 입력</span><i aria-hidden="true">→</i><span>보안검사</span><i aria-hidden="true">→</i><span>마스킹·승인</span><i aria-hidden="true">→</i><span>AI 전송</span><i aria-hidden="true">→</i><span>답변 검증</span></div>
   </div>

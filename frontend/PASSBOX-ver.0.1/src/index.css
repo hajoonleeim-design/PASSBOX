@@ -3998,6 +3998,7 @@ body * {
   background: var(--palette-blue-50);
 }
 .chat-overview-notice__heading { color: var(--palette-blue-700); }
+.chat-overview-notice__why { color: var(--color-text-primary); font-weight: 600; }
 
 /* Primary-color design sample: vivid hues are used as restrained brand accents. */
 .button--primary:hover:not(:disabled),

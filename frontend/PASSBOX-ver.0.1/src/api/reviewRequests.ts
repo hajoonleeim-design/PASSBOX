@@ -17,6 +17,8 @@ interface BackendReviewRequestResponse {
   resolved_grade: SecurityGrade | null
   created_at: string
   resolved_at: string | null
+  hours_pending: number
+  is_escalated: boolean
 }
 
 function mapReviewRequest(data: BackendReviewRequestResponse): ReviewRequestItem {
@@ -35,6 +37,8 @@ function mapReviewRequest(data: BackendReviewRequestResponse): ReviewRequestItem
     resolvedGrade: data.resolved_grade ?? undefined,
     createdAt: data.created_at,
     resolvedAt: data.resolved_at ?? undefined,
+    hoursPending: data.hours_pending,
+    isEscalated: data.is_escalated,
   }
 }
 

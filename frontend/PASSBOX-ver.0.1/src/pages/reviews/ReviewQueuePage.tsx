@@ -111,13 +111,16 @@ export function ReviewQueuePage() {
       ) : (
         <div className="approval-list">
           {items.map((item) => (
-            <Card className="approval-card" key={item.reviewRequestId}>
+            <Card className={`approval-card ${item.isEscalated ? 'approval-card--escalated' : ''}`} key={item.reviewRequestId}>
               <div className="page-title-row">
                 <div>
                   <p className="eyebrow">재검토 요청 #{item.reviewRequestId}</p>
                   <h2>{item.fileName}</h2>
                 </div>
-                <span className="badge badge--danger">원 등급 {item.originalGrade}</span>
+                <div className="approval-card__badges">
+                  {item.isEscalated && <span className="badge badge--danger">⚠ {item.hoursPending}시간 경과 · 에스컬레이션</span>}
+                  <span className="badge badge--danger">원 등급 {item.originalGrade}</span>
+                </div>
               </div>
 
               <dl className="info-list">

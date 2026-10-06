@@ -17,6 +17,8 @@ export interface ReviewRequestItem {
   resolvedGrade?: SecurityGrade
   createdAt: string
   resolvedAt?: string
+  hoursPending: number
+  isEscalated: boolean
 }
 
 export interface CreateReviewRequestInput { reason: string; flagForRetraining: boolean }

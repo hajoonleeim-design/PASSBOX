@@ -123,13 +123,16 @@ export function ApprovalPage() {
       ) : (
         <div className="approval-list">
           {items.map((item) => (
-            <Card className="approval-card" key={item.approvalId}>
+            <Card className={`approval-card ${item.isEscalated ? 'approval-card--escalated' : ''}`} key={item.approvalId}>
               <div className="page-title-row">
                 <div>
                   <p className="eyebrow">승인 요청 #{item.approvalId}</p>
                   <h2>문서 ID {item.documentId}</h2>
                 </div>
-                <span className="badge badge--warning">승인 대기</span>
+                <div className="approval-card__badges">
+                  {item.isEscalated && <span className="badge badge--danger">⚠ {item.hoursPending}시간 경과 · 에스컬레이션</span>}
+                  <span className="badge badge--warning">승인 대기</span>
+                </div>
               </div>
 
               <dl className="info-list">

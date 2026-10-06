@@ -2892,3 +2892,6 @@ body {
 
 .review-request-panel__checkbox { display: flex; align-items: center; gap: 8px; margin: 14px 0; color: var(--color-text-secondary); font-size: 14px; }
 .review-request-panel__checkbox input { width: 16px; height: 16px; }
+
+.approval-card__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.approval-card--escalated { border-color: var(--color-danger); box-shadow: 0 0 0 1px var(--color-danger); }

@@ -19,6 +19,8 @@ export interface ApprovalItem {
   decisionComment: string | null
   createdAt: string
   decidedAt: string | null
+  hoursPending: number
+  isEscalated: boolean
 }
 
 interface BackendApprovalResponse {
@@ -40,6 +42,8 @@ interface BackendApprovalResponse {
   decision_comment: string | null
   created_at: string
   decided_at: string | null
+  hours_pending: number
+  is_escalated: boolean
 }
 
 function mapApproval(data: BackendApprovalResponse): ApprovalItem {
@@ -62,6 +66,8 @@ function mapApproval(data: BackendApprovalResponse): ApprovalItem {
     decisionComment: data.decision_comment,
     createdAt: data.created_at,
     decidedAt: data.decided_at,
+    hoursPending: data.hours_pending,
+    isEscalated: data.is_escalated,
   }
 }
 

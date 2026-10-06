@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import analysisDetailExample from '../../assets/onboarding-analysis-detail-example.png'
+import analysisProgressExample from '../../assets/onboarding-analysis-progress-example.png'
 import { getRecentJobs } from '../../api/jobs'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
@@ -48,19 +49,40 @@ export function AnalysisJobsPage() {
   const [jobs, setJobs] = useState<AnalysisJobRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [isDetailTourOpen, setIsDetailTourOpen] = useState(shouldShowDetailTour)
+  const [analysisTourStep, setAnalysisTourStep] = useState<0 | 1 | 2 | null>(() => (shouldShowDetailTour() ? 0 : null))
+  const [isTourTransitioning, setIsTourTransitioning] = useState(false)
+  const tourTransitionTimer = useRef<number | null>(null)
 
   function restartAnalysisListOnboarding() {
-    setIsDetailTourOpen(true)
+    if (tourTransitionTimer.current !== null) window.clearTimeout(tourTransitionTimer.current)
+    setIsTourTransitioning(false)
+    setAnalysisTourStep(0)
   }
 
   function completeAnalysisListOnboarding() {
+    if (tourTransitionTimer.current !== null) window.clearTimeout(tourTransitionTimer.current)
+    tourTransitionTimer.current = null
     try {
       window.localStorage.setItem(analysisDetailTourStorageKey, 'completed')
     } catch {
       // Completing the visible guide still works when storage is restricted.
     }
-    setIsDetailTourOpen(false)
+    setIsTourTransitioning(false)
+    setAnalysisTourStep(null)
+  }
+
+  function advanceAnalysisListOnboarding() {
+    if (analysisTourStep === null || isTourTransitioning) return
+    setIsTourTransitioning(true)
+    tourTransitionTimer.current = window.setTimeout(() => {
+      tourTransitionTimer.current = null
+      if (analysisTourStep === 2) {
+        completeAnalysisListOnboarding()
+        return
+      }
+      setAnalysisTourStep((current) => (current === null ? null : current + 1) as 0 | 1 | 2)
+      setIsTourTransitioning(false)
+    }, 160)
   }
 
   const loadJobs = useCallback(async () => {
@@ -81,6 +103,10 @@ export function AnalysisJobsPage() {
     return () => window.clearInterval(timer)
   }, [loadJobs])
 
+  useEffect(() => () => {
+    if (tourTransitionTimer.current !== null) window.clearTimeout(tourTransitionTimer.current)
+  }, [])
+
   const columns: DataTableColumn<AnalysisJobRow>[] = [
     {
       key: 'file',
@@ -91,7 +117,7 @@ export function AnalysisJobsPage() {
     { key: 'status', header: '현재 상태', render: (job) => <StatusBadge label={statusLabels[job.status] ?? statusLabels.UNKNOWN} /> },
     { key: 'progress', header: '진행률', render: (job) => `${job.progress}% · ${job.currentStep}` },
     { key: 'created', header: '시작 시각', render: (job) => formatDate(job.createdAt) },
-    { key: 'action', header: '상세', render: (job) => <Link to={`/analysis/${job.jobId}`} className={`table-link ${isDetailTourOpen ? 'analysis-detail-tour__target' : ''}`.trim()} onClick={isDetailTourOpen ? completeAnalysisListOnboarding : undefined}>상세 보기</Link> },
+    { key: 'action', header: '상세', render: (job) => <Link to={`/analysis/${job.jobId}`} className={`table-link ${analysisTourStep === 0 ? 'analysis-detail-tour__target' : ''}`.trim()}>상세 보기</Link> },
   ]
 
   if (isLoading) return <LoadingState label="문서 분석 작업을 불러오는 중입니다." />
@@ -124,21 +150,40 @@ export function AnalysisJobsPage() {
           <DataTable columns={columns} rows={jobs} />
         </>
       )}
-      {isDetailTourOpen && (
-        <Card className="analysis-detail-tour__example">
+      {analysisTourStep === 0 && (
+        <Card className={`analysis-detail-tour__example ${isTourTransitioning ? 'onboarding-panel--leaving' : ''}`.trim()}>
           <div className="analysis-detail-tour__example-frame">
-            <img src={analysisDetailExample} alt="검증 완료 예시 파일 행과 분석 시작 버튼" />
+            <img src={analysisDetailExample} alt="문서 분석 작업 목록의 상세 보기 버튼 예시" />
+            <span className="analysis-detail-tour__image-focus" aria-hidden="true" />
           </div>
           <p>온보딩 예시 · 실제 파일이 추가되거나 저장되지는 않습니다.</p>
         </Card>
       )}
-      {isDetailTourOpen && (
-        <aside className="analysis-detail-tour" aria-label="문서 분석 작업 안내 1단계">
-          <p>시작 안내 · 1 / 1</p>
+      {analysisTourStep === 0 && (
+        <aside className={`analysis-detail-tour ${isTourTransitioning ? 'onboarding-panel--leaving' : ''}`.trim()} aria-label="문서 분석 작업 안내 1단계">
+          <p>시작 안내 · 1 / 3</p>
           <h2>상세 보기로 분석 화면을 여세요</h2>
           <span>선택한 문서의 상세 보기를 누르면 진행률, 현재 상태와 분석 단계를 확인할 수 있습니다.</span>
-          <Button size="sm" onClick={completeAnalysisListOnboarding}>확인</Button>
+          <Button size="sm" onClick={advanceAnalysisListOnboarding}>다음 안내</Button>
         </aside>
+      )}
+      {(analysisTourStep === 1 || analysisTourStep === 2) && (
+        <div key={analysisTourStep} className={`analysis-list-onboarding-stage ${isTourTransitioning ? 'onboarding-panel--leaving' : ''}`.trim()}>
+          <Card className="analysis-progress-tour__example">
+            <div className="analysis-progress-tour__example-frame">
+              <img src={analysisProgressExample} alt="진행률과 분석 단계가 표시된 문서 분석 화면 예시" />
+              {analysisTourStep === 1 && <span className="analysis-progress-tour__image-focus analysis-progress-tour__image-focus--progress" aria-hidden="true" />}
+              {analysisTourStep === 2 && <span className="analysis-progress-tour__image-focus analysis-progress-tour__image-focus--steps" aria-hidden="true" />}
+            </div>
+            <p>온보딩 예시 · 실제 분석 정보가 추가되거나 저장되지는 않습니다.</p>
+          </Card>
+          <aside className="analysis-detail-tour" aria-live="polite" aria-label="문서 분석 진행 안내 2단계">
+            <p>시작 안내 · {analysisTourStep === 1 ? '2 / 3' : '3 / 3'}</p>
+            <h2>{analysisTourStep === 1 ? '진행률을 확인하세요' : '분석 단계를 확인하세요'}</h2>
+            <span>{analysisTourStep === 1 ? '진행률은 작업이 어느 정도 처리되었는지 보여 줍니다. 숫자와 막대, 현재 처리 중인 단계 이름을 함께 확인하세요.' : '분석 단계는 접수부터 검사·파싱·탐지·마스킹을 거쳐 완료까지 순서대로 갱신됩니다. 완료·진행 중·대기 상태를 한눈에 확인할 수 있습니다.'}</span>
+            <Button size="sm" onClick={advanceAnalysisListOnboarding}>{analysisTourStep === 1 ? '다음 안내' : '완료'}</Button>
+          </aside>
+        </div>
       )}
     </section>
   )

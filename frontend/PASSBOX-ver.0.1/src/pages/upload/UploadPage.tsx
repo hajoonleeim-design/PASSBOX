@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import analysisStartExample from '../../assets/onboarding-upload-analysis-example.png'
 import { getUploadPolicyHint, uploadDocument } from '../../api/upload'
 import { createJob } from '../../api/jobs'
@@ -47,8 +47,8 @@ const uploadOnboardingSteps: OnboardingTourStep[] = [
   {
     id: 'validation-request',
     target: '[data-onboarding-target="upload-analysis-area"]',
-    title: '검증을 요청하세요',
-    description: '파일을 선택한 뒤 검증 요청을 누르면 업로드와 서버 검증이 시작됩니다.',
+    title: '업로드와 검증이 시작됩니다',
+    description: '파일을 추가하면 업로드와 서버 검증이 자동으로 시작됩니다.',
   },
   {
     id: 'analysis-start',
@@ -62,6 +62,7 @@ export function UploadPage() {
   const { files, setFiles } = useUploadDraft()
   const [error, setError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [isStartingAnalysis, setIsStartingAnalysis] = useState(false)
   const [activeOnboardingStep, setActiveOnboardingStep] = useState<number | null>(null)
   const [policyHint, setPolicyHint] = useState<UploadPolicyHint>({
     allowedExtensions: Array.from(acceptedExtensions),
@@ -101,6 +102,11 @@ export function UploadPage() {
       setError('지원하지 않는 파일 형식이 포함되어 있습니다. 허용 형식을 확인해 주세요.')
     }
     requestAnimationFrame(() => fileListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+
+    const uploadable = next.filter((item) => item.uploadStatus === 'PENDING')
+    if (uploadable.length > 0) {
+      void uploadFiles(uploadable)
+    }
   }
 
   function updateFile(id: string, patch: Partial<UploadDraftRow>) {
@@ -133,8 +139,7 @@ export function UploadPage() {
     }
   }
 
-  async function uploadAll() {
-    const pending = files.filter((item) => item.uploadStatus === 'PENDING')
+  async function uploadFiles(pending: UploadDraftRow[]) {
     if (pending.length === 0) {
       setError('업로드할 수 있는 대기 파일이 없습니다.')
       return
@@ -143,6 +148,10 @@ export function UploadPage() {
     setIsUploading(true)
     await Promise.all(pending.map(uploadOne))
     setIsUploading(false)
+  }
+
+  async function uploadAll() {
+    await uploadFiles(files.filter((item) => item.uploadStatus === 'PENDING'))
   }
 
   async function startAnalysis(item: UploadDraftRow) {
@@ -156,11 +165,55 @@ export function UploadPage() {
         documentId: item.documentId,
         file: { fileName: item.file.name, extension: item.extension, size: item.file.size },
       })
+      setFiles((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, analysisJobId: job.jobId } : candidate))
       navigate(`/analysis/${job.jobId}`)
     } catch {
       setError('분석 작업을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
   }
+
+  async function startSingleAnalysis(item: UploadDraftRow) {
+    if (isStartingAnalysis) return
+    setIsStartingAnalysis(true)
+    await startAnalysis(item)
+    setIsStartingAnalysis(false)
+  }
+
+  async function startAllAnalysis() {
+    const eligible = files.filter((item) => item.validationStatus === 'VALIDATED' && item.documentId && !item.analysisJobId)
+    if (eligible.length === 0) {
+      setError('일괄 분석을 시작할 수 있는 검증 완료 문서가 없습니다.')
+      return
+    }
+
+    setError('')
+    setIsStartingAnalysis(true)
+    const results = await Promise.all(eligible.map(async (item) => {
+      try {
+        const job = await createJob({
+          documentId: item.documentId,
+          file: { fileName: item.file.name, extension: item.extension, size: item.file.size },
+        })
+        setFiles((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, analysisJobId: job.jobId } : candidate))
+        return { item, jobId: job.jobId }
+      } catch {
+        return { item, jobId: null }
+      }
+    }))
+    setIsStartingAnalysis(false)
+
+    const created = results.filter((result) => result.jobId !== null)
+    const failed = results.filter((result) => result.jobId === null)
+    if (failed.length > 0) {
+      const failedNames = failed.map((result) => result.item.file.name).join(', ')
+      setError(`${created.length}개 문서의 분석 작업을 시작했고, ${failed.length}개는 실패했습니다: ${failedNames}. 실패한 문서는 다시 시도할 수 있습니다.`)
+      return
+    }
+    navigate('/analysis/recent')
+  }
+
+  const analyzableFiles = files.filter((item) => item.validationStatus === 'VALIDATED' && item.documentId && !item.analysisJobId)
+  const isValidationPending = files.some((item) => item.uploadStatus === 'PENDING' || item.uploadStatus === 'UPLOADING' || item.validationStatus === 'PENDING' || item.validationStatus === 'VALIDATING')
 
   const columns: DataTableColumn<UploadDraftRow>[] = [
     {
@@ -177,7 +230,8 @@ export function UploadPage() {
       key: 'manage',
       header: '관리',
       render: (item) => <span className="table-actions">
-        {item.validationStatus === 'VALIDATED' && <Button size="sm" onClick={() => void startAnalysis(item)}>분석 시작</Button>}
+        {item.validationStatus === 'VALIDATED' && !item.analysisJobId && <Button size="sm" disabled={isStartingAnalysis} onClick={() => void startSingleAnalysis(item)}>분석 시작</Button>}
+        {item.analysisJobId && <Link className="table-link" to={`/analysis/${item.analysisJobId}`}>분석 보기</Link>}
         <Button size="sm" variant="ghost" aria-label={`${item.file.name} 제거`} disabled={item.uploadStatus === 'UPLOADING'} onClick={() => setFiles((current) => current.filter((candidate) => candidate.id !== item.id))}>제거</Button>
       </span>,
     },
@@ -189,7 +243,7 @@ export function UploadPage() {
     <p>문서를 추가하면 서버 정책에 따라 파일 signature, MIME, 확장자, 크기, 무결성을 검증합니다.</p>
     <Button className="onboarding-restart-button" size="sm" variant="ghost" onClick={restartUploadOnboarding}>사용 안내 다시 보기</Button>
     <div className="upload-layout">
-      <FileDropzone onFiles={addFiles} />
+      <FileDropzone files={files} isUploading={isUploading} onFiles={addFiles} onRemove={(id) => setFiles((current) => current.filter((item) => item.id !== id))} />
       <Card className="upload-policy">
         <h2>업로드 전 안내</h2>
         <dl>
@@ -200,10 +254,15 @@ export function UploadPage() {
         <Alert variant="info" title="서버 검증 필요">브라우저의 확장자 확인은 사용자 안내용이며, 보안 검증 결과가 아닙니다.</Alert>
       </Card>
     </div>
-    {error && <div className="section-gap"><Alert variant="danger" title="업로드 확인 필요">{error}</Alert></div>}
+    {error && <div className="section-gap"><Alert variant="danger" title="작업 확인 필요">{error}</Alert></div>}
     <div ref={fileListRef} className="section-heading" data-onboarding-target="upload-analysis-area">
-      <div><h2>선택한 파일</h2><p>각 파일은 독립적으로 업로드 및 검증됩니다.</p></div>
-      <Button data-onboarding-target="upload-validation-request" onClick={() => void uploadAll()} disabled={isUploading || files.length === 0}>{isUploading ? '업로드 중' : '검증 요청'}</Button>
+      <div><h2>업로드 및 검증 결과</h2><p>{isValidationPending ? '모든 파일의 업로드와 검증이 끝나면 분석을 시작할 수 있습니다.' : `일괄 분석 가능한 검증 완료 문서 ${analyzableFiles.length}개`}</p></div>
+      <div className="upload-result-actions">
+        {files.some((item) => item.uploadStatus === 'PENDING') && <Button data-onboarding-target="upload-validation-request" onClick={() => void uploadAll()} disabled={isUploading}>대기 파일 검증 시작</Button>}
+        <Button onClick={() => void startAllAnalysis()} disabled={isStartingAnalysis || isUploading || isValidationPending || analyzableFiles.length === 0}>
+          {isStartingAnalysis ? '분석 작업 생성 중…' : '분석 시작'}
+        </Button>
+      </div>
     </div>
     {activeOnboardingStep === 2 && (
       <Card className="upload-onboarding-example">

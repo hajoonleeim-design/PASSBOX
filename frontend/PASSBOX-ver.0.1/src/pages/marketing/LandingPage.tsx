@@ -83,7 +83,7 @@ export function LandingPage() {
         <div className="landing-features__grid">
           {FEATURES.map((feature) => (
             <div className="landing-feature-card" key={feature.label}>
-              <SplitFlapText text={feature.label} className="landing-feature-card__label" />
+              <SplitFlapText text={feature.label} className="landing-feature-card__label" autoPlay={false} triggerOnHover={false} />
               <p>{feature.description}</p>
             </div>
           ))}

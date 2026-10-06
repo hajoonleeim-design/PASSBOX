@@ -122,9 +122,9 @@ export function ResultPage() {
   }
 
   if (isLoading && !decision) return <LoadingState label="판정 결과를 불러오는 중입니다." />
-  if (errorCode === 'NOT_FOUND') return <section><h1>판정 결과를 찾을 수 없습니다.</h1><ErrorState label="요청 ID에 해당하는 판정 결과가 없습니다." /><Button variant="ghost" onClick={goBack}>← 돌아가기</Button></section>
-  if (errorCode === 'FORBIDDEN') return <section><h1>권한이 없습니다.</h1><ErrorState label="이 판정 결과를 조회할 권한이 없습니다." /><Button variant="ghost" onClick={goBack}>← 돌아가기</Button></section>
-  if (!decision) return <section><h1>판정 결과를 불러오지 못했습니다.</h1><ErrorState label="네트워크 연결을 확인한 뒤 다시 시도해 주세요." /><Button onClick={() => void refresh()}>다시 조회</Button><Button variant="ghost" onClick={goBack}>← 돌아가기</Button></section>
+  if (errorCode === 'NOT_FOUND') return <section className="state-action-page"><h1>판정 결과를 찾을 수 없습니다.</h1><ErrorState label="요청 ID에 해당하는 판정 결과가 없습니다." /><Button variant="ghost" onClick={goBack}>← 돌아가기</Button></section>
+  if (errorCode === 'FORBIDDEN') return <section className="state-action-page"><h1>권한이 없습니다.</h1><ErrorState label="이 판정 결과를 조회할 권한이 없습니다." /><Button variant="ghost" onClick={goBack}>← 돌아가기</Button></section>
+  if (!decision) return <section className="state-action-page"><h1>판정 결과를 불러오지 못했습니다.</h1><ErrorState label="네트워크 연결을 확인한 뒤 다시 시도해 주세요." /><Button onClick={() => void refresh()}>다시 조회</Button><Button variant="ghost" onClick={goBack}>← 돌아가기</Button></section>
 
   const status = normalize(decision.status)
   const waiting = status === 'WAITING_APPROVAL'

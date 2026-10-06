@@ -79,10 +79,10 @@ export function ReviewQueuePage() {
 
   if (isLoading && !items) return <LoadingState label="재검토 요청을 불러오는 중입니다." />
   if (error?.status === 403) {
-    return <section><h1>재검토 권한이 없습니다.</h1><ErrorState label="OPERATOR, SECURITY_ADMIN 또는 ADMIN 권한이 있는 사용자만 접근할 수 있습니다." /></section>
+    return <section className="state-action-page"><h1>재검토 권한이 없습니다.</h1><ErrorState label="OPERATOR, SECURITY_ADMIN 또는 ADMIN 권한이 있는 사용자만 접근할 수 있습니다." /></section>
   }
   if (error && !items) {
-    return <section><h1>재검토 요청을 불러오지 못했습니다.</h1><ErrorState label={error.message} /><Button onClick={() => void loadItems()}>다시 조회</Button></section>
+    return <section className="state-action-page"><h1>재검토 요청을 불러오지 못했습니다.</h1><ErrorState label={error.message} /><Button onClick={() => void loadItems()}>다시 조회</Button></section>
   }
 
   return (

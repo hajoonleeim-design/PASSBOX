@@ -261,12 +261,18 @@ def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> N
                     ClassificationDecision.tenant_id == document.tenant_id,
                 )
             )
+            # CLASSIFICATION_REVIEW는 자동 처리가 끝났을 뿐 담당자 최종 확정(6/6단계)이
+            # 아직 남아 있는 상태다. 여기서도 progress=100을 주면 진행률 바는 "완료"를
+            # 말하는데 단계 표시기는 "5/6, 진행 중"이라고 해서 서로 모순되게 보인다.
+            # 담당자가 /classification/confirm으로 확정해야(_update_latest_job_for_document)
+            # 비로소 COMPLETED + 100%가 된다.
+            is_fully_done = has_decision is not None
             _set_job_state(
                 db,
                 job,
                 request,
-                status="COMPLETED" if has_decision is not None else "CLASSIFICATION_REVIEW",
-                progress=100,
+                status="COMPLETED" if is_fully_done else "CLASSIFICATION_REVIEW",
+                progress=100 if is_fully_done else 90,
             )
         except _JobCancelledSignal:
             logger.info("문서 분석 작업이 OCR 처리 도중 취소되었습니다: job_id=%s", job.id)

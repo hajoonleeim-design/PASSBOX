@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from html.parser import HTMLParser
 import io
@@ -48,7 +49,11 @@ class ExtractionResult:
     truncated: bool
 
 
-def extract_document(path: Path, extension: str) -> ExtractionResult:
+def extract_document(
+    path: Path,
+    extension: str,
+    on_ocr_progress: Callable[[int, int], None] | None = None,
+) -> ExtractionResult:
     if extension in {".md", ".txt", ".csv"}:
         text = _extract_plain_text(path)
         extractor = "plain-text"
@@ -56,7 +61,7 @@ def extract_document(path: Path, extension: str) -> ExtractionResult:
         text = _extract_html(path)
         extractor = "html-parser"
     elif extension == ".pdf":
-        text, ocr_used = _extract_pdf(path)
+        text, ocr_used = _extract_pdf(path, on_ocr_progress)
         extractor = "pypdf+easyocr" if ocr_used else "pypdf"
     elif extension == ".hwpx":
         text = _extract_hwpx(path)
@@ -146,8 +151,16 @@ def _extract_html(path: Path) -> str:
     return parser.get_text()
 
 
-def _extract_pdf(path: Path) -> tuple[str, bool]:
-    """pypdf로 텍스트 레이어를 읽고, 텍스트가 거의 없는 페이지(스캔본)는 EasyOCR로 보완한다."""
+def _extract_pdf(
+    path: Path,
+    on_ocr_progress: Callable[[int, int], None] | None = None,
+) -> tuple[str, bool]:
+    """pypdf로 텍스트 레이어를 읽고, 텍스트가 거의 없는 페이지(스캔본)는 EasyOCR로 보완한다.
+
+    스캔본 페이지가 많으면 CPU OCR만으로 수 분이 걸릴 수 있다. on_ocr_progress가
+    주어지면 페이지 처리 직후마다 (완료한 페이지 수, 전체 스캔 대상 페이지 수)를
+    알려 호출자가 진행률을 갱신하거나 취소 요청을 감지해 즉시 중단할 수 있게 한다.
+    """
     reader = PdfReader(str(path))
     pages_text = [page.extract_text() or "" for page in reader.pages]
 
@@ -158,7 +171,7 @@ def _extract_pdf(path: Path) -> tuple[str, bool]:
     ocr_used = False
     ocr_reader = _get_ocr_reader()
     with fitz.open(str(path)) as doc:
-        for i in scanned_indices:
+        for completed, i in enumerate(scanned_indices, start=1):
             pixmap = doc[i].get_pixmap(dpi=OCR_RENDER_DPI)
             image_bytes = pixmap.tobytes("png")
             lines = ocr_reader.readtext(image_bytes, detail=0, paragraph=True)
@@ -166,6 +179,8 @@ def _extract_pdf(path: Path) -> tuple[str, bool]:
             if ocr_text:
                 pages_text[i] = ocr_text
                 ocr_used = True
+            if on_ocr_progress is not None:
+                on_ocr_progress(completed, len(scanned_indices))
 
     return "\n".join(pages_text), ocr_used
 

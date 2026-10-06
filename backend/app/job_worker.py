@@ -27,6 +27,15 @@ _worker_threads: list[Thread] = []
 _worker_stop: Event | None = None
 
 
+class _JobCancelledSignal(Exception):
+    """Raised from an OCR progress callback to unwind out of a slow extraction.
+
+    A user can cancel a job (``POST /jobs/{id}/cancel``) from a different
+    request while this worker thread is deep inside a multi-page EasyOCR
+    scan, which previously had no way to notice until extraction finished.
+    """
+
+
 def _load_job(db, job_id: int, tenant_id: int):
     return db.execute(
         select(Job, AnalysisRequest, Document)
@@ -210,7 +219,19 @@ def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> N
             if text_record is None or text_record.status not in {"EXTRACTED", "EXTRACTED_TRUNCATED"}:
                 if not _set_job_state(db, job, request, status="PARSING", progress=30):
                     return
-                extraction_result = extract_document(storage_path, document.extension)
+
+                def on_ocr_progress(completed: int, total: int) -> None:
+                    # 스캔본 OCR은 페이지당 길게는 수십 초가 걸릴 수 있어, 그동안
+                    # 진행률을 30~50% 구간에서 눈에 보이게 올려 주고, 그 사이에
+                    # 사용자가 "분석 취소"를 눌렀는지 매 페이지마다 확인한다.
+                    db.refresh(job, attribute_names=["status"])
+                    if job.status == "CANCELLED":
+                        raise _JobCancelledSignal()
+                    job.progress = 30 + round(20 * completed / total)
+                    job.updated_at = datetime.now(timezone.utc)
+                    db.commit()
+
+                extraction_result = extract_document(storage_path, document.extension, on_ocr_progress)
                 if not extraction_result.text:
                     raise RuntimeError("추출된 문서 텍스트가 없습니다.")
                 text_record = _save_extraction(db, document, extraction_result)
@@ -247,6 +268,8 @@ def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> N
                 status="COMPLETED" if has_decision is not None else "CLASSIFICATION_REVIEW",
                 progress=100,
             )
+        except _JobCancelledSignal:
+            logger.info("문서 분석 작업이 OCR 처리 도중 취소되었습니다: job_id=%s", job.id)
         except UnsupportedDocumentError as exc:
             _set_job_state(db, job, request, status="FAILED", progress=100, error_message=str(exc))
         except ClassifierUnavailableError:

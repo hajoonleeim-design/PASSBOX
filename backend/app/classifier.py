@@ -155,6 +155,60 @@ class RemoteClassifierAdapter:
         raise ClassifierUnavailableError(reason)
 
 
+# C > S > O. Used only to decide whether a floor grade is an upgrade, never
+# to downgrade a model's own (possibly stricter) recommendation.
+_GRADE_RANK = {"C": 0, "S": 1, "O": 2}
+
+# Severities whose regex findings (security_scan.py) mean the document
+# contains PII/secret-shaped text, regardless of what the model's own
+# chunk-level judgment concluded about surrounding context.
+_FLOOR_SEVERITIES = {"HIGH", "MEDIUM"}
+
+
+def apply_findings_floor(
+    result: ClassificationRecommendation, findings: list[SecurityFinding]
+) -> ClassificationRecommendation:
+    """Never let a regex-confirmed PII/secret hit get recommended as O.
+
+    The classifier judges a whole chunk's *context* and can decide a stray
+    phone-number-shaped string "looks like a placeholder" and grade the
+    chunk O. But regex detection can't tell a placeholder from a real
+    number, and this is a security system: a false negative here (real PII
+    leaving as O) is far worse than a false positive (a placeholder getting
+    S and needing one extra approval click). So any HIGH/MEDIUM finding
+    sets a floor of S on the recommendation — it can only raise the grade
+    (or leave a C alone), never lower it.
+
+    Both call sites that produce a saved ClassificationRecommendation (the
+    job pipeline's auto-recommendation and the on-demand recommend
+    endpoint) must route through this, or the floor silently stops applying
+    to whichever path skips it.
+    """
+    floor_categories = sorted(
+        {f.category for f in findings if f.severity in _FLOOR_SEVERITIES}
+    )
+    if not floor_categories:
+        return result
+
+    current_rank = _GRADE_RANK.get(result.recommended_grade, _GRADE_RANK["O"] + 1)
+    if current_rank <= _GRADE_RANK["S"]:
+        return result
+
+    note = (
+        " [자동 보정] 모델 추천은 "
+        f"{result.recommended_grade or '없음'}이었지만, 탐지된 개인정보/Secret 유형("
+        + ", ".join(floor_categories)
+        + ")이 있어 S 미만으로 내려가지 않도록 등급을 올렸습니다."
+    )
+    return ClassificationRecommendation(
+        recommended_grade="S",
+        confidence=result.confidence,
+        reason=result.reason + note,
+        model_version=result.model_version,
+        status=result.status,
+    )
+
+
 def build_classifier(settings: Settings | None = None) -> DocumentClassifier:
     runtime_settings = settings or Settings()
     if runtime_settings.classifier_mode.strip().upper() == "REMOTE":

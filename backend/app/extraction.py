@@ -67,14 +67,14 @@ def extract_document(
         text = _extract_hwpx(path)
         extractor = "hwpx-xml"
     elif extension == ".pptx":
-        text = _extract_pptx(path)
-        extractor = "python-pptx"
+        text, ocr_used = _extract_pptx(path, on_ocr_progress)
+        extractor = "python-pptx+easyocr" if ocr_used else "python-pptx"
     elif extension == ".xlsx":
         text = _extract_xlsx(path)
         extractor = "openpyxl"
     elif extension == ".docx":
-        text = _extract_docx(path)
-        extractor = "python-docx"
+        text, ocr_used = _extract_docx(path, on_ocr_progress)
+        extractor = "python-docx+easyocr" if ocr_used else "python-docx"
     elif extension == ".hwp":
         text = _extract_hwp(path)
         extractor = "pyhwp-odt"
@@ -199,7 +199,57 @@ def _extract_hwpx(path: Path) -> str:
     return "\n".join(sections)
 
 
-def _extract_pptx(path: Path) -> str:
+_OFFICE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff")
+
+
+def _ocr_zip_media(
+    path: Path,
+    media_prefix: str,
+    on_ocr_progress: Callable[[int, int], None] | None = None,
+) -> tuple[str, bool]:
+    """OCR every embedded raster image under media_prefix/ inside an Office zip container.
+
+    PPTX/DOCX only expose shape *text frames* through python-pptx/python-docx's
+    object model; a screenshot of a confidential page pasted in as a picture
+    has no text frame at all, so it was silently skipped and never reached
+    the security scanner (confirmed via QA report, re-tested here). Reading
+    straight from the zip's media/ folder catches every embedded image
+    regardless of which shape or slide/paragraph references it, mirroring
+    the same EasyOCR fallback already used for scanned PDF pages.
+    """
+    with zipfile.ZipFile(path) as archive:
+        image_names = sorted(
+            name
+            for name in archive.namelist()
+            if name.startswith(media_prefix) and name.lower().endswith(_OFFICE_IMAGE_EXTENSIONS)
+        )
+        if not image_names:
+            return "", False
+
+        ocr_reader = _get_ocr_reader()
+        texts: list[str] = []
+        for completed, name in enumerate(image_names, start=1):
+            try:
+                lines = ocr_reader.readtext(archive.read(name), detail=0, paragraph=True)
+            except Exception:
+                # 손상되었거나 OCR이 다룰 수 없는 이미지 포맷 하나 때문에 문서
+                # 전체 추출이 실패하면 안 된다 — 그 이미지만 건너뛴다.
+                lines = []
+            text = "\n".join(lines).strip()
+            if text:
+                texts.append(text)
+            if on_ocr_progress is not None:
+                on_ocr_progress(completed, len(image_names))
+
+    if not texts:
+        return "", False
+    return "[이미지에서 추출된 텍스트]\n" + "\n".join(texts), True
+
+
+def _extract_pptx(
+    path: Path,
+    on_ocr_progress: Callable[[int, int], None] | None = None,
+) -> tuple[str, bool]:
     presentation = Presentation(str(path))
     slides: list[str] = []
     for index, slide in enumerate(presentation.slides, start=1):
@@ -208,10 +258,16 @@ def _extract_pptx(path: Path) -> str:
             if getattr(shape, "has_text_frame", False):
                 paragraphs.append(shape.text)
         slides.append(f"[슬라이드 {index}]\n" + "\n".join(paragraphs))
-    return "\n".join(slides)
+    image_text, ocr_used = _ocr_zip_media(path, "ppt/media/", on_ocr_progress)
+    if image_text:
+        slides.append(image_text)
+    return "\n".join(slides), ocr_used
 
 
-def _extract_docx(path: Path) -> str:
+def _extract_docx(
+    path: Path,
+    on_ocr_progress: Callable[[int, int], None] | None = None,
+) -> tuple[str, bool]:
     document = WordDocument(str(path))
     parts: list[str] = [paragraph.text for paragraph in document.paragraphs if paragraph.text]
     for table in document.tables:
@@ -219,7 +275,10 @@ def _extract_docx(path: Path) -> str:
             cells = [cell.text for cell in row.cells if cell.text]
             if cells:
                 parts.append("\t".join(cells))
-    return "\n".join(parts)
+    image_text, ocr_used = _ocr_zip_media(path, "word/media/", on_ocr_progress)
+    if image_text:
+        parts.append(image_text)
+    return "\n".join(parts), ocr_used
 
 
 def _extract_hwp(path: Path) -> str:

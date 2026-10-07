@@ -1,10 +1,22 @@
+import base64
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from docx import Document as WordDocument
+from pptx import Presentation
 
 from app.extraction import UnsupportedDocumentError, extract_document, odf_content_to_text
+
+# 1x1 PNG 픽셀. 실제 이미지 내용은 중요하지 않다 - OCR 엔진 자체는 아래에서
+# mock으로 대체하고, "이미지가 있으면 그 bytes가 OCR로 넘어가 결과가 본문에
+# 합쳐지는지"만 검증한다.
+_TINY_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+    "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 class TextExtractionTests(unittest.TestCase):
@@ -43,6 +55,53 @@ class TextExtractionTests(unittest.TestCase):
             self.assertEqual(result.extractor, "python-docx")
             self.assertIn("외부 전송 전 보안 검사가 필요합니다.", result.text)
             self.assertIn("구분\t기밀", result.text)
+
+    def test_extracts_text_from_image_pasted_into_pptx(self):
+        """QA가 보고한 블라인드 스팟: 기밀 내용을 캡처해 이미지로 PPT에 끼워
+        넣으면, 텍스트 상자만 읽는 python-pptx로는 전혀 보이지 않아 보안
+        검사를 그대로 통과했다. 이미지 OCR을 붙인 뒤 다시 검증한다."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture.pptx"
+            presentation = Presentation()
+            slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+            slide.shapes.add_picture(io.BytesIO(_TINY_PNG), 0, 0)
+            presentation.save(str(path))
+
+            fake_reader = type("FakeReader", (), {"readtext": staticmethod(lambda *a, **k: ["기밀 문서 캡처본"])})()
+            with patch("app.extraction._get_ocr_reader", return_value=fake_reader):
+                result = extract_document(path, ".pptx")
+
+            self.assertEqual(result.extractor, "python-pptx+easyocr")
+            self.assertIn("기밀 문서 캡처본", result.text)
+
+    def test_pptx_without_images_does_not_report_ocr_usage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "plain.pptx"
+            presentation = Presentation()
+            slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+            textbox = slide.shapes.add_textbox(0, 0, 1000, 1000)
+            textbox.text_frame.text = "일반 텍스트 슬라이드"
+            presentation.save(str(path))
+
+            result = extract_document(path, ".pptx")
+
+            self.assertEqual(result.extractor, "python-pptx")
+            self.assertIn("일반 텍스트 슬라이드", result.text)
+
+    def test_extracts_text_from_image_pasted_into_docx(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture.docx"
+            document = WordDocument()
+            document.add_paragraph("첨부 캡처 화면:")
+            document.add_picture(io.BytesIO(_TINY_PNG))
+            document.save(str(path))
+
+            fake_reader = type("FakeReader", (), {"readtext": staticmethod(lambda *a, **k: ["주민등록번호 캡처됨"])})()
+            with patch("app.extraction._get_ocr_reader", return_value=fake_reader):
+                result = extract_document(path, ".docx")
+
+            self.assertEqual(result.extractor, "python-docx+easyocr")
+            self.assertIn("주민등록번호 캡처됨", result.text)
 
     def test_hwp_with_invalid_container_is_unsupported(self):
         with tempfile.TemporaryDirectory() as directory:

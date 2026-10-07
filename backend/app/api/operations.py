@@ -281,10 +281,16 @@ def _dashboard_response(
         if bucket in queue_counts:
             queue_counts[bucket] += 1
 
+    # 평균/P95는 "지금 시스템이 얼마나 빠른가"를 보여주는 지표다. 테넌트
+    # 전체 역사를 다 넣으면, 디버깅하느라 며칠씩 묵혀 둔 아주 오래된 Job
+    # 하나가 (created_at은 그대로인데 updated_at만 한참 뒤에 바뀌어서)
+    # 수십~수백 배 부풀려진 처리시간으로 잡혀 평균 전체를 왜곡한다. 최근
+    # 24시간으로 창을 두면 그런 과거 이상치 없이 현재 상태만 반영한다.
+    recent_cutoff = _timestamp(now - timedelta(hours=24))
     processing_times = [
         duration
         for job in jobs
-        if job.status in _TERMINAL_JOB_STATUSES
+        if job.status in _TERMINAL_JOB_STATUSES and _timestamp(job.updated_at) >= recent_cutoff
         for duration in [_duration_ms(job.created_at, job.updated_at)]
         if duration is not None
     ]

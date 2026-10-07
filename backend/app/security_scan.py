@@ -37,7 +37,25 @@ def contains_eicar_signature(data: bytes) -> bool:
 # definitions instead of maintaining a second, drift-prone copy.
 PERSONAL_ID_PATTERN = r"(?<!\d)\d{6}[- ]?[1-4]\d{6}(?!\d)"
 PHONE_PATTERN = r"(?<!\d)01[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)"
+# +82/0082로 국가번호를 쓰면 앞자리 0이 빠져 "10/11/16/17/18/19"로 시작한다
+# (예: +82 10 1234 5678). 국내 표기(PHONE_PATTERN)만으로는 못 잡는, 실제
+# QA에서 보고된 회피 패턴이다.
+PHONE_INTL_PATTERN = r"(?<![\d+])(?:\+82|0082)[\s-]?1[016789][\s-]?\d{3,4}[\s-]?\d{4}(?!\d)"
+# "공일공 일이삼사 오육칠팔"처럼 숫자를 한글로 풀어 쓰는 회피 패턴. 숫자
+# 단어가 10~11개 연달아 나오는 경우만 후보로 잡고(아래 _spells_out_phone이
+# 실제 유효한 휴대폰 번호 자릿수인지 검증), 일상 문장에서 우연히 숫자 단어가
+# 이어질 일은 거의 없어 오탐 위험이 낮다.
+_KOREAN_DIGIT_WORD = r"(?:공|일|이|삼|사|오|육|륙|칠|팔|구)"
+PHONE_SPELLED_PATTERN = rf"{_KOREAN_DIGIT_WORD}(?:\s*{_KOREAN_DIGIT_WORD}){{9,10}}"
 EMAIL_PATTERN = r"(?i)(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.-])"
+# "user 앳 gmail 닷 com"처럼 @과 .을 한글 단어로 치환하는 회피 패턴. 실제
+# 도메인 접미사(com/net/go.kr 등)로 끝날 때만 매칭해 "닷새" 같은 일반 단어와
+# 오인하지 않도록 범위를 좁혔다.
+EMAIL_OBFUSCATED_PATTERN = (
+    r"(?i)[\w.+-]+\s*(?:앳|\bat\b)\s*[\w-]+"
+    r"(?:\s*(?:닷|\bdot\b)\s*[\w-]+)*"
+    r"\s*(?:닷|\bdot\b)\s*(?:com|co\.kr|net|org|kr|go\.kr)\b"
+)
 PRIVATE_KEY_PATTERN = r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"
 API_KEY_PATTERN = (
     r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|"
@@ -115,6 +133,17 @@ SUSPICIOUS_URL_PATTERN = (
 )
 
 
+_KOREAN_DIGIT_VALUES = {
+    "공": "0", "일": "1", "이": "2", "삼": "3", "사": "4",
+    "오": "5", "육": "6", "륙": "6", "칠": "7", "팔": "8", "구": "9",
+}
+
+
+def _spells_out_phone(raw_match: str) -> bool:
+    digits = "".join(_KOREAN_DIGIT_VALUES[ch] for ch in raw_match if ch in _KOREAN_DIGIT_VALUES)
+    return bool(re.fullmatch(r"01[016789]\d{7,8}", digits))
+
+
 def _passes_luhn(raw_match: str) -> bool:
     digits = [ch for ch in raw_match if ch.isdigit()]
     if not 13 <= len(digits) <= 19:
@@ -141,7 +170,10 @@ class _Rule:
 _RULES: tuple[_Rule, ...] = (
     _Rule("PERSONAL_ID", "HIGH", PERSONAL_ID_PATTERN),
     _Rule("PHONE", "MEDIUM", PHONE_PATTERN),
+    _Rule("PHONE", "MEDIUM", PHONE_INTL_PATTERN),
+    _Rule("PHONE", "MEDIUM", PHONE_SPELLED_PATTERN, validator=_spells_out_phone),
     _Rule("EMAIL", "MEDIUM", EMAIL_PATTERN),
+    _Rule("EMAIL", "MEDIUM", EMAIL_OBFUSCATED_PATTERN),
     _Rule("PRIVATE_KEY", "HIGH", PRIVATE_KEY_PATTERN),
     _Rule("API_KEY", "HIGH", API_KEY_PATTERN),
     _Rule("ACCESS_TOKEN", "HIGH", ACCESS_TOKEN_PATTERN),

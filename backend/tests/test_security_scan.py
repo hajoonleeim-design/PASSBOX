@@ -27,6 +27,28 @@ class SecurityScanTests(unittest.TestCase):
 
         self.assertIn("BUSINESS_REG_NO", categories)
 
+    def test_international_phone_format_is_detected(self):
+        categories = self._categories("담당자 연락처는 +82 10 1234 5678 입니다.")
+
+        self.assertIn("PHONE", categories)
+
+    def test_spelled_out_korean_phone_number_is_detected(self):
+        categories = self._categories("연락처: 공일공 일이삼사 오육칠팔")
+
+        self.assertIn("PHONE", categories)
+
+    def test_ordinary_korean_sentence_with_scattered_digit_words_does_not_trigger_phone(self):
+        categories = self._categories(
+            "오늘 회의는 일이 많아서 삼십분 늦게 시작했고 사람들이 오래 기다렸다"
+        )
+
+        self.assertNotIn("PHONE", categories)
+
+    def test_obfuscated_email_with_korean_separators_is_detected(self):
+        categories = self._categories("문의: user 앳 gmail 닷 com 으로 보내주세요.")
+
+        self.assertIn("EMAIL", categories)
+
     def test_google_and_slack_keys_are_detected_as_api_key(self):
         categories = self._categories(
             "google=AIzaSyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q "

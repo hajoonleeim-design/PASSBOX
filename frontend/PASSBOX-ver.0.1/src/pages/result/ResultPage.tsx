@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { ApiError } from '../../api/client'
+import { generateAuditPdfSource } from '../../api/auditSource'
 import { createReviewRequest } from '../../api/reviewRequests'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
@@ -86,8 +87,29 @@ export function ResultPage() {
   const [actionError, setActionError] = useState('')
   const [toast, setToast] = useState('')
   const [reviewRequest, setReviewRequest] = useState<ReviewRequestItem | null>(null)
+  const [pdfError, setPdfError] = useState('')
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false)
   const goBack = () => navigate(-1)
   const actor = session ? { userId: session.userId, displayName: session.displayName, role: session.role } : null
+
+  async function downloadPdf() {
+    if (!decision || !actor) return
+    setPdfError('')
+    setIsPdfGenerating(true)
+    try {
+      const result = await generateAuditPdfSource(decision.requestId, actor)
+      const url = URL.createObjectURL(result.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = result.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setPdfError('PDF 보고서를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setIsPdfGenerating(false)
+    }
+  }
 
   async function confirmApprove() {
     if (!actor) return
@@ -135,8 +157,12 @@ export function ResultPage() {
       <p className="eyebrow">CLASSIFICATION DECISION</p>
       <div className="page-title-row">
         <div><h1>분석 판정 결과</h1><p>원문이 아닌 마스킹된 증적과 정책 근거를 표시합니다.</p></div>
-        <StatusBadge label={statusLabels[status]} />
+        <div className="table-actions">
+          <StatusBadge label={statusLabels[status]} />
+          <Button variant="secondary" onClick={() => void downloadPdf()} disabled={isPdfGenerating}>{isPdfGenerating ? 'PDF 생성 중' : '감사 보고서 PDF 받기'}</Button>
+        </div>
       </div>
+      {pdfError && <div className="section-gap"><Alert variant="danger" title="PDF 생성 실패">{pdfError}</Alert></div>}
       {actionError && <div className="section-gap"><Alert variant="danger" title="승인 처리 실패">{actionError}</Alert></div>}
       <div className="result-grid">
         <Card className="grade-card"><GradeBadge grade={decision.grade} /><h2>{decision.gradeName}</h2><p>{decision.description}</p><strong>{statusText[status]}</strong></Card>

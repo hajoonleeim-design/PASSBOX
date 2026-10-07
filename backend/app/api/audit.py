@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import desc, select
 
-from app.api.auth import require_roles
+from app.api.auth import get_current_user, require_roles
 from app.api.decisions import _status_for
 from app.db import get_session_factory
 from app.models import (
@@ -452,12 +452,29 @@ def get_audit_evidence(
 )
 def generate_audit_pdf(
     request_id: int,
-    current_user: User = Depends(
-        require_roles("OPERATOR", "SECURITY_ADMIN", "ADMIN")
-    ),
+    current_user: User = Depends(get_current_user),
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
+        # OPERATOR/SECURITY_ADMIN/ADMIN keep tenant-wide access, same as the
+        # JSON audit endpoints. A plain USER can only ever get the PDF for a
+        # request they created themselves — this is the one audit surface
+        # exposed to regular users, so it must never leak another user's
+        # request just because they can guess/increment the ID.
+        if current_user.role not in {"OPERATOR", "SECURITY_ADMIN", "ADMIN"}:
+            owner_id = db.scalar(
+                select(AnalysisRequest.user_id).where(
+                    AnalysisRequest.id == request_id,
+                    AnalysisRequest.tenant_id == current_user.tenant_id,
+                )
+            )
+            if owner_id is None:
+                raise HTTPException(status_code=404, detail="감사 요청을 찾을 수 없습니다.")
+            if owner_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="본인이 생성한 요청의 감사 보고서만 받을 수 있습니다.",
+                )
         record = _audit_record(db, request_id, current_user.tenant_id)
     return Response(
         content=_build_audit_pdf(record),

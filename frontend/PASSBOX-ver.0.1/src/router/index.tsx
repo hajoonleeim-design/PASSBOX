@@ -36,6 +36,7 @@ const router = createBrowserRouter([
         { path: '/result/:requestId', element: <ResultPage /> },
         { path: '/chat', element: <ChatPage /> },
         { path: '/chat/:requestId', element: <ChatPage /> },
+        { path: '/audit', element: <AuditPage /> },
         { path: '/audit/:requestId', element: <AuditPage /> },
         { path: '/admin/policy', element: <PolicyPage /> },
         { path: '/admin/policy/:policyId', element: <PolicyPage /> },

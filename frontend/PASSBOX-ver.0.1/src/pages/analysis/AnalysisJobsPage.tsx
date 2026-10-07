@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import analysisDetailExample from '../../assets/onboarding-analysis-detail-example.png'
 import analysisProgressExample from '../../assets/onboarding-analysis-progress-example.png'
 import { getRecentJobs } from '../../api/jobs'
+import { usePermission } from '../../hooks/usePermission'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
@@ -71,6 +72,7 @@ function storePage(page: number) {
 }
 
 export function AnalysisJobsPage() {
+  const canViewAudit = usePermission(['OPERATOR', 'SECURITY_ADMIN', 'ADMIN'])
   const [jobs, setJobs] = useState<AnalysisJobRow[]>([])
   const [page, setPageState] = useState(() => readStoredPage())
   const [searchInput, setSearchInput] = useState('')
@@ -171,6 +173,16 @@ export function AnalysisJobsPage() {
     { key: 'progress', header: '진행률', render: (job) => `${job.progress}% · ${job.currentStep}` },
     { key: 'created', header: '시작 시각', render: (job) => formatDate(job.createdAt) },
     { key: 'action', header: '상세', render: (job) => <Link to={`/analysis/${job.jobId}`} className={`table-link ${analysisTourStep === 0 && job.id === jobs[0]?.id ? 'analysis-detail-tour__target' : ''}`.trim()}>상세 보기</Link> },
+    ...(canViewAudit
+      ? [{
+          key: 'audit',
+          header: '감사 기록',
+          render: (job: AnalysisJobRow) =>
+            job.requestId && (job.status === 'COMPLETED' || job.status === 'BLOCKED')
+              ? <Link to={`/audit/${job.requestId}`} className="table-link">감사 기록 보기</Link>
+              : <span className="table-muted">-</span>,
+        } satisfies DataTableColumn<AnalysisJobRow>]
+      : []),
   ]
 
   if (isLoading) return <LoadingState label="문서 분석 작업을 불러오는 중입니다." />

@@ -1,6 +1,7 @@
 // Request ID를 기준으로 감사 기록을 조회하고, 조회 결과를 PDF로 내려받는 화면입니다.
-import { useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { getRecentJobs } from '../../api/jobs'
 import { generateAuditPdfSource as generateAuditPdf } from '../../api/auditSource'
 import { Alert } from '../../components/common/Alert'
 import { Badge, type BadgeVariant } from '../../components/common/Badge'
@@ -15,6 +16,7 @@ import { useAudit } from '../../hooks/useAudit'
 import { useAuth } from '../../hooks/useAuth'
 import type { AuditEvent } from '../../types/audit'
 import type { ApprovalHistoryEntry } from '../../types/decision'
+import type { AnalysisJob } from '../../types/security'
 
 const auditOnboardingSteps: OnboardingTourStep[] = [
   { id: 'lookup', target: '[data-onboarding-target="audit-lookup"]', title: 'Request ID로 감사 이력을 조회하세요', description: '요청에 연결된 처리 이력과 증적을 확인하려면 Request ID를 입력한 뒤 조회를 선택하세요.' },
@@ -52,11 +54,36 @@ export function AuditPage() {
   const { requestId } = useParams()
   const navigate = useNavigate()
   const { session } = useAuth()
-  const actor = session ? { userId: session.userId, role: session.role } : null
+  // useAudit()의 refresh가 actor를 의존성으로 쓰기 때문에, 매 렌더마다 새 객체를
+  // 만들면 refresh 함수 자체가 매번 바뀌어 effect가 계속 재실행되면서 API를
+  // 끊임없이 다시 호출하는 문제가 있었다(세션이 그대로인데도). userId/role 값이
+  // 바뀔 때만 새 객체를 만들도록 고정한다.
+  const actor = useMemo(
+    () => (session ? { userId: session.userId, role: session.role } : null),
+    [session?.userId, session?.role],
+  )
   const { audit, isLoading, errorCode, refresh } = useAudit(requestId, actor)
   const [query, setQuery] = useState(requestId ?? '')
   const [pdfError, setPdfError] = useState('')
   const [isPdfGenerating, setIsPdfGenerating] = useState(false)
+  const [recentJobs, setRecentJobs] = useState<AnalysisJob[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void getRecentJobs(20)
+      .then((jobs) => {
+        if (cancelled) return
+        setRecentJobs(
+          jobs.filter((job) => job.requestId && (job.status === 'COMPLETED' || job.status === 'BLOCKED')).slice(0, 5),
+        )
+      })
+      .catch(() => {
+        // 최근 목록은 보조 기능이라, 못 불러와도 Request ID 직접 입력은 그대로 쓸 수 있어야 한다.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -88,8 +115,37 @@ export function AuditPage() {
   }
 
   const onboarding = <PageOnboardingTour storageKey="passbox:onboarding:audit:v1" steps={auditOnboardingSteps} />
-  const lookup = <Card className="audit-lookup" data-onboarding-target="audit-lookup"><form onSubmit={search}><FormField label="Request ID" helpText="Job ID나 문서 ID가 아닌, 분석 결과 페이지(결과 확인)에 표시된 Request ID입니다."><TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Request ID를 입력하세요" /></FormField><Button type="submit">조회</Button></form></Card>
+  const lookup = (
+    <Card className="audit-lookup" data-onboarding-target="audit-lookup">
+      <form onSubmit={search}>
+        <FormField label="Request ID" helpText="Job ID나 문서 ID가 아닌, 분석 결과 페이지(결과 확인)에 표시된 Request ID입니다.">
+          <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Request ID를 입력하세요" />
+        </FormField>
+        <Button type="submit">조회</Button>
+      </form>
+      {recentJobs.length > 0 && (
+        <div className="audit-recent-list">
+          <p className="audit-recent-list__label">Request ID를 모르면 최근 처리된 요청에서 바로 선택하세요</p>
+          <ul>
+            {recentJobs.map((job) => (
+              <li key={job.jobId}>
+                <button type="button" className="audit-recent-list__item" onClick={() => navigate(`/audit/${job.requestId}`)}>
+                  <span className="audit-recent-list__file">{job.file.fileName}</span>
+                  <span className="audit-recent-list__meta"><code>{job.requestId}</code> · {formatDate(job.updatedAt)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  )
 
+  // requestId가 아예 없는 기본 진입 상태(사이드바 메뉴로 막 들어온 경우)는 아직
+  // 조회를 시도한 적도 없으므로, 에러가 아니라 조용히 조회 폼 + 최근 요청 목록만
+  // 보여준다. 아래 "불러오지 못했습니다" 분기는 실제 조회를 시도했다가 실패한
+  // 경우에만 타야 한다.
+  if (!requestId) return <section>{lookup}{onboarding}</section>
   if (isLoading && !audit) return <section>{lookup}<LoadingState label="감사 기록을 불러오는 중입니다." />{onboarding}</section>
   if (errorCode === 'NOT_FOUND') return <section className="state-action-page">{lookup}<h1>감사 기록을 찾을 수 없습니다.</h1><ErrorState label="입력한 Request ID에 해당하는 감사 기록이 없습니다." />{onboarding}</section>
   if (errorCode === 'FORBIDDEN') return <section className="state-action-page">{lookup}<h1>권한이 없습니다.</h1><ErrorState label="이 감사 기록을 조회할 권한이 없습니다." />{onboarding}</section>

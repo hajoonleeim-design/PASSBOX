@@ -85,8 +85,8 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
             </div>
           </div>
         </PermissionGuard>
-        <PermissionGuard roles={['OPERATOR', 'ADMIN']}>
-          {link('/audit/mock-request', '감사·증적', 'audit')}
+        <PermissionGuard roles={['OPERATOR', 'SECURITY_ADMIN', 'ADMIN']}>
+          {link('/audit', '감사·증적', 'audit')}
         </PermissionGuard>
         <PermissionGuard roles={['ADMIN']}>
           {link('/admin/policy', '관리자 정책', 'policy')}

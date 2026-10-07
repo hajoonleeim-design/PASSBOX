@@ -1,8 +1,10 @@
 // 현재 로그인 사용자와 로그아웃 버튼을 보여 주는 상단 공통 영역입니다.
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { apiClient } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../common/Button'
+import { ThemeToggle } from '../common/ThemeToggle'
 import { Modal } from '../common/Modal'
 import { SessionWarning } from '../security/SessionWarning'
 
@@ -20,9 +22,26 @@ export function Header({ isMenuOpen, onMenuToggle }: { isMenuOpen: boolean; onMe
   const [demoRunCount, setDemoRunCount] = useState(0)
   const demoCheckTimer = useRef<number | null>(null)
 
+  const [serverState, setServerState] = useState<'checking' | 'up' | 'down'>('checking')
+
   useEffect(() => () => {
     if (demoCheckTimer.current !== null) window.clearTimeout(demoCheckTimer.current)
   }, [])
+
+  // /health only proves the API answers, so the label claims exactly that and nothing more.
+  useEffect(() => {
+    let cancelled = false
+    const check = () => {
+      apiClient.get('/health', { timeout: 5000 })
+        .then(() => { if (!cancelled) setServerState('up') })
+        .catch(() => { if (!cancelled) setServerState('down') })
+    }
+    check()
+    const timer = window.setInterval(check, 60_000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [])
+
+  const serverLabel = serverState === 'up' ? '서버 연결 정상' : serverState === 'down' ? '서버 연결 끊김' : '서버 연결 확인 중'
 
   function runDemoCheck() {
     if (isDemoChecking) return
@@ -41,18 +60,23 @@ export function Header({ isMenuOpen, onMenuToggle }: { isMenuOpen: boolean; onMe
       <span className="header__brand-text">공공기관 문서 보안 플랫폼 · {session?.institutionName}</span>
     </div>
     <div className="header__account">
-      <button type="button" className="header__status" aria-haspopup="dialog" aria-expanded={isStatusOpen} onClick={() => setIsStatusOpen(true)}>
+      <button type="button" className={`header__status header__status--${serverState}`} aria-haspopup="dialog" aria-expanded={isStatusOpen} onClick={() => setIsStatusOpen(true)}>
         <span className="sr-indicator-dot sr-indicator-dot--emerald" />
-        <span>보안 시스템 정상 작동 중</span>
+        <span role="status">{serverLabel}</span>
         <span className="header__status-chevron" aria-hidden="true">⌄</span>
       </button>
       <span className="header__user">{session?.displayName} · {session?.role}</span>
       <Link to="/account" className="header__account-link">계정 보안</Link>
+      <ThemeToggle />
       <SessionWarning />
       <Button size="sm" variant="secondary" onClick={() => void logout()}>로그아웃</Button>
     </div>
     {isStatusOpen && <Modal title="보안 시스템 운영 상태" onClose={() => setIsStatusOpen(false)}>
       <div className="security-status-demo">
+        <div className="security-status-demo__notice">
+          <span className="security-status-demo__demo-label">실제 상태</span>
+          <p>백엔드 API 응답: <strong>{serverLabel}</strong> (1분마다 확인)</p>
+        </div>
         <div className="security-status-demo__notice">
           <span className="security-status-demo__demo-label">데모 데이터</span>
           <p>아래 상태와 증적은 화면 시연용 예시이며 실제 서버 점검 결과가 아닙니다.</p>

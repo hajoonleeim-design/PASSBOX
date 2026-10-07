@@ -32,7 +32,7 @@ export function ClearancePassTicket() {
         <div className="clearance-pass__fields">
           <div className="clearance-pass__field">
             <span>DOCUMENT</span>
-            <strong>2026_보안업무_계획.hwp</strong>
+            <strong>2026_보안업무_계획.hwpx</strong>
           </div>
           <div className="clearance-pass__field">
             <span>ORIGIN</span>

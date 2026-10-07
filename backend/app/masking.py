@@ -8,6 +8,7 @@ from app.security_scan import (
     CREDIT_CARD_PATTERN,
     EMAIL_OBFUSCATED_PATTERN,
     EMAIL_PATTERN,
+    KEYWORD_CATEGORY,
     PASSPORT_KR_PATTERN,
     PERSONAL_ID_PATTERN,
     PHONE_INTL_PATTERN,
@@ -53,12 +54,13 @@ _MASK_RULES: tuple[tuple[str, str], ...] = (
 )
 
 
-def mask_text(text: str) -> MaskingResult:
+def mask_text(text: str, keyword_patterns: tuple[str, ...] = ()) -> MaskingResult:
     masked = text
     categories: list[str] = []
     replacement_count = 0
 
-    for category, pattern in _MASK_RULES:
+    extra = tuple((KEYWORD_CATEGORY, pattern) for pattern in keyword_patterns)
+    for category, pattern in extra + _MASK_RULES:
         replacement = f"[MASKED:{category}]"
         masked, count = re.subn(pattern, replacement, masked)
         if count:

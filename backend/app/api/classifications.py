@@ -9,6 +9,7 @@ from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
 from app.classifier import ClassifierUnavailableError, apply_findings_floor, classifier
 from app.db import get_session_factory
+from app.access import document_access_clause
 from app.models import (
     ClassificationRecommendation,
     ClassificationDecision,
@@ -111,6 +112,7 @@ def recommend_classification(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:
@@ -181,6 +183,7 @@ def get_classification_recommendation(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:
@@ -206,6 +209,7 @@ def get_classification_decision(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:
@@ -245,6 +249,7 @@ def confirm_classification(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:

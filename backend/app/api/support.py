@@ -11,6 +11,7 @@ from app.db import get_session_factory
 from app.masking import mask_text
 from app.models import SupportInquiry, User
 from app.security_scan import scan_text
+from app.sensitive_keywords import TenantKeywords, load_tenant_keywords
 
 
 router = APIRouter(prefix="/support", tags=["Support"])
@@ -102,16 +103,16 @@ def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _prepare_inquiry(subject: str, content: str) -> tuple[str, str]:
+def _prepare_inquiry(subject: str, content: str, keywords: TenantKeywords | None = None) -> tuple[str, str]:
     combined = f"{subject}\n{content}"
-    findings = scan_text(combined)
+    findings = scan_text(combined, extra_rules=keywords.rules if keywords else ())
     if findings:
         categories = ", ".join(sorted({finding.category for finding in findings}))
         raise HTTPException(
             status_code=422,
             detail=f"문의에 민감정보 또는 보안 위험 패턴이 포함되어 있습니다: {categories}",
         )
-    masked = mask_text(content).masked_text
+    masked = mask_text(content, keywords.mask_patterns if keywords else ()).masked_text
     return _hash_text(content), masked
 
 
@@ -158,10 +159,10 @@ def create_inquiry(
     content = payload.content.strip()
     if not subject or not content:
         raise HTTPException(status_code=422, detail="문의 제목과 내용을 입력해 주세요.")
-    content_hash, masked_content = _prepare_inquiry(subject, content)
     now = datetime.now(timezone.utc)
     session_factory = get_session_factory()
     with session_factory() as db:
+        content_hash, masked_content = _prepare_inquiry(subject, content, load_tenant_keywords(db, current_user.tenant_id))
         inquiry = SupportInquiry(
             tenant_id=current_user.tenant_id,
             user_id=current_user.id,
@@ -191,12 +192,13 @@ def get_inquiry(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        inquiry = db.scalar(
-            select(SupportInquiry).where(
-                SupportInquiry.id == _parse_inquiry_id(inquiry_id),
-                SupportInquiry.tenant_id == current_user.tenant_id,
-            )
-        )
+        conditions = [
+            SupportInquiry.id == _parse_inquiry_id(inquiry_id),
+            SupportInquiry.tenant_id == current_user.tenant_id,
+        ]
+        if current_user.role == "USER":
+            conditions.append(SupportInquiry.user_id == current_user.id)
+        inquiry = db.scalar(select(SupportInquiry).where(*conditions))
         if inquiry is None:
             raise HTTPException(status_code=404, detail="문의 내역을 찾을 수 없습니다.")
         return _to_inquiry_response(inquiry)

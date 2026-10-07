@@ -6,8 +6,10 @@ from sqlalchemy import select
 
 from app.api.auth import get_current_user
 from app.db import get_session_factory
+from app.access import document_access_clause
 from app.models import Document, DocumentScan, DocumentText, SecurityFinding, User
 from app.security_scan import SCANNER_VERSION, scan_text
+from app.sensitive_keywords import load_tenant_keywords
 
 
 router = APIRouter(prefix="/documents", tags=["Document Security Scan"])
@@ -57,6 +59,7 @@ def scan_document(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:
@@ -87,7 +90,8 @@ def scan_document(
                 detail="먼저 텍스트 추출을 완료해야 보안 검사를 시작할 수 있습니다.",
             )
 
-        findings = scan_text(text_record.extracted_text)
+        keywords = load_tenant_keywords(db, document.tenant_id)
+        findings = scan_text(text_record.extracted_text, extra_rules=keywords.rules)
         high_count = sum(1 for finding in findings if finding.severity == "HIGH")
         scan_status = (
             "SECURITY_REVIEW_REQUIRED"

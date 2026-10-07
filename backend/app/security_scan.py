@@ -193,10 +193,33 @@ def _hash_evidence(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def scan_text(text: str, rules: tuple[_Rule, ...] = _RULES) -> list[Finding]:
+KEYWORD_CATEGORY = "CONFIDENTIAL_KEYWORD"
+
+
+def keyword_pattern(keyword: str) -> str:
+    """Literal, case-insensitive match that tolerates whitespace between ANY two characters,
+    so "블 루 문" or "blue moon" can't be used to slip past a registered "블루문"/"BlueMoon"."""
+    chars = [re.escape(ch) for ch in keyword if not ch.isspace()]
+    return "(?i)" + r"\s*".join(chars)
+
+
+def keyword_rules(keywords: list[tuple[str, str]]) -> tuple[_Rule, ...]:
+    """Build scan rules from (keyword, severity) pairs registered by a tenant admin."""
+    return tuple(
+        _Rule(KEYWORD_CATEGORY, severity, keyword_pattern(keyword))
+        for keyword, severity in keywords
+        if keyword.strip()
+    )
+
+
+def scan_text(
+    text: str,
+    rules: tuple[_Rule, ...] = _RULES,
+    extra_rules: tuple[_Rule, ...] = (),
+) -> list[Finding]:
     """Scan extracted text and return safe metadata without retaining matches."""
     findings: list[Finding] = []
-    for rule in rules:
+    for rule in rules + extra_rules:
         matches = list(re.finditer(rule.pattern, text))
         if rule.validator is not None:
             matches = [m for m in matches if rule.validator(m.group(0))]

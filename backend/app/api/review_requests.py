@@ -9,6 +9,7 @@ from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
 from app.db import get_session_factory
 from app.escalation import hours_pending, is_escalated
+from app.access import document_access_clause
 from app.models import (
     ClassificationDecision,
     ClassificationRecommendation,
@@ -116,6 +117,7 @@ def create_review_request(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:

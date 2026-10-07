@@ -13,6 +13,7 @@ from app.models import ChatRequest, User
 from app.policy import check_outbound_policy, get_active_policy_configuration
 from app.post_inspector import inspect_response
 from app.security_scan import scan_text
+from app.sensitive_keywords import load_tenant_keywords
 
 
 router = APIRouter(prefix="/chat", tags=["AI Chat"])
@@ -161,7 +162,7 @@ def _prompt_block_reason(categories: set[str]) -> tuple[str, str]:
 def _process_chat(db, chat: ChatRequest, prompt: str) -> None:
     active_policy = get_active_policy_configuration(db, chat.tenant_id)
     chat.policy_version = active_policy.version
-    findings = scan_text(prompt)
+    findings = scan_text(prompt, extra_rules=load_tenant_keywords(db, chat.tenant_id).rules)
     if findings:
         categories = {finding.category for finding in findings}
         decision_status, reason = _prompt_block_reason(categories)
@@ -247,13 +248,14 @@ def _process_chat(db, chat: ChatRequest, prompt: str) -> None:
         db.refresh(chat)
 
 
-def _get_chat(db, request_id: str, tenant_id: int) -> ChatRequest:
-    chat = db.scalar(
-        select(ChatRequest).where(
-            ChatRequest.id == _parse_request_id(request_id),
-            ChatRequest.tenant_id == tenant_id,
-        )
-    )
+def _get_chat(db, request_id: str, user: User) -> ChatRequest:
+    conditions = [
+        ChatRequest.id == _parse_request_id(request_id),
+        ChatRequest.tenant_id == user.tenant_id,
+    ]
+    if user.role == "USER":
+        conditions.append(ChatRequest.user_id == user.id)
+    chat = db.scalar(select(ChatRequest).where(*conditions))
     if chat is None:
         raise HTTPException(status_code=404, detail="AI 요청을 찾을 수 없습니다.")
     return chat
@@ -305,7 +307,7 @@ def get_chat_request(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        return _to_response(_get_chat(db, request_id, current_user.tenant_id))
+        return _to_response(_get_chat(db, request_id, current_user))
 
 
 @router.post("/requests/{request_id}/send", response_model=ChatResponse, summary="AI 채팅 요청 전송")
@@ -315,7 +317,7 @@ def send_chat_request(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        chat = _get_chat(db, request_id, current_user.tenant_id)
+        chat = _get_chat(db, request_id, current_user)
         if not chat.prompt_text:
             return _to_response(chat)
         _process_chat(db, chat, chat.prompt_text)
@@ -329,7 +331,7 @@ def get_chat_post_inspection(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        return _post_inspection(_get_chat(db, request_id, current_user.tenant_id))
+        return _post_inspection(_get_chat(db, request_id, current_user))
 
 
 @router.post("/requests/{request_id}/retry", response_model=ChatResponse, summary="실패한 AI 채팅 요청 재시도")
@@ -339,7 +341,7 @@ def retry_chat_request(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        chat = _get_chat(db, request_id, current_user.tenant_id)
+        chat = _get_chat(db, request_id, current_user)
         if not chat.prompt_text:
             raise HTTPException(
                 status_code=409,

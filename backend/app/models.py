@@ -423,3 +423,25 @@ class AuditLogEntry(Base):
     )
     previous_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     record_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+
+
+class SensitiveKeyword(Base):
+    """Tenant-registered confidential words (project codenames, internal jargon) that the
+    built-in PII/secret regexes can't know about. Treated as detection rules everywhere
+    scan_text()/mask_text() run."""
+
+    __tablename__ = "sensitive_keywords"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "keyword", name="uq_sensitive_keywords_tenant_keyword"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    keyword: Mapped[str] = mapped_column(String(100), nullable=False)
+    label: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    severity: Mapped[str] = mapped_column(String(10), nullable=False, default="MEDIUM")
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

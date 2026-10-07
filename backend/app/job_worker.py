@@ -19,6 +19,7 @@ from app.models import (
     SecurityFinding,
 )
 from app.security_scan import SCANNER_VERSION, scan_text
+from app.sensitive_keywords import load_tenant_keywords
 
 
 logger = getLogger(__name__)
@@ -129,7 +130,8 @@ def _save_scan(db, document: Document, text_record: DocumentText) -> DocumentSca
     if existing is not None:
         return existing
 
-    findings = scan_text(text_record.extracted_text)
+    keywords = load_tenant_keywords(db, document.tenant_id)
+    findings = scan_text(text_record.extracted_text, extra_rules=keywords.rules)
     high_count = sum(1 for finding in findings if finding.severity == "HIGH")
     scan = DocumentScan(
         tenant_id=document.tenant_id,

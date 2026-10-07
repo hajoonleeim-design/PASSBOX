@@ -21,6 +21,7 @@ MAX_EXTRACTED_CHARS = 2_000_000
 TEXT_ENCODINGS = ("utf-8-sig", "cp949")
 OCR_MIN_PAGE_CHARS = 15  # 이보다 텍스트가 적은 페이지는 스캔본으로 간주해 OCR 시도
 OCR_RENDER_DPI = 300
+OCR_MIN_IMAGE_SIDE = 100  # 로고·아이콘 같은 작은 이미지는 OCR 대상에서 제외
 
 _ocr_reader = None
 
@@ -163,24 +164,51 @@ def _extract_pdf(
     """
     reader = PdfReader(str(path))
     pages_text = [page.extract_text() or "" for page in reader.pages]
+    scanned = {i for i, t in enumerate(pages_text) if len(t.strip()) < OCR_MIN_PAGE_CHARS}
 
-    scanned_indices = [i for i, t in enumerate(pages_text) if len(t.strip()) < OCR_MIN_PAGE_CHARS]
-    if not scanned_indices:
-        return "\n".join(pages_text), False
-
-    ocr_used = False
-    ocr_reader = _get_ocr_reader()
     with fitz.open(str(path)) as doc:
-        for completed, i in enumerate(scanned_indices, start=1):
-            pixmap = doc[i].get_pixmap(dpi=OCR_RENDER_DPI)
-            image_bytes = pixmap.tobytes("png")
-            lines = ocr_reader.readtext(image_bytes, detail=0, paragraph=True)
-            ocr_text = "\n".join(lines).strip()
+        # A text page can still carry a pasted screenshot of sensitive data, which the
+        # text layer never sees -- so OCR embedded images on text pages too.
+        embedded: list[tuple[int, int]] = []
+        seen_xrefs: set[int] = set()
+        for i in range(len(pages_text)):
+            if i in scanned:
+                continue
+            for image in doc[i].get_images(full=True):
+                xref, width, height = image[0], image[2], image[3]
+                if xref in seen_xrefs or min(width, height) < OCR_MIN_IMAGE_SIDE:
+                    continue
+                seen_xrefs.add(xref)
+                embedded.append((i, xref))
+
+        total = len(scanned) + len(embedded)
+        if total == 0:
+            return "\n".join(pages_text), False
+
+        ocr_used = False
+        ocr_reader = _get_ocr_reader()
+        completed = 0
+        for i in sorted(scanned):
+            image_bytes = doc[i].get_pixmap(dpi=OCR_RENDER_DPI).tobytes("png")
+            ocr_text = "\n".join(ocr_reader.readtext(image_bytes, detail=0, paragraph=True)).strip()
             if ocr_text:
                 pages_text[i] = ocr_text
                 ocr_used = True
+            completed += 1
             if on_ocr_progress is not None:
-                on_ocr_progress(completed, len(scanned_indices))
+                on_ocr_progress(completed, total)
+        for i, xref in embedded:
+            try:
+                lines = ocr_reader.readtext(doc.extract_image(xref)["image"], detail=0, paragraph=True)
+            except Exception:
+                lines = []
+            ocr_text = "\n".join(lines).strip()
+            if ocr_text:
+                pages_text[i] += "\n[이미지에서 추출된 텍스트]\n" + ocr_text
+                ocr_used = True
+            completed += 1
+            if on_ocr_progress is not None:
+                on_ocr_progress(completed, total)
 
     return "\n".join(pages_text), ocr_used
 

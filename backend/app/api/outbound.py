@@ -6,6 +6,7 @@ from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.db import get_session_factory
+from app.access import document_access_clause
 from app.models import (
     ClassificationDecision,
     Document,
@@ -73,6 +74,7 @@ def check_outbound(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:

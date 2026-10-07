@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.api.auth import get_current_user
 from app.db import Settings, get_session_factory
 from app.extraction import UnsupportedDocumentError, extract_document
+from app.access import document_access_clause
 from app.models import Document, DocumentText, User
 
 
@@ -43,6 +44,7 @@ def extract_document_text(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:

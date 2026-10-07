@@ -11,6 +11,7 @@ from app.audit_chain import append_audit_entry
 from app.db import get_session_factory
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.masking import MASKING_VERSION, mask_text
+from app.access import document_access_clause
 from app.models import (
     ClassificationDecision,
     Document,
@@ -26,6 +27,7 @@ from app.policy import (
 )
 from app.post_inspector import inspect_response
 from app.security_scan import scan_text
+from app.sensitive_keywords import load_tenant_keywords
 
 
 router = APIRouter(prefix="/documents", tags=["LLM Gateway"])
@@ -153,6 +155,7 @@ def forward_to_gateway(
             select(Document).where(
                 Document.id == document_id,
                 Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
             )
         )
         if document is None:
@@ -192,7 +195,8 @@ def forward_to_gateway(
             model=payload.model,
             policy=active_policy,
         )
-        prompt_findings = scan_text(prompt)
+        keywords = load_tenant_keywords(db, current_user.tenant_id)
+        prompt_findings = scan_text(prompt, extra_rules=keywords.rules)
         policy_decision = _apply_prompt_policy(
             confirmed_grade=classification.confirmed_grade,
             prompt_findings=prompt_findings,
@@ -200,7 +204,7 @@ def forward_to_gateway(
         )
         gateway_prompt = prompt
         if policy_decision.decision == "ALLOWED" and policy_decision.masking_required:
-            gateway_prompt = mask_text(prompt).masked_text
+            gateway_prompt = mask_text(prompt, keywords.mask_patterns).masked_text
         transmission = GatewayTransmission(
             tenant_id=document.tenant_id,
             document_id=document.id,
@@ -268,7 +272,7 @@ def forward_to_gateway(
             )
 
         if policy_decision.decision == "APPROVAL_REQUIRED":
-            masking = mask_text(prompt)
+            masking = mask_text(prompt, keywords.mask_patterns)
             approval = OutboundApproval(
                 tenant_id=document.tenant_id,
                 document_id=document.id,

@@ -103,6 +103,31 @@ class TextExtractionTests(unittest.TestCase):
             self.assertEqual(result.extractor, "python-docx+easyocr")
             self.assertIn("주민등록번호 캡처됨", result.text)
 
+    def test_ocrs_image_pasted_onto_a_text_pdf_page(self):
+        """A PDF page with a normal text layer used to skip OCR entirely, so a
+        screenshot of sensitive data pasted onto it went unscanned."""
+        import fitz
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mixed.pdf"
+            buffer = io.BytesIO()
+            Image.new("RGB", (400, 200), "white").save(buffer, format="PNG")
+            doc = fitz.open()
+            page = doc.new_page()
+            page.insert_text((72, 72), "This page has a normal text layer with enough characters.")
+            page.insert_image(fitz.Rect(72, 120, 472, 320), stream=buffer.getvalue())
+            doc.save(str(path))
+            doc.close()
+
+            fake_reader = type("FakeReader", (), {"readtext": staticmethod(lambda *a, **k: ["010-1234-5678"])})()
+            with patch("app.extraction._get_ocr_reader", return_value=fake_reader):
+                result = extract_document(path, ".pdf")
+
+            self.assertEqual(result.extractor, "pypdf+easyocr")
+            self.assertIn("normal text layer", result.text)
+            self.assertIn("010-1234-5678", result.text)
+
     def test_hwp_with_invalid_container_is_unsupported(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "broken.hwp"

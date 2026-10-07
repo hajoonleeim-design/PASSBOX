@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc, or_, select
 
 from app.api.auth import get_current_user
+from app.access import request_access_clause
 from app.db import get_session_factory
 from app.models import Document, DocumentText, Job, Request as AnalysisRequest, User
 
@@ -75,14 +76,15 @@ def _to_response(job: Job, request: AnalysisRequest, document: Document) -> JobR
     )
 
 
-def _find_job(db, job_id: int, tenant_id: int):
+def _find_job(db, job_id: int, user: User):
     return db.execute(
         select(Job, AnalysisRequest, Document)
         .join(AnalysisRequest, Job.request_id == AnalysisRequest.id)
         .join(Document, AnalysisRequest.document_id == Document.id)
         .where(
             Job.id == job_id,
-            AnalysisRequest.tenant_id == tenant_id,
+            AnalysisRequest.tenant_id == user.tenant_id,
+            request_access_clause(user),
         )
     ).first()
 
@@ -205,7 +207,7 @@ def list_jobs(
             select(Job, AnalysisRequest, Document)
             .join(AnalysisRequest, Job.request_id == AnalysisRequest.id)
             .join(Document, AnalysisRequest.document_id == Document.id)
-            .where(AnalysisRequest.tenant_id == current_user.tenant_id)
+            .where(AnalysisRequest.tenant_id == current_user.tenant_id, request_access_clause(current_user))
         )
         search_term = q.strip() if q else ""
         if search_term:
@@ -234,7 +236,7 @@ def get_job(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        result = _find_job(db, job_id, current_user.tenant_id)
+        result = _find_job(db, job_id, current_user)
         if result is None:
             raise HTTPException(status_code=404, detail="분석 Job을 찾을 수 없습니다.")
         job, request, document = result
@@ -252,7 +254,7 @@ def cancel_job(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        result = _find_job(db, job_id, current_user.tenant_id)
+        result = _find_job(db, job_id, current_user)
         if result is None:
             raise HTTPException(status_code=404, detail="분석 Job을 찾을 수 없습니다.")
         job, request, document = result
@@ -285,7 +287,7 @@ def retry_job(
 ):
     session_factory = get_session_factory()
     with session_factory() as db:
-        result = _find_job(db, job_id, current_user.tenant_id)
+        result = _find_job(db, job_id, current_user)
         if result is None:
             raise HTTPException(status_code=404, detail="분석 Job을 찾을 수 없습니다.")
         job, request, document = result

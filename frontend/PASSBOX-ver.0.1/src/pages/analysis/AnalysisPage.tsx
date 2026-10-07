@@ -420,7 +420,12 @@ export function AnalysisPage() {
       <p className="eyebrow">문서 분석 작업</p>
       <div className="page-title-row">
         <div><h1>문서 분석</h1><p>Job ID를 기준으로 현재 처리 상태를 다시 조회합니다.</p></div>
-        <StatusBadge label={statuses[status]} />
+        <div className="table-actions">
+          <StatusBadge label={statuses[status]} />
+          {(status === 'COMPLETED' || status === 'BLOCKED') && job.requestId && (
+            <Button onClick={() => navigate(`/result/${job.requestId}`)}>결과 확인</Button>
+          )}
+        </div>
       </div>
       {networkError && <div className="section-gap"><Alert variant="warning" title="상태 조회 지연">{networkError}<div className="alert-action"><Button size="sm" variant="secondary" onClick={() => void refresh()}>다시 조회</Button></div></Alert></div>}
       <div className="analysis-grid">

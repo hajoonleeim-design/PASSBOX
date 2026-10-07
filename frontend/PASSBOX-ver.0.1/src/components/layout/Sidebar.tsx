@@ -31,13 +31,26 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
   const { pathname } = useLocation()
   const isApprovalRoute = pathname === '/approvals' || pathname.startsWith('/approvals/') || pathname === '/reviews' || pathname.startsWith('/reviews/')
   const [isApprovalOpen, setIsApprovalOpen] = useState(isApprovalRoute)
+  // NavLink의 기본 활성 판정은 "현재 경로가 to로 시작하는지"만 본다. 문서 분석
+  // 목록은 /analysis/recent지만 상세 화면은 /analysis/126처럼 전혀 다른 경로라
+  // 매칭이 안 돼서, 문서를 열어도 메뉴가 꺼져 있었다. 그 결과 화면(/result/...)도
+  // 같은 분석 흐름의 연장이라 같이 켜 둔다.
+  const isAnalysisRoute = pathname.startsWith('/analysis/') || pathname.startsWith('/result/')
 
   useEffect(() => {
     if (isApprovalRoute) setIsApprovalOpen(true)
   }, [isApprovalRoute])
 
-  const link = (to: string, label: string, icon: IconName) => (
-    <NavLink key={to} to={to} end={to === '/home'} aria-label={label} title={label} onClick={onNavigate}>
+  const link = (to: string, label: string, icon: IconName, forceActive = false) => (
+    <NavLink
+      key={to}
+      to={to}
+      end={to === '/home'}
+      aria-label={label}
+      title={label}
+      onClick={onNavigate}
+      className={({ isActive }) => (isActive || forceActive ? 'active' : '')}
+    >
       <SidebarIcon name={icon} />
       <span className="sidebar-link__label">{label}</span>
     </NavLink>
@@ -58,7 +71,7 @@ export function Sidebar({ isOpen, isCollapsed, onNavigate }: SidebarProps) {
       <nav className="sidebar" aria-label="주 메뉴">
         {link('/home', '홈', 'home')}
         {link('/upload', '문서 업로드', 'upload')}
-        {link('/analysis/recent', '문서 분석 작업', 'analysis')}
+        {link('/analysis/recent', '문서 분석 작업', 'analysis', isAnalysisRoute)}
         {link('/chat', '일상 AI 대화', 'chat')}
         <PermissionGuard roles={['APPROVER', 'OPERATOR', 'SECURITY_ADMIN', 'ADMIN']}>
           <div className={`sidebar__group ${isApprovalRoute ? 'sidebar__group--active' : ''}`}>

@@ -40,7 +40,7 @@ const onboardingSteps = [
     title: '결과와 증적을 확인하세요',
     description: 'C/S/O 판정, 승인 상태, Post-Inspector 결과와 처리 이력을 Request ID 기준으로 조회합니다.',
     action: '감사·증적 보기',
-    path: '/audit/mock-request',
+    path: '/audit',
     signal: 'RESULT & AUDIT',
   },
 ]
@@ -164,7 +164,7 @@ export function HomeShowroomPage() {
         </div>
         <div className="showroom-footer-cta">
           <Button variant="secondary" onClick={() => navigate('/analysis/recent')}>최근 분석 작업</Button>
-          <Button onClick={() => navigate('/audit/mock-request')}>감사·증적 보기</Button>
+          <Button onClick={() => navigate('/audit')}>감사·증적 보기</Button>
         </div>
       </section>
     </section>

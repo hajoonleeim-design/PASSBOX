@@ -51,14 +51,23 @@ export function HomeStatusSummary() {
   }
 
   const inProgress = jobs.filter((job) => IN_PROGRESS.includes(job.status)).length
-  const needsReview = jobs.filter((job) => NEEDS_REVIEW.includes(job.status)).length
+  const waiting = jobs.filter((job) => NEEDS_REVIEW.includes(job.status))
   const blocked = jobs.filter((job) => job.status === 'BLOCKED').length
   const latest = jobs[0]
+  const oldestWaitDays = waiting.length
+    ? Math.floor((Date.now() - Math.min(...waiting.map((job) => new Date(job.createdAt).getTime()))) / 86_400_000)
+    : 0
 
   const cards = [
-    { label: '진행 중인 분석', value: `${inProgress}건`, path: '/analysis/recent' },
-    { label: '검토·승인 대기', value: `${needsReview}건`, path: '/analysis/recent' },
-    { label: '전송 차단', value: `${blocked}건`, path: '/analysis/recent' },
+    { label: '진행 중인 분석', value: `${inProgress}건`, sub: inProgress ? '분석이 끝나면 결과를 확인하세요' : '지금 처리 중인 문서 없음', path: '/analysis/recent' },
+    {
+      label: '검토·승인 대기',
+      value: `${waiting.length}건`,
+      sub: waiting.length ? (oldestWaitDays > 0 ? `가장 오래된 건 ${oldestWaitDays}일째 대기` : '오늘 접수된 건만 대기 중') : '대기 중인 건 없음',
+      warn: oldestWaitDays >= 7,
+      path: '/analysis/recent',
+    },
+    { label: '전송 차단', value: `${blocked}건`, sub: blocked ? '보안 담당자 확인이 필요합니다' : '차단된 건 없음', warn: blocked > 0, path: '/analysis/recent' },
     {
       label: '가장 최근 문서',
       value: latest.file.fileName,
@@ -75,7 +84,7 @@ export function HomeStatusSummary() {
       </div>
       <div className="home-status__grid">
         {cards.map((card) => (
-          <button key={card.label} type="button" className="home-status__card" onClick={() => navigate(card.path)}>
+          <button key={card.label} type="button" className={`home-status__card${'warn' in card && card.warn ? ' is-warn' : ''}`} onClick={() => navigate(card.path)}>
             <small>{card.label}</small>
             <strong title={card.value}>{card.value}</strong>
             {card.sub && <span>{card.sub}</span>}

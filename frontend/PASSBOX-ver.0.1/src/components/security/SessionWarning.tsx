@@ -1,8 +1,26 @@
-// 세션이 만료되기 전 사용자에게 남은 시간을 알려 주는 경고 컴포넌트입니다.
+// Warns only when the session is about to expire; stays out of the way otherwise.
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+
+const WARN_BEFORE_MS = 10 * 60 * 1000
 
 export function SessionWarning() {
   const { session } = useAuth()
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   if (!session) return null
-  return <span className="session-status" title={`만료 예정: ${new Date(session.expiresAt).toLocaleString('ko-KR')}`}>세션 정상</span>
+  const remaining = new Date(session.expiresAt).getTime() - now
+  if (!Number.isFinite(remaining) || remaining > WARN_BEFORE_MS) return null
+
+  const minutes = Math.max(0, Math.ceil(remaining / 60_000))
+  return (
+    <span className="session-status session-status--warning" role="status" title={`만료 예정: ${new Date(session.expiresAt).toLocaleString('ko-KR')}`}>
+      {minutes > 0 ? `세션 ${minutes}분 후 만료` : '세션 만료됨 · 다시 로그인'}
+    </span>
+  )
 }

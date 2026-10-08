@@ -6,6 +6,7 @@ import { useScrollStages } from '../../hooks/useScrollStages'
 import { useActiveSection } from '../../hooks/useActiveSection'
 import { ThemeToggle } from '../../components/common/ThemeToggle'
 import { ClearancePassTicket } from '../../components/marketing/ClearancePassTicket'
+import { CustomCursor } from '../../components/marketing/CustomCursor'
 import {
   NetworkLockIcon,
   AlertDocIcon,
@@ -19,7 +20,7 @@ const TAGS = [
   'HWPX 샌드박스 파싱',
   'PII · Secret 마스킹',
   'N2SF C/S/O 등급분류',
-  '복원 불가능한 마스킹',
+  '되돌릴 수 없는 마스킹',
   '프롬프트 인젝션 차단',
   '해시체인 감사',
 ]
@@ -48,21 +49,21 @@ const FEATURES = [
     tag: '01 · CLASSIFICATION',
     label: '등급분류',
     title: 'N2SF C/S/O 등급 자동 분류',
-    body: '문서를 업로드하는 즉시 국가 정보보안 기준(N2SF)에 따라 기밀(C)·민감(S)·공개(O) 등급을 자동으로 추천합니다.',
+    body: '문서를 업로드하면 국가 정보보안 기준(N2SF)에 따라 기밀(C)·민감(S)·공개(O) 등급을 자동으로 추천합니다.',
   },
   {
     icon: MaskIcon,
     tag: '02 · MASKING',
     label: '마스킹',
-    title: '민감 정보 완벽 차단 · 복원 불가능한 마스킹',
-    body: '개인정보와 Secret은 외부로 나가기 전 [MASKED:유형]으로 치환됩니다. 원문은 저장하지 않으며 복원도 불가능합니다.',
+    title: '외부 전송 전 민감 정보 자동 가림',
+    body: '개인정보와 Secret은 외부로 나가기 전 [MASKED:유형]으로 치환됩니다. 외부로 나간 내용에는 가려진 원문이 남지 않아 되돌릴 수 없습니다.',
   },
   {
     icon: ChainIcon,
     tag: '03 · AUDIT LOG',
     label: '해시체인',
-    title: '위변조 방지 해시체인 감사 로그',
-    body: '모든 처리 이력은 해시체인으로 연결되어, 단 한 건의 로그도 사후 조작이 불가능함을 증명합니다.',
+    title: '위·변조를 검증하는 해시체인 감사 로그',
+    body: '모든 처리 이력이 해시체인으로 연결되어, 로그가 사후에 한 건이라도 조작되면 검증 시 바로 드러납니다.',
   },
 ]
 
@@ -96,6 +97,7 @@ export function LandingPage() {
 
   return (
     <div ref={revealRef} className="landing">
+      <CustomCursor />
       <header className={`landing-nav ${scrolled ? 'is-scrolled' : ''}`}>
         <Link to="/" className="landing-nav__brand"><img src="/passbox-logo.svg" alt="PASSBOX" /></Link>
         <nav className="landing-nav__links" aria-label="주 메뉴">

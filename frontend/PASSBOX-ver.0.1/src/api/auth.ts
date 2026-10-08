@@ -75,6 +75,15 @@ export async function getSession(): Promise<UserSession | null> {
 }
 
 export async function logout(): Promise<void> {
+  // Ask the server to revoke this token so a copied/stolen one stops working too.
+  // Clear the local token even if the request fails (offline, already expired).
+  if (!useMock && getAccessToken()) {
+    try {
+      await apiClient.post('/auth/logout')
+    } catch {
+      // ignored: the token is discarded locally below either way
+    }
+  }
   setAccessToken(null)
 }
 

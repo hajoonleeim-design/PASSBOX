@@ -9,7 +9,7 @@ import { changePassword } from '../../api/auth'
 const passwordHelp = '영문, 숫자, 특수문자를 포함한 12자 이상의 비밀번호를 사용하세요.'
 
 export function AccountPage() {
-  const { session } = useAuth()
+  const { session, logout } = useAuth()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -48,6 +48,9 @@ export function AccountPage() {
       setNewPassword('')
       setConfirmPassword('')
       setSuccess(true)
+      // The server has now invalidated every token issued before the change, including
+      // this one, so sign out deliberately instead of failing on the next request.
+      window.setTimeout(() => { void logout() }, 2500)
     } catch {
       setSubmitError('비밀번호를 변경하지 못했습니다. 현재 비밀번호를 확인하고 다시 시도하세요.')
     } finally {
@@ -88,7 +91,7 @@ export function AccountPage() {
             <TextInput type="password" autoComplete="new-password" minLength={12} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
           </FormField>
           {submitError && <Alert variant="danger" title="변경 실패">{submitError}</Alert>}
-          {success && <Alert variant="success" title="변경 완료">비밀번호가 안전하게 변경되었습니다.</Alert>}
+          {success && <Alert variant="success" title="변경 완료">비밀번호가 변경되어, 이 기기를 포함한 모든 기기에서 로그아웃됩니다. 새 비밀번호로 다시 로그인해 주세요.</Alert>}
           <div className="form-actions">
             <Button type="submit" disabled={isSubmitting}>{isSubmitting ? '변경 중...' : '비밀번호 변경'}</Button>
           </div>

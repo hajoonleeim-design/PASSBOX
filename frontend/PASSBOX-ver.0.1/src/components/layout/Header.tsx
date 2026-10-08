@@ -8,6 +8,14 @@ import { ThemeToggle } from '../common/ThemeToggle'
 import { Modal } from '../common/Modal'
 import { SessionWarning } from '../security/SessionWarning'
 
+const ROLE_LABEL: Record<string, string> = {
+  USER: '일반 사용자',
+  OPERATOR: '운영 담당자',
+  APPROVER: '승인 담당자',
+  SECURITY_ADMIN: '보안 관리자',
+  ADMIN: '시스템 관리자',
+}
+
 const DEMO_CHECKS = [
   { name: 'API 게이트웨이', detail: '요청 수신 및 응답', state: '정상' },
   { name: '문서 검증 파이프라인', detail: '파일 형식·무결성 검사', state: '정상' },
@@ -65,7 +73,7 @@ export function Header({ isMenuOpen, onMenuToggle }: { isMenuOpen: boolean; onMe
         <span role="status">{serverLabel}</span>
         <span className="header__status-chevron" aria-hidden="true">⌄</span>
       </button>
-      <span className="header__user">{session?.displayName} · {session?.role}</span>
+      <span className="header__user">{session?.displayName} · {session ? ROLE_LABEL[session.role] ?? session.role : ''}</span>
       <Link to="/account" className="header__account-link">계정 보안</Link>
       <ThemeToggle />
       <SessionWarning />

@@ -4793,3 +4793,7 @@ html[data-theme="dark"] .home-status__card.is-warn span { color: #fdba74; }
 .theme-toggle:focus-visible { outline: 3px solid #2f6fed; outline-offset: 2px; }
 
 .answer-text { margin: 0; color: var(--color-text-primary); font-size: 16px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The blocked/failed/cancelled colours were declared before the base .stepper__item colour and lost to it. */
+.stepper__item--blocked, .stepper__item--failed { color: var(--color-danger); }
+.stepper__item--blocked .stepper__marker, .stepper__item--failed .stepper__marker { background: rgb(223 91 99 / 10%); border-color: var(--color-danger); }
+.stepper__item--cancelled { color: var(--color-text-secondary); }

@@ -143,9 +143,10 @@ function useFindings(documentId: number | null | undefined, status: JobStatus) {
 
 function WhyPanel({ job, status, findings }: { job: AnalysisJob; status: JobStatus; findings: FindingSummary[] }) {
   if (findings.length === 0) return <Notice job={job} status={status} />
+  const navigate = useNavigate()
   const hasHigh = findings.some((f) => f.severity === 'HIGH')
   return (
-    <Alert variant={hasHigh ? 'danger' : 'warning'} title={hasHigh ? '처리 차단 · 왜 차단되었나요?' : '승인 대기 · 왜 승인이 필요한가요?'}>
+    <Alert variant={hasHigh ? 'danger' : 'warning'} title={hasHigh ? '처리 차단 · 왜 차단되었나요?' : '왜 승인이 필요한 등급인가요?'}>
       문서에서 아래 항목이 발견되었습니다. (실제 값은 화면에 표시하지 않습니다)
       <ul>
         {findings.map((f) => (
@@ -156,7 +157,8 @@ function WhyPanel({ job, status, findings }: { job: AnalysisJob; status: JobStat
       </ul>
       {hasHigh
         ? '해당 내용을 삭제하거나 마스킹한 뒤 다시 업로드해 주세요.'
-        : '민감 정보가 포함되어 최소 S등급(승인 후 전송)으로 분류됩니다. 담당 승인자가 확인합니다.'}
+        : '민감 정보가 포함되어 최소 S등급(승인 후 전송)으로 분류됩니다. 담당 승인자가 확인하기 전까지 외부 AI 전송은 대기됩니다.'}
+      {hasHigh && <div className="alert-action"><Button size="sm" variant="secondary" onClick={() => navigate('/upload')}>수정한 문서 다시 올리기</Button></div>}
     </Alert>
   )
 }

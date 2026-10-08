@@ -132,3 +132,64 @@ def scan_document(
             )
         )
         return _to_response(scan, saved_findings)
+
+
+_EXTRA_LABELS = {
+    "CONFIDENTIAL_KEYWORD": "기관 등록 기밀 키워드",
+    "SUSPICIOUS_URL": "의심스러운 링크",
+    "RISKY_COMMAND": "위험한 실행 명령",
+}
+
+
+class FindingSummary(BaseModel):
+    category: str
+    label: str
+    severity: str
+    match_count: int
+
+
+class DocumentFindingsResponse(BaseModel):
+    document_id: int
+    scan_status: str | None
+    findings: list[FindingSummary]
+
+
+@router.get(
+    "/{document_id}/findings",
+    response_model=DocumentFindingsResponse,
+    summary="문서에서 탐지된 항목 요약(원문·해시 미포함)",
+)
+def document_findings(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    from app.api.policies import _BUILTIN_RULE_INFO
+
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        document = db.scalar(
+            select(Document).where(
+                Document.id == document_id,
+                Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
+            )
+        )
+        if document is None:
+            raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+        scan = db.scalar(select(DocumentScan).where(DocumentScan.document_id == document.id))
+        if scan is None:
+            return DocumentFindingsResponse(document_id=document.id, scan_status=None, findings=[])
+        rows = db.scalars(select(SecurityFinding).where(SecurityFinding.scan_id == scan.id))
+        findings = [
+            FindingSummary(
+                category=row.category,
+                label=_BUILTIN_RULE_INFO[row.category][0]
+                if row.category in _BUILTIN_RULE_INFO
+                else _EXTRA_LABELS.get(row.category, row.category),
+                severity=row.severity,
+                match_count=row.match_count,
+            )
+            for row in rows
+        ]
+        findings.sort(key=lambda f: (f.severity != "HIGH", f.label))
+        return DocumentFindingsResponse(document_id=document.id, scan_status=scan.status, findings=findings)

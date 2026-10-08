@@ -35,3 +35,17 @@ export async function scanDocument(documentId: number): Promise<SecurityScanResu
     createdAt: data.created_at,
   }
 }
+
+export interface FindingSummary {
+  category: string
+  label: string
+  severity: 'HIGH' | 'MEDIUM' | string
+  matchCount: number
+}
+
+export async function getDocumentFindings(documentId: number): Promise<FindingSummary[]> {
+  const { data } = await apiClient.get<{ findings: { category: string; label: string; severity: string; match_count: number }[] }>(
+    `/documents/${documentId}/findings`,
+  )
+  return data.findings.map((f) => ({ category: f.category, label: f.label, severity: f.severity, matchCount: f.match_count }))
+}

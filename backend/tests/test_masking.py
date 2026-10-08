@@ -9,7 +9,7 @@ class MaskingTests(unittest.TestCase):
             "email test@example.com, phone 010-1234-5678, id 900101-1234567"
         )
 
-        self.assertEqual(MASKING_VERSION, "rules-mask-v2")
+        self.assertEqual(MASKING_VERSION, "rules-mask-v3")
         self.assertEqual(
             set(result.categories),
             {"EMAIL", "PHONE", "PERSONAL_ID"},

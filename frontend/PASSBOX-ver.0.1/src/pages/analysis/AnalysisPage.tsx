@@ -10,6 +10,7 @@ import {
 import type { ApiError } from '../../api/client'
 import { forwardToGateway, type GatewayForwardResult } from '../../api/gateway'
 import { cancelJob, retryJob } from '../../api/jobs'
+import { getDocumentFindings, type FindingSummary } from '../../api/securityScan'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
@@ -123,6 +124,37 @@ function Notice({ job, status }: { job: AnalysisJob; status: JobStatus }) {
   if (status === 'COMPLETED') return <Alert variant="success" title="분석 완료">{detail.COMPLETED}</Alert>
   if (status === 'CANCELLED') return <Alert variant="info" title="분석 취소">{detail.CANCELLED}</Alert>
   return <Alert variant="info" title="현재 처리 내용">{detail[status]}</Alert>
+}
+
+function WhyPanel({ documentId, status }: { documentId: number; status: JobStatus }) {
+  const [findings, setFindings] = useState<FindingSummary[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void getDocumentFindings(documentId)
+      .then((rows) => { if (!cancelled) setFindings(rows) })
+      .catch(() => { if (!cancelled) setFindings([]) })
+    return () => { cancelled = true }
+  }, [documentId, status])
+  if (!findings || findings.length === 0) return null
+  const hasHigh = findings.some((f) => f.severity === 'HIGH')
+  const title = hasHigh ? '왜 차단되었나요?' : '왜 승인이 필요한 등급인가요?'
+  return (
+    <div className="section-gap">
+      <Alert variant={hasHigh ? 'danger' : 'warning'} title={title}>
+        문서에서 아래 항목이 발견되었습니다. (실제 값은 화면에 표시하지 않습니다)
+        <ul>
+          {findings.map((f) => (
+            <li key={`${f.category}-${f.severity}`}>
+              <strong>{f.label}</strong> {f.matchCount}건 · {f.severity === 'HIGH' ? '위험도 높음' : '주의'}
+            </li>
+          ))}
+        </ul>
+        {hasHigh
+          ? '해당 내용을 삭제하거나 마스킹한 뒤 다시 업로드해 주세요.'
+          : '민감 정보가 포함되어 최소 S등급(승인 후 전송)으로 분류됩니다. 담당 승인자가 확인합니다.'}
+      </Alert>
+    </div>
+  )
 }
 
 function ClassificationCard({ documentId, jobStatus, onConfirmed }: { documentId: number; jobStatus: JobStatus; onConfirmed?: (decision: ClassificationDecision) => void }) {
@@ -443,6 +475,7 @@ export function AnalysisPage() {
       {job.documentId && classificationReady && <ClassificationCard documentId={job.documentId} jobStatus={status} onConfirmed={() => setClassificationVersion((current) => current + 1)} />}
       {job.documentId && classificationReady && <GatewayCard documentId={job.documentId} refreshKey={classificationVersion} />}
       <div className="section-gap"><Notice job={job} status={status} /></div>
+      {job.documentId && ['BLOCKED', 'CLASSIFICATION_REVIEW', 'WAITING_APPROVAL', 'MASKING'].includes(status) && <WhyPanel documentId={job.documentId} status={status} />}
       <div className="job-actions">{job.canCancel && <Button variant="danger" onClick={() => setShowCancel(true)}>분석 취소</Button>}{status === 'FAILED' && <Button onClick={() => void retry()} disabled={isActing}>다시 시도</Button>}{(status === 'COMPLETED' || status === 'BLOCKED') && job.requestId && <Button variant="secondary" onClick={() => navigate(`/result/${job.requestId}`)}>결과 확인</Button>}</div>
       {showCancel && <ConfirmDialog title="분석 작업 취소" message="현재 분석 작업을 취소하시겠습니까? 취소된 작업은 자동으로 다시 시작되지 않습니다." confirmLabel="분석 취소" isConfirming={isActing} onClose={() => setShowCancel(false)} onConfirm={() => void confirmCancel()} />}
       {toast && <div className="toast-anchor"><Toast message={toast} /></div>}

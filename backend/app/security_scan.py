@@ -48,7 +48,31 @@ PHONE_INTL_PATTERN = r"(?<![\d+])(?:\+82|0082)[\s-]?1[016789][\s-]?\d{3,4}[\s-]?
 # 실제 유효한 휴대폰 번호 자릿수인지 검증), 일상 문장에서 우연히 숫자 단어가
 # 이어질 일은 거의 없어 오탐 위험이 낮다.
 _KOREAN_DIGIT_WORD = r"(?:공|일|이|삼|사|오|육|륙|칠|팔|구)"
-PHONE_SPELLED_PATTERN = rf"{_KOREAN_DIGIT_WORD}(?:\s*{_KOREAN_DIGIT_WORD}){{9,10}}"
+# A digit written either as a Korean word or as a real digit, so mixed forms such as
+# "010 일이삼사 5678" and "공일공-일이삼사-오육칠팔" are covered. Matching must begin at the
+# start of a run (lookbehind) so a long run can't be sliced from the middle, and the
+# validator below insists on at least one spelled-out word (plain digits are PHONE_PATTERN's job).
+_SPELLED_DIGIT = rf"(?:{_KOREAN_DIGIT_WORD}|\d)"
+_SPELLED_SEP = r"[\s.-]{0,2}"
+PHONE_SPELLED_PATTERN = rf"(?<![가-힣\d]){_SPELLED_DIGIT}(?:{_SPELLED_SEP}{_SPELLED_DIGIT}){{9,12}}"
+# 주민등록번호도 같은 방식으로 풀어 쓸 수 있다("구공공일공일 일이삼사오육칠").
+PERSONAL_ID_SPELLED_PATTERN = rf"(?<![가-힣\d]){_SPELLED_DIGIT}(?:{_SPELLED_SEP}{_SPELLED_DIGIT}){{12}}(?!\d)"
+# 한국어 비밀번호 표현. 기존 SECRET_PATTERN은 영문 "password=" 형태만 봤기 때문에
+# "비번: qwer1234", "비밀번호는 Admin!2026", "pw=Secret!9876"이 그대로 통과했다.
+_PASSWORD_LABEL = r"(?:비밀\s?번호|비번|패스워드|암호|(?<![A-Za-z0-9])(?:passwd|pw))"
+PASSWORD_KO_PATTERN = rf"(?i){_PASSWORD_LABEL}\s*(?:은|는|이|가)?\s*[:=]?\s*[!-~]{{4,}}"
+# "비번은 일삼오칠" — PIN을 한글 숫자로 풀어 쓴 경우(4자리 이상 연속).
+PASSWORD_SPELLED_PATTERN = rf"{_PASSWORD_LABEL}\s*(?:은|는|이|가)?\s*[:=]?\s*{_KOREAN_DIGIT_WORD}(?:\s*{_KOREAN_DIGIT_WORD}){{3,9}}"
+# 은행명 또는 '계좌(번호)'와 함께 나오는 10~14자리 번호. 은행명 없이 숫자만 있으면 잡지
+# 않는다(전화번호·날짜·주문번호와 구분할 방법이 없기 때문).
+_BANK_NAME = (
+    r"(?:KB국민|국민|신한|우리|하나|농협|NH|IBK|기업|SC제일|제일|씨티|카카오뱅크|카카오|케이뱅크|"
+    r"토스뱅크|토스|수협|새마을금고|우체국|신협|산업|부산|대구|광주|전북|경남|제주)"
+)
+ACCOUNT_NO_PATTERN = (
+    rf"(?:{_BANK_NAME}(?:은행)?|계좌(?:\s?번호)?)\s*(?:은|는|:)?\s*"
+    r"\d{2,6}(?:[- ]\d{2,8}){1,3}(?!\d)"
+)
 EMAIL_PATTERN = r"(?i)(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.-])"
 # "user 앳 gmail 닷 com"처럼 @과 .을 한글 단어로 치환하는 회피 패턴. 실제
 # 도메인 접미사(com/net/go.kr 등)로 끝날 때만 매칭해 "닷새" 같은 일반 단어와
@@ -58,9 +82,17 @@ EMAIL_PATTERN = r"(?i)(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.-])"
 # start at a token boundary, the pieces are ASCII-only (so "앳"/"닷" can't be swallowed
 # into a name), and possessive quantifiers never give characters back.
 EMAIL_OBFUSCATED_PATTERN = (
-    r"(?i)(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++\s*+(?:앳|\bat\b)\s*+"
+    r"(?i)(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++\s*+(?:앳|골뱅이|\bat\b)\s*+"
     r"(?:[A-Za-z0-9-]++\s*+(?:닷|\bdot\b)\s*+)++"
     r"(?:com|co\.kr|net|org|kr|go\.kr)\b"
+)
+# "kim[at]agency.go.kr", "kim(at)agency.go.kr", "kim 골뱅이 agency.go.kr" — 기호 괄호나 '골뱅이'로
+# @만 치환하고 도메인은 정상 표기인 변형. 맨 'at'은 일반 영어("meet at example.com")와
+# 구분할 수 없어 괄호가 있는 경우만 잡는다.
+EMAIL_BRACKET_PATTERN = (
+    r"(?i)(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++\s*+"
+    r"(?:\[\s*(?:at|앳|골뱅이)\s*\]|\(\s*(?:at|앳|골뱅이)\s*\)|골뱅이)\s*+"
+    r"[A-Za-z0-9-]++(?:\.[A-Za-z0-9-]++)++(?![A-Za-z0-9-])"
 )
 PRIVATE_KEY_PATTERN = r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"
 API_KEY_PATTERN = (
@@ -147,9 +179,45 @@ _KOREAN_DIGIT_VALUES = {
 }
 
 
+def _spelled_digits(raw_match: str) -> tuple[str, bool]:
+    """Digits of a mixed Korean-word/real-digit run, and whether any word was spelled out."""
+    spelled = any(ch in _KOREAN_DIGIT_VALUES for ch in raw_match)
+    digits = "".join(_KOREAN_DIGIT_VALUES.get(ch, ch) for ch in raw_match if ch in _KOREAN_DIGIT_VALUES or ch.isdigit())
+    return digits, spelled
+
+
 def _spells_out_phone(raw_match: str) -> bool:
-    digits = "".join(_KOREAN_DIGIT_VALUES[ch] for ch in raw_match if ch in _KOREAN_DIGIT_VALUES)
-    return bool(re.fullmatch(r"01[016789]\d{7,8}", digits))
+    digits, spelled = _spelled_digits(raw_match)
+    return spelled and bool(re.fullmatch(r"01[016789]\d{7,8}", digits))
+
+
+def _spells_out_personal_id(raw_match: str) -> bool:
+    digits, spelled = _spelled_digits(raw_match)
+    return spelled and bool(re.fullmatch(r"\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[1-4]\d{6}", digits))
+
+
+# Cipher/hash names that follow words like "암호" in ordinary technical prose ("암호는 AES256").
+_NON_SECRET_WORDS = re.compile(r"(?i)^(?:aes|sha|rsa|md5|des|3des|tls|ssl|hmac|ecdsa|pbkdf|bcrypt|argon|base64|utf|gcm|cbc|ecb|https?)")
+
+
+def _looks_like_password_value(raw_match: str) -> bool:
+    found = re.search(r"[!-~]{4,}$", raw_match)
+    if found is None:
+        return False
+    value = found.group(0)
+    if _NON_SECRET_WORDS.match(value):
+        return False
+    # A real credential almost always has a digit or symbol; long plain words still count.
+    return bool(re.search(r"[0-9!-/:-@\[-`{-~]", value)) or len(value) >= 8
+
+
+def _looks_like_account_number(raw_match: str) -> bool:
+    number = re.search(r"\d{2,6}(?:[- ]\d{2,8}){1,3}$", raw_match)
+    if number is None:
+        return False
+    digits = re.sub(r"\D", "", number.group(0))
+    # 10-14 digits; a leading 0 means a phone number (e.g. "부산 051-123-4567"), not an account.
+    return 10 <= len(digits) <= 14 and not digits.startswith("0")
 
 
 def _passes_luhn(raw_match: str) -> bool:
@@ -177,11 +245,16 @@ class _Rule:
 
 _RULES: tuple[_Rule, ...] = (
     _Rule("PERSONAL_ID", "HIGH", PERSONAL_ID_PATTERN),
+    _Rule("PERSONAL_ID", "HIGH", PERSONAL_ID_SPELLED_PATTERN, validator=_spells_out_personal_id),
     _Rule("PHONE", "MEDIUM", PHONE_PATTERN),
     _Rule("PHONE", "MEDIUM", PHONE_INTL_PATTERN),
     _Rule("PHONE", "MEDIUM", PHONE_SPELLED_PATTERN, validator=_spells_out_phone),
     _Rule("EMAIL", "MEDIUM", EMAIL_PATTERN),
     _Rule("EMAIL", "MEDIUM", EMAIL_OBFUSCATED_PATTERN),
+    _Rule("EMAIL", "MEDIUM", EMAIL_BRACKET_PATTERN),
+    _Rule("SECRET", "HIGH", PASSWORD_KO_PATTERN, validator=_looks_like_password_value),
+    _Rule("SECRET", "HIGH", PASSWORD_SPELLED_PATTERN),
+    _Rule("ACCOUNT_NO", "MEDIUM", ACCOUNT_NO_PATTERN, validator=_looks_like_account_number),
     _Rule("PRIVATE_KEY", "HIGH", PRIVATE_KEY_PATTERN),
     _Rule("API_KEY", "HIGH", API_KEY_PATTERN),
     _Rule("ACCESS_TOKEN", "HIGH", ACCESS_TOKEN_PATTERN),

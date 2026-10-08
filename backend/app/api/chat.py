@@ -1,10 +1,10 @@
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.auth import get_current_user
 from app.db import Settings, get_session_factory
@@ -55,6 +55,28 @@ def _hash_text(value: str) -> str:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# Every accepted question can become a paid external API call, and blocked ones still
+# cost a scan, so each user gets a rolling budget. Counted from the database so it
+# survives restarts and is shared across workers.
+CHAT_RATE_LIMIT = 30
+CHAT_RATE_WINDOW = timedelta(minutes=10)
+
+
+def _enforce_chat_rate_limit(db, user: User) -> None:
+    recent = db.scalar(
+        select(func.count()).select_from(ChatRequest).where(
+            ChatRequest.user_id == user.id,
+            ChatRequest.created_at >= _now() - CHAT_RATE_WINDOW,
+        )
+    )
+    if (recent or 0) >= CHAT_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"질문이 너무 많습니다. {int(CHAT_RATE_WINDOW.total_seconds() // 60)}분에 {CHAT_RATE_LIMIT}건까지 가능합니다. 잠시 후 다시 시도해 주세요.",
+            headers={"Retry-After": str(int(CHAT_RATE_WINDOW.total_seconds()))},
+        )
 
 
 def _parse_request_id(request_id: str) -> int:
@@ -214,7 +236,10 @@ def _process_chat(db, chat: ChatRequest, prompt: str) -> None:
             prompt=prompt,
             safety_identifier=_hash_text(f"{chat.tenant_id}:{chat.user_id}"),
         )
-        post_result = inspect_response(gateway_response.content)
+        post_result = inspect_response(
+            gateway_response.content,
+            load_tenant_keywords(db, chat.tenant_id).rules,
+        )
         chat.post_inspected_at = _now()
         chat.response_categories = ",".join(post_result.categories)
         chat.response_hash = _hash_text(gateway_response.content)
@@ -279,6 +304,7 @@ def create_chat_request(
     model = model_by_provider.get(provider, model_by_provider["openai"])
     session_factory = get_session_factory()
     with session_factory() as db:
+        _enforce_chat_rate_limit(db, current_user)
         policy = get_active_policy_configuration(db, current_user.tenant_id)
         chat = ChatRequest(
             tenant_id=current_user.tenant_id,

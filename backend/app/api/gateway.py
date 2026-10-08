@@ -307,7 +307,7 @@ def forward_to_gateway(
                     f"{current_user.tenant_id}:{current_user.id}".encode("utf-8")
                 ).hexdigest(),
             )
-            post_result = inspect_response(gateway_response.content)
+            post_result = inspect_response(gateway_response.content, keywords.rules)
             transmission.post_inspection_status = post_result.status
             transmission.response_categories = ",".join(post_result.categories)
             transmission.response_hash = _hash_text(gateway_response.content)

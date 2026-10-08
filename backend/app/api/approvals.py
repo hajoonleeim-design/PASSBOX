@@ -14,6 +14,7 @@ from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
 from app.models import GatewayTransmission, OutboundApproval, User
 from app.policy import get_active_policy_configuration
 from app.post_inspector import inspect_response
+from app.sensitive_keywords import load_tenant_keywords
 
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
@@ -171,7 +172,10 @@ def _transmit_approved_payload(
                 f"{current_user.tenant_id}:{current_user.id}"
             ),
         )
-        post_result = inspect_response(gateway_response.content)
+        post_result = inspect_response(
+            gateway_response.content,
+            load_tenant_keywords(db, approval.tenant_id).rules,
+        )
         transmission.post_inspection_status = post_result.status
         transmission.response_categories = ",".join(post_result.categories)
         transmission.response_hash = _hash_text(gateway_response.content)
@@ -378,7 +382,10 @@ def approve_request(
                     f"{current_user.tenant_id}:{current_user.id}"
                 ),
             )
-            post_result = inspect_response(gateway_response.content)
+            post_result = inspect_response(
+                gateway_response.content,
+                load_tenant_keywords(db, approval.tenant_id).rules,
+            )
             transmission.post_inspection_status = post_result.status
             transmission.response_categories = ",".join(post_result.categories)
             transmission.response_hash = _hash_text(gateway_response.content)

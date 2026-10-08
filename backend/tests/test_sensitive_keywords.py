@@ -94,3 +94,35 @@ class KeywordAdminApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResponseKeywordTests(unittest.TestCase):
+    def test_codename_in_ai_answer_is_blocked_by_post_inspection(self):
+        from app.post_inspector import inspect_response
+
+        rules = keyword_rules([("블루문", "MEDIUM")])
+        self.assertEqual(inspect_response("답변: 블루문 일정은 다음 달입니다.", rules).status, "BLOCKED")
+        self.assertEqual(inspect_response("답변: 일정은 다음 달입니다.", rules).status, "PASSED")
+        self.assertEqual(inspect_response("답변: 블루문 일정은 다음 달입니다.").status, "PASSED")
+
+
+class ChatRateLimitTests(unittest.TestCase):
+    def test_user_is_throttled_after_the_window_budget(self):
+        from app.api.chat import CHAT_RATE_LIMIT, _enforce_chat_rate_limit
+        from app.models import ChatRequest
+
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(engine)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+        with Session() as db:
+            tenant = Tenant(name="T"); db.add(tenant); db.flush()
+            user = User(tenant_id=tenant.id, username="u", display_name="U", password_hash="x", role="USER"); db.add(user); db.flush()
+            for _ in range(CHAT_RATE_LIMIT - 1):
+                db.add(ChatRequest(tenant_id=tenant.id, user_id=user.id, model="m", policy_version="v", prompt_hash="h" * 64))
+            db.commit()
+            _enforce_chat_rate_limit(db, user)
+            db.add(ChatRequest(tenant_id=tenant.id, user_id=user.id, model="m", policy_version="v", prompt_hash="h" * 64)); db.commit()
+            with self.assertRaises(HTTPException) as ctx:
+                _enforce_chat_rate_limit(db, user)
+            self.assertEqual(ctx.exception.status_code, 429)
+        engine.dispose()

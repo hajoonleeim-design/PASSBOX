@@ -1,17 +1,19 @@
 import hashlib
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
 from app.api.auth import get_current_user
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
-from app.db import get_session_factory
+from app.db import Settings, get_session_factory
 from app.escalation import hours_pending, is_escalated
 from app.gateway import GATEWAY_MODE, GatewayConfigurationError, gateway
-from app.models import GatewayTransmission, OutboundApproval, User
+from app.models import Document, GatewayTransmission, OutboundApproval, User
 from app.policy import get_active_policy_configuration
 from app.post_inspector import inspect_response
 
@@ -164,6 +166,50 @@ def get_masked_payload(
             masked_payload=approval.masked_payload,
             masking_version=approval.masking_version,
             masking_categories=[item for item in (approval.masking_categories or "").split(",") if item],
+        )
+
+
+@router.get("/{approval_id}/document", summary="대기 중 승인 요청의 원본 문서 다운로드")
+def download_approval_document(
+    approval_id: int,
+    current_user: User = Depends(require_approval_role),
+):
+    """Serve the original document only to an approver for a pending request."""
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        approval = db.scalar(
+            select(OutboundApproval).where(
+                OutboundApproval.id == approval_id,
+                OutboundApproval.tenant_id == current_user.tenant_id,
+            )
+        )
+        if approval is None:
+            raise HTTPException(status_code=404, detail="Approval request not found.")
+        if approval.status != "PENDING":
+            raise HTTPException(status_code=409, detail="Only pending approval documents can be accessed.")
+
+        document = db.scalar(
+            select(Document).where(
+                Document.id == approval.document_id,
+                Document.tenant_id == current_user.tenant_id,
+            )
+        )
+        if document is None:
+            raise HTTPException(status_code=404, detail="Document not found.")
+
+        storage_root = Path(Settings().storage_root).resolve()
+        storage_path = (storage_root / document.storage_key).resolve()
+        if storage_root not in storage_path.parents:
+            raise HTTPException(status_code=500, detail="Invalid document storage path.")
+        if not storage_path.is_file():
+            raise HTTPException(status_code=404, detail="Stored document file not found.")
+
+        return FileResponse(
+            path=storage_path,
+            media_type="application/octet-stream",
+            filename=Path(document.original_filename).name,
+            content_disposition_type="attachment",
+            headers={"X-Content-Type-Options": "nosniff"},
         )
 
 

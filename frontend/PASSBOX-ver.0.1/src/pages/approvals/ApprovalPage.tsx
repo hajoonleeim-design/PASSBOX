@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { decideApproval, getApprovalHistory, getMaskedPayloadPreview, getPendingApprovals, type ApprovalItem, type MaskedPayloadPreview } from '../../api/approvals'
+import { decideApproval, downloadApprovalDocument, getApprovalHistory, getMaskedPayloadPreview, getPendingApprovals, type ApprovalItem, type MaskedPayloadPreview } from '../../api/approvals'
 import type { ApiError } from '../../api/client'
 import { Alert } from '../../components/common/Alert'
 import { Button } from '../../components/common/Button'
@@ -41,6 +41,8 @@ export function ApprovalPage() {
   const [preview, setPreview] = useState<MaskedPayloadPreview | null>(null)
   const [previewLoadingId, setPreviewLoadingId] = useState<number | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [documentLoadingId, setDocumentLoadingId] = useState<number | null>(null)
+  const [documentError, setDocumentError] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     if (!isApprover) {
@@ -103,6 +105,18 @@ export function ApprovalPage() {
       setPreviewError((requestError as ApiError).message ?? '마스킹 내용을 불러오지 못했습니다.')
     } finally {
       setPreviewLoadingId(null)
+    }
+  }
+
+  async function handleDocumentDownload(item: ApprovalItem) {
+    setDocumentLoadingId(item.approvalId)
+    setDocumentError(null)
+    try {
+      await downloadApprovalDocument(item.approvalId)
+    } catch (requestError) {
+      setDocumentError((requestError as ApiError).message ?? '원본 문서를 가져오지 못했습니다.')
+    } finally {
+      setDocumentLoadingId(null)
     }
   }
 
@@ -209,7 +223,11 @@ export function ApprovalPage() {
                 <Button variant="secondary" onClick={() => void handlePreview(item)} disabled={previewLoadingId !== null || actingId !== null}>
                   {previewLoadingId === item.approvalId ? '불러오는 중…' : '전송 전 마스킹 내용 확인'}
                 </Button>
+                <Button variant="secondary" onClick={() => void handleDocumentDownload(item)} disabled={documentLoadingId !== null || actingId !== null}>
+                  {documentLoadingId === item.approvalId ? '원본 문서 가져오는 중' : '원본 문서 다운로드'}
+                </Button>
                 {previewError && <span role="alert" className="form-error">{previewError}</span>}
+                {documentError && <span role="alert" className="form-error">{documentError}</span>}
               </div>
               <label className="form-field section-gap">
                 처리 의견 <small>선택 사항</small>

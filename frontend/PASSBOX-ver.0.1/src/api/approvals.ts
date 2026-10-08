@@ -98,6 +98,24 @@ export async function getMaskedPayloadPreview(approvalId: number): Promise<Maske
   }
 }
 
+export async function downloadApprovalDocument(approvalId: number): Promise<void> {
+  const { data, headers } = await apiClient.get<Blob>(`/approvals/${approvalId}/document`, {
+    responseType: 'blob',
+  })
+  const disposition = headers['content-disposition'] as string | undefined
+  const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const quotedName = disposition?.match(/filename="?([^";]+)"?/i)?.[1]
+  const fileName = encodedName
+    ? decodeURIComponent(encodedName)
+    : quotedName ?? `document-${approvalId}`
+  const objectUrl = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+}
+
 export async function getApprovalHistory(): Promise<ApprovalItem[]> {
   const { data } = await apiClient.get<BackendApprovalResponse[]>('/approvals/history')
   return data.map(mapApproval)

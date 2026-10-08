@@ -350,4 +350,4 @@ class FindingsEndpointSourceTests(unittest.TestCase):
     def test_endpoint_never_exposes_hashes_or_values(self):
         from app.api.scans import FindingSummary
 
-        self.assertEqual(set(FindingSummary.model_fields), {"category", "label", "severity", "match_count"})
+        self.assertEqual(set(FindingSummary.model_fields), {"category", "label", "severity", "match_count", "basis"})

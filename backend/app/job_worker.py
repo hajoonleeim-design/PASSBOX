@@ -5,7 +5,7 @@ from threading import Event, Lock, Thread
 
 from sqlalchemy import select
 
-from app.classifier import ClassifierUnavailableError, apply_findings_floor, classifier
+from app.classifier import ClassifierUnavailableError, apply_confidential_ceiling, apply_findings_floor, classifier
 from app.db import Settings, get_session_factory
 from app.extraction import UnsupportedDocumentError, extract_document
 from app.models import (
@@ -179,6 +179,7 @@ def _save_recommendation(db, document: Document, scan: DocumentScan, text_record
         )
     )
     result = classifier.recommend(text_record.extracted_text, findings)
+    result = apply_confidential_ceiling(result, findings, text_record.extracted_text)
     result = apply_findings_floor(result, findings)
     recommendation = ClassificationRecommendation(
         tenant_id=document.tenant_id,

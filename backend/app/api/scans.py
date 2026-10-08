@@ -141,11 +141,17 @@ _EXTRA_LABELS = {
 }
 
 
+# 국가 망 보안체계 보안 가이드라인 1.0, 표 2-8: 성명·주민번호 등 개인정보는 정보공개법 제9조 제6호 → 민감(S).
+_PERSONAL_DATA = {"PERSONAL_ID", "PHONE", "EMAIL", "PASSPORT_KR", "ACCOUNT_NO", "CREDIT_CARD"}
+_PERSONAL_DATA_BASIS = "N2SF 기준: 개인정보(정보공개법 제9조 제6호)는 민감(S) 등급"
+
+
 class FindingSummary(BaseModel):
     category: str
     label: str
     severity: str
     match_count: int
+    basis: str | None = None
 
 
 class DocumentFindingsResponse(BaseModel):
@@ -188,6 +194,7 @@ def document_findings(
                 else _EXTRA_LABELS.get(row.category, row.category),
                 severity=row.severity,
                 match_count=row.match_count,
+                basis=_PERSONAL_DATA_BASIS if row.category in _PERSONAL_DATA else None,
             )
             for row in rows
         ]

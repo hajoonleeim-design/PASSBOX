@@ -151,7 +151,7 @@ function WhyPanel({ job, status, findings }: { job: AnalysisJob; status: JobStat
       <ul>
         {findings.map((f) => (
           <li key={`${f.category}-${f.severity}`}>
-            <span style={{ fontWeight: 700 }}>{f.label}</span> — {f.matchCount}건 · {f.severity === 'HIGH' ? '위험도 높음' : '주의'}
+            <span style={{ fontWeight: 700 }}>{f.label}</span> — {f.matchCount}건 · {f.severity === 'HIGH' ? '위험도 높음' : '주의'}{f.basis && <small style={{ display: 'block', opacity: 0.85 }}>{f.basis}</small>}
           </li>
         ))}
       </ul>

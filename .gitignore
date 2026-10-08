@@ -33,6 +33,7 @@ classifier-service/.pytest_cache/
 classifier-service/model_out/
 classifier-service/model_out_v1_backup/
 classifier-service/model_out_*_backup/
+classifier-service/model_out_*_candidate/
 classifier-service/dummy_model/
 classifier-service/*.pt
 classifier-service/*.safetensors

@@ -7,7 +7,7 @@ from sqlalchemy import desc, select
 from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
-from app.classifier import _GRADE_RANK, ClassifierUnavailableError, apply_findings_floor, classifier
+from app.classifier import _GRADE_RANK, ClassifierUnavailableError, apply_confidential_ceiling, apply_findings_floor, classifier
 from app.db import get_session_factory
 from app.access import document_access_clause
 from app.models import (
@@ -152,6 +152,7 @@ def recommend_classification(
                 status_code=503,
                 detail=f"분류 서버를 사용할 수 없습니다. 잠시 후 다시 시도해주세요: {exc}",
             ) from exc
+        recommendation_result = apply_confidential_ceiling(recommendation_result, findings, text_record.extracted_text)
         recommendation_result = apply_findings_floor(recommendation_result, findings)
         recommendation = ClassificationRecommendation(
             tenant_id=document.tenant_id,

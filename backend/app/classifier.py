@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 import json
 import logging
+import re
 from typing import NoReturn, Protocol
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from app.db import Settings
 from app.models import SecurityFinding
+from app.security_scan import normalize_for_scan
 
 
 logger = logging.getLogger(__name__)
@@ -204,6 +206,48 @@ def apply_findings_floor(
         recommended_grade="S",
         confidence=result.confidence,
         reason=result.reason + note,
+        model_version=result.model_version,
+        status=result.status,
+    )
+
+
+# Explicit markers of a legally designated secret (N2SF guideline table 2-8, C items 1-4:
+# 법률상 비밀·비공개, 안보·국방·외교, 생명·재산 보호, 수사·재판). Single topic words such as
+# "국방" are deliberately NOT here: public documents mention them constantly.
+_CONFIDENTIAL_MARKER = re.compile(
+    r"대외비|[123I]급\s?비밀|(?i:top\s?secret)|극비|군사\s?기밀|국가\s?기밀"
+)
+
+
+def apply_confidential_ceiling(
+    result: ClassificationRecommendation,
+    findings: list[SecurityFinding],
+    text: str,
+) -> ClassificationRecommendation:
+    """Keep C for what the N2SF guideline calls C, and nothing broader.
+
+    국가 망 보안체계 보안 가이드라인 1.0, 표 2-8: C(기밀) is information a law designates
+    secret/non-public or whose disclosure harms national security, defence, diplomacy, life
+    and property, or investigations and trials (정보공개법 제9조 제1~4호). Personal data
+    (제6호), business secrets (제7호), audits/personnel/internal review (제5호) and logs are
+    S. So a model "C" is only kept when the document carries a designation marker or hits a
+    registered confidential keyword; PII or secret-shaped findings alone make it S, never C.
+    The model was also observed grading public security-topic documents as C. It never
+    raises a grade and never touches S/O.
+    """
+    if result.recommended_grade != "C":
+        return result
+    if any(f.category == "CONFIDENTIAL_KEYWORD" for f in findings):
+        return result
+    if _CONFIDENTIAL_MARKER.search(normalize_for_scan(text or "")):
+        return result
+    return ClassificationRecommendation(
+        recommended_grade="S",
+        confidence=result.confidence,
+        reason=result.reason
+        + " [N2SF 기준 보정] 모델은 C로 판단했지만, 가이드라인 표 2-8의 기밀(C)은 법률상 비밀·안보·국방·외교·수사"
+        " 등 제1~4호 정보입니다. 비밀 표기나 등록 기밀 키워드 같은 근거가 없고 개인정보·로그 등은 민감(S)에 해당하므로"
+        " S(승인 후 전송)로 낮췄습니다. 담당자가 직접 확인해 주세요.",
         model_version=result.model_version,
         status=result.status,
     )

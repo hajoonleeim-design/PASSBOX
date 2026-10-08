@@ -41,11 +41,12 @@ export interface FindingSummary {
   label: string
   severity: 'HIGH' | 'MEDIUM' | string
   matchCount: number
+  basis: string | null
 }
 
 export async function getDocumentFindings(documentId: number): Promise<FindingSummary[]> {
-  const { data } = await apiClient.get<{ findings: { category: string; label: string; severity: string; match_count: number }[] }>(
+  const { data } = await apiClient.get<{ findings: { category: string; label: string; severity: string; match_count: number; basis: string | null }[] }>(
     `/documents/${documentId}/findings`,
   )
-  return data.findings.map((f) => ({ category: f.category, label: f.label, severity: f.severity, matchCount: f.match_count }))
+  return data.findings.map((f) => ({ category: f.category, label: f.label, severity: f.severity, matchCount: f.match_count, basis: f.basis }))
 }

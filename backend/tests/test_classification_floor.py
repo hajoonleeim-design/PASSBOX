@@ -70,3 +70,38 @@ class FindingsFloorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfidentialCeilingTests(unittest.TestCase):
+    def test_model_only_c_is_lowered_to_s(self):
+        from app.classifier import apply_confidential_ceiling
+
+        result = apply_confidential_ceiling(_result("C"), [], "DNS 스푸핑 실습 보고서입니다.")
+        self.assertEqual(result.recommended_grade, "S")
+        self.assertIn("낮췄습니다", result.reason)
+
+    def test_personal_data_alone_is_s_not_c_per_n2sf_item_6(self):
+        from app.classifier import apply_confidential_ceiling
+
+        for category in ("PERSONAL_ID", "PASSPORT_KR", "CREDIT_CARD", "SECRET", "API_KEY"):
+            result = apply_confidential_ceiling(_result("C"), [_finding(category, "HIGH")], "x")
+            self.assertEqual(result.recommended_grade, "S", category)
+            self.assertIn("표 2-8", result.reason)
+
+    def test_c_stays_with_keyword_or_marker(self):
+        from app.classifier import apply_confidential_ceiling
+
+        self.assertEqual(apply_confidential_ceiling(_result("C"), [_finding("CONFIDENTIAL_KEYWORD", "MEDIUM")], "x").recommended_grade, "C")
+        for text in ("(대외비) 내부 계획", "2급 비밀 군사 문서", "TOP SECRET", "TOP  SECRET".replace("  ", "")):
+            self.assertEqual(apply_confidential_ceiling(_result("C"), [], text).recommended_grade, "C", text)
+
+    def test_medium_finding_alone_does_not_keep_c(self):
+        from app.classifier import apply_confidential_ceiling
+
+        self.assertEqual(apply_confidential_ceiling(_result("C"), [_finding("PHONE", "MEDIUM")], "x").recommended_grade, "S")
+
+    def test_s_and_o_are_never_changed(self):
+        from app.classifier import apply_confidential_ceiling
+
+        for grade in ("S", "O", None):
+            self.assertEqual(apply_confidential_ceiling(_result(grade), [], "x").recommended_grade, grade)

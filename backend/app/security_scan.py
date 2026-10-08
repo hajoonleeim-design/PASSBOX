@@ -192,8 +192,17 @@ _RULES: tuple[_Rule, ...] = (
     _Rule("PROMPT_INJECTION", "HIGH", PROMPT_INJECTION_PATTERN),
 )
 
+# Download-and-execute one-liners ("curl ... | bash", "iwr ... | iex"): a model asked
+# to "help install X" can be steered into handing the user one, and users paste them.
+# Piping a download straight into a shell is the dangerous part; plain `curl <url>` is not.
+RISKY_COMMAND_PATTERN = (
+    r"(?i)\b(?:curl|wget)\b[^\n|;]{0,300}\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b"
+    r"|\b(?:iwr|irm|invoke-webrequest|invoke-restmethod)\b[^\n|;]{0,300}\|\s*(?:iex|invoke-expression)\b"
+)
+
 _LINK_RULES: tuple[_Rule, ...] = (
     _Rule("SUSPICIOUS_URL", "MEDIUM", SUSPICIOUS_URL_PATTERN),
+    _Rule("RISKY_COMMAND", "HIGH", RISKY_COMMAND_PATTERN),
 )
 
 

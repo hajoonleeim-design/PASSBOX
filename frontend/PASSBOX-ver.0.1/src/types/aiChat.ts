@@ -17,6 +17,6 @@ export interface AIChatRequest {
   errorMessage?: string
 }
 export interface AIChatResponse extends AIChatRequest { content?: string }
-export type AIProvider = 'openai' | 'anthropic'
+export type AIProvider = 'openai' | 'anthropic' | 'gemini'
 export interface CreateChatRequestInput { prompt: string; provider?: AIProvider }
 // AI 채팅 요청, 응답, 사후 검사 결과의 데이터 모양을 정의합니다.

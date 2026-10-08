@@ -98,10 +98,58 @@ class AnthropicGateway:
         return GatewayResponse(content=content)
 
 
+class GeminiGateway:
+    """Google Gemini (generateContent REST API) provider adapter.
+
+    Uses httpx directly so no extra SDK is required. The key travels in a header, never
+    in the URL, and is never included in error messages (which can reach logs and users).
+    """
+
+    provider = "gemini"
+    _ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+    def __init__(self, api_key: str, transport=None):
+        import httpx
+
+        self.client = httpx.Client(
+            timeout=45.0,
+            headers={"x-goog-api-key": api_key.strip(), "Content-Type": "application/json"},
+            transport=transport,
+        )
+
+    def send(
+        self, *, model: str, prompt: str, safety_identifier: str | None = None
+    ) -> GatewayResponse:
+        import httpx
+
+        body = {
+            "systemInstruction": {"parts": [{"text": ASSISTANT_INSTRUCTIONS}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": 2000},
+        }
+        try:
+            response = self.client.post(self._ENDPOINT.format(model=model.strip()), json=body)
+        except httpx.HTTPError as exc:
+            raise RuntimeError(f"Gemini 요청에 실패했습니다({type(exc).__name__}).") from None
+        if response.status_code != 200:
+            raise RuntimeError(f"Gemini가 오류를 반환했습니다(HTTP {response.status_code}).")
+        data = response.json()
+        block_reason = (data.get("promptFeedback") or {}).get("blockReason")
+        if block_reason:
+            raise RuntimeError(f"Gemini가 요청을 처리하지 않았습니다({block_reason}).")
+        candidates = data.get("candidates") or []
+        parts = ((candidates[0].get("content") or {}).get("parts") or []) if candidates else []
+        content = "".join(part.get("text", "") for part in parts).strip()
+        if not content:
+            raise RuntimeError("Gemini가 비어 있는 응답을 반환했습니다.")
+        return GatewayResponse(content=content)
+
+
 # provider name -> (Settings field holding its API key, adapter class)
 PROVIDER_ADAPTERS: dict[str, tuple[str, type]] = {
     "openai": ("openai_api_key", OpenAIGateway),
     "anthropic": ("anthropic_api_key", AnthropicGateway),
+    "gemini": ("gemini_api_key", GeminiGateway),
 }
 
 

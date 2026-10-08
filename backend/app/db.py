@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-5"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.5-flash-lite"
     classifier_mode: str = "LOCAL_RULES"
     classifier_service_url: str = ""
     classifier_service_token: str = ""

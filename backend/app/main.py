@@ -96,10 +96,12 @@ def _validate_runtime_settings(settings: Settings) -> None:
     if gateway_mode == "MOCK":
         raise RuntimeError("GATEWAY_MODE=MOCK is not allowed in production")
     if gateway_mode == "LIVE" and not (
-        settings.openai_api_key.strip() or settings.anthropic_api_key.strip()
+        settings.openai_api_key.strip()
+        or settings.anthropic_api_key.strip()
+        or settings.gemini_api_key.strip()
     ):
         raise RuntimeError(
-            "OPENAI_API_KEY or ANTHROPIC_API_KEY is required when GATEWAY_MODE=LIVE"
+            "OPENAI_API_KEY, ANTHROPIC_API_KEY or GEMINI_API_KEY is required when GATEWAY_MODE=LIVE"
         )
     if classifier_mode == "REMOTE":
         if not settings.classifier_service_url.strip().lower().startswith("https://"):

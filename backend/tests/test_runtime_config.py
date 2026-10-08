@@ -42,7 +42,7 @@ class RuntimeConfigurationTests(unittest.TestCase):
             _validate_runtime_settings(Settings(gateway_mode="OPENAI"))
 
     def test_production_live_gateway_requires_at_least_one_provider_key(self):
-        with self.assertRaisesRegex(RuntimeError, "OPENAI_API_KEY or ANTHROPIC_API_KEY"):
+        with self.assertRaisesRegex(RuntimeError, "OPENAI_API_KEY, ANTHROPIC_API_KEY or GEMINI_API_KEY"):
             _validate_runtime_settings(
                 self.production_settings(openai_api_key="", anthropic_api_key="")
             )

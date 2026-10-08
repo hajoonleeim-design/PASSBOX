@@ -11,7 +11,7 @@ import { ErrorState, LoadingState } from '../../components/common/StateViews'
 import { useChatRequest } from '../../hooks/useChatRequest'
 import type { AIChatResponse, AIProvider, AIResponseStatus, PayloadStatus, PostInspectionStatus } from '../../types/aiChat'
 
-const providerLabel: Record<AIProvider, string> = { openai: 'OpenAI (GPT)', anthropic: 'Anthropic (Claude)' }
+const providerLabel: Record<AIProvider, string> = { gemini: 'Google (Gemini)', anthropic: 'Anthropic (Claude)', openai: 'OpenAI (GPT)' }
 
 const payloadLabel: Record<PayloadStatus, string> = { PENDING: '요청 대기', VALIDATING: 'Payload 검증 중', VERIFIED: 'Payload 검증 완료', BLOCKED: 'Payload 차단', FAILED: 'Payload 검증 실패' }
 const responseLabel: Record<AIResponseStatus, string> = { NOT_RECEIVED: 'AI 전송 전', RECEIVED: 'AI 응답 수신', POST_INSPECTING: 'Post-Inspector 검증 중', VERIFIED: 'Post-Inspection 검증 완료', BLOCKED: 'AI 응답 차단', FAILED: 'AI 응답 검증 실패', UNKNOWN: '상태 확인 필요' }
@@ -24,13 +24,13 @@ function ChatOverviewNotice() {
   return <div className="chat-overview-notice" aria-label="안전한 AI 대화 안내">
     <div className="chat-overview-notice__heading"><span className="sr-indicator-dot sr-indicator-dot--emerald" />검사된 요청만 외부 AI로 전달됩니다.</div>
     <p className="chat-overview-notice__why">개인 ChatGPT 등에 업무 내용을 직접 붙여넣으면 기관 정보가 외부로 그대로 유출될 수 있습니다. 여기서 질문하면 개인정보·기밀 정보가 자동으로 걸러진 뒤에만 AI로 전송되어, 외부 AI를 안전하게 활용할 수 있습니다.</p>
-    <p>질문은 개인정보·Secret·프롬프트 인젝션 검사를 거친 뒤, 정책을 통과한 Payload만 선택한 제공자(OpenAI 또는 Anthropic)로 전송됩니다. AI 답변도 보안 검증이 완료된 후 표시됩니다.</p>
+    <p>질문은 개인정보·Secret·프롬프트 인젝션 검사를 거친 뒤, 정책을 통과한 Payload만 선택한 제공자(Google, Anthropic 또는 OpenAI)로 전송됩니다. AI 답변도 보안 검증이 완료된 후 표시됩니다.</p>
     <div className="chat-overview-notice__flow" aria-label="AI 대화 보안 처리 흐름"><span>질문 입력</span><i aria-hidden="true">→</i><span>보안검사</span><i aria-hidden="true">→</i><span>마스킹·승인</span><i aria-hidden="true">→</i><span>AI 전송</span><i aria-hidden="true">→</i><span>답변 검증</span></div>
   </div>
 }
 
 export function ChatPage() {
-  const { requestId } = useParams(); const navigate = useNavigate(); const [prompt, setPrompt] = useState(''); const [provider, setProvider] = useState<AIProvider>('openai'); const [submitError, setSubmitError] = useState(''); const [isSubmitting, setIsSubmitting] = useState(false); const { chat, isLoading, errorCode, refresh, retry } = useChatRequest(requestId)
+  const { requestId } = useParams(); const navigate = useNavigate(); const [prompt, setPrompt] = useState(''); const [provider, setProvider] = useState<AIProvider>('gemini'); const [submitError, setSubmitError] = useState(''); const [isSubmitting, setIsSubmitting] = useState(false); const { chat, isLoading, errorCode, refresh, retry } = useChatRequest(requestId)
   async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!prompt.trim()) { setSubmitError('질문을 입력해 주세요.'); return }; setIsSubmitting(true); setSubmitError(''); try { const request = await createChatRequest({ prompt, provider }); setPrompt(''); navigate(`/chat/${request.requestId}`) } catch { setSubmitError('AI 요청을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.') } finally { setIsSubmitting(false) } }
   if (requestId && isLoading && !chat) return <LoadingState label="AI 요청 상태를 불러오는 중입니다." />
   if (requestId && errorCode === 'NOT_FOUND') return <section className="state-action-page"><h1>AI 요청을 찾을 수 없습니다.</h1><ErrorState label="입력한 Request ID에 해당하는 요청이 없습니다." /><Button onClick={() => navigate('/chat')}>새 대화 시작</Button></section>

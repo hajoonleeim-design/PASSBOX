@@ -21,7 +21,7 @@ router = APIRouter(prefix="/chat", tags=["AI Chat"])
 
 class CreateChatRequestPayload(BaseModel):
     prompt: str = Field(min_length=1, max_length=10000)
-    provider: Literal["openai", "anthropic"] = Field(
+    provider: Literal["openai", "anthropic", "gemini"] = Field(
         default="openai",
         description="요청을 처리할 LLM Gateway provider. 서버에 해당 provider의 API 키가 설정되어 있어야 합니다.",
     )
@@ -300,6 +300,7 @@ def create_chat_request(
     model_by_provider = {
         "openai": settings.openai_model.strip() or "gpt-4o-mini",
         "anthropic": settings.anthropic_model.strip() or "claude-sonnet-5",
+        "gemini": settings.gemini_model.strip() or "gemini-3.5-flash-lite",
     }
     model = model_by_provider.get(provider, model_by_provider["openai"])
     session_factory = get_session_factory()

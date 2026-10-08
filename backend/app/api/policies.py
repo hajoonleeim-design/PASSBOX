@@ -141,6 +141,13 @@ DEFAULT_MODEL_ALLOWLIST = [
         "description": "기관에서 허용한 Anthropic 모델입니다.",
     },
     {
+        "model_id": "*",
+        "model_name": "*",
+        "provider": "gemini",
+        "enabled": True,
+        "description": "기관에서 허용한 Google Gemini 모델입니다.",
+    },
+    {
         "model_id": "external-model-x",
         "model_name": "External-Model-X",
         "provider": "unknown",

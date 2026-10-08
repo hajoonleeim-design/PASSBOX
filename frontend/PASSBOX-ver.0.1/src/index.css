@@ -4802,3 +4802,10 @@ html[data-theme="dark"] .home-status__card.is-warn span { color: #fdba74; }
 .alert--danger, .alert--warning { animation: alert-enter .28s ease-out; }
 .alert--danger { box-shadow: 0 0 0 3px rgb(223 91 99 / 8%); }
 @media (prefers-reduced-motion: reduce) { .alert--danger, .alert--warning { animation: none; } }
+.chat-history { margin-top: 24px; }
+.chat-history__list { display: grid; gap: 6px; margin: 12px 0; padding: 0; list-style: none; }
+.chat-history__list a { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); color: inherit; text-decoration: none; }
+.chat-history__list a:hover, .chat-history__list li[aria-current="page"] a { border-color: var(--color-accent); background: var(--color-surface-hover); }
+.chat-history__prompt { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.chat-history__list small { color: var(--color-text-muted); }
+.chat-question { margin-top: 16px; }

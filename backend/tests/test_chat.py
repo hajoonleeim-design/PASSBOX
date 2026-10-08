@@ -65,7 +65,7 @@ class ChatFlowTests(unittest.TestCase):
         )
         return chat
 
-    def test_allowed_prompt_is_verified_and_raw_prompt_is_cleared(self):
+    def test_allowed_prompt_is_verified_and_kept_for_history(self):
         gateway = FakeGateway()
         with self.Session() as db:
             chat = self._new_chat("이 문서를 한 문장으로 요약해줘.")
@@ -78,7 +78,8 @@ class ChatFlowTests(unittest.TestCase):
             self.assertEqual(chat.response_status, "VERIFIED")
             self.assertEqual(chat.post_inspection_status, "VERIFIED")
             self.assertEqual(chat.response_text, "안전한 테스트 응답")
-            self.assertIsNone(chat.prompt_text)
+            self.assertEqual(chat.prompt_text, "이 문서를 한 문장으로 요약해줘.")
+            self.assertEqual(_to_response(chat).prompt, "이 문서를 한 문장으로 요약해줘.")
             self.assertEqual(_to_response(chat).content, "안전한 테스트 응답")
 
     def test_prompt_with_secret_is_blocked_before_gateway(self):
@@ -143,3 +144,40 @@ class ChatFlowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChatHistoryTests(ChatFlowTests):
+    def test_history_copy_of_the_prompt_is_masked(self):
+        # an address-shaped value the scanner lets through is still masked in the stored copy
+        from app.api.chat import _history_prompt
+
+        self.assertEqual(_history_prompt("메일은 kim@example.com 으로"), "메일은 [MASKED:EMAIL] 으로")
+
+    def test_blocked_prompt_is_not_kept_in_history(self):
+        with self.Session() as db:
+            chat = self._new_chat("password: not-a-real-secret-1234")
+            db.add(chat)
+            db.flush()
+            with patch("app.api.chat.gateway", FakeGateway()):
+                _process_chat(db, chat, chat.prompt_text)
+            self.assertIsNone(_to_response(chat).prompt)
+
+    def test_old_chat_text_is_purged_but_the_row_stays(self):
+        from datetime import datetime, timedelta, timezone
+        from app.retention import purge_chat_history
+
+        with self.Session() as db:
+            chat = self._new_chat("오래된 질문")
+            db.add(chat)
+            db.flush()
+            chat.response_text = "오래된 답변"
+            chat.created_at = datetime.now(timezone.utc) - timedelta(days=4000)
+            db.commit()
+            chat_id = chat.id
+        self.assertEqual(purge_chat_history(self.Session, apply=False), 1)
+        self.assertEqual(purge_chat_history(self.Session, apply=True), 1)
+        with self.Session() as db:
+            row = db.get(ChatRequest, chat_id)
+            self.assertIsNotNone(row)
+            self.assertIsNone(row.prompt_text)
+            self.assertIsNone(row.response_text)

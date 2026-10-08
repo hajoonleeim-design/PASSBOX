@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 
 from app.api.policies import DEFAULT_RETENTION_POLICY
 from app.audit_chain import append_audit_entry
-from app.models import Document, DocumentText, SecurityPolicy
+from app.models import ChatRequest, Document, DocumentText, SecurityPolicy
 
 
 TERMINAL_DOCUMENT_STATUSES = frozenset({"CLASSIFICATION_CONFIRMED", "REJECTED"})
@@ -129,7 +129,10 @@ def cleanup_storage(
                 )
             db.commit()
 
+    chat_purged = purge_chat_history(session_factory, apply=apply, now=now)
+
     return {
+        "chat_history_purged": chat_purged,
         "dry_run": not apply,
         "candidate_count": len(candidates),
         "deleted_count": deleted_count,
@@ -147,3 +150,35 @@ def cleanup_storage(
             for candidate in candidates
         ],
     }
+
+
+def purge_chat_history(session_factory, *, apply: bool = False, now: datetime | None = None) -> int:
+    """Blank the stored question/answer text of chats older than the tenant's retention days.
+
+    The row (hashes, status, ids) stays for the audit trail; only the readable text goes.
+    """
+    current_time = _utc(now or datetime.now(timezone.utc))
+    purged = 0
+    with session_factory() as db:
+        policies = {p.tenant_id: p for p in db.scalars(select(SecurityPolicy))}
+        tenant_ids = db.scalars(
+            select(ChatRequest.tenant_id).where(
+                (ChatRequest.prompt_text.is_not(None)) | (ChatRequest.response_text.is_not(None))
+            ).distinct()
+        ).all()
+        for tenant_id in tenant_ids:
+            cutoff = current_time - timedelta(days=_retention_days(policies.get(tenant_id)))
+            condition = (
+                ChatRequest.tenant_id == tenant_id,
+                ChatRequest.created_at < cutoff,
+                (ChatRequest.prompt_text.is_not(None)) | (ChatRequest.response_text.is_not(None)),
+            )
+            if apply:
+                purged += db.execute(
+                    update(ChatRequest).where(*condition).values(prompt_text=None, response_text=None)
+                ).rowcount or 0
+            else:
+                purged += len(db.scalars(select(ChatRequest.id).where(*condition)).all())
+        if apply:
+            db.commit()
+    return purged

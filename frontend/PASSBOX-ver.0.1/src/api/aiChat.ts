@@ -1,4 +1,4 @@
-import type { AIChatResponse, CreateChatRequestInput, PostInspectionResult } from '../types/aiChat'
+import type { AIChatResponse, ChatHistoryItem, CreateChatRequestInput, PostInspectionResult } from '../types/aiChat'
 import { apiClient } from './client'
 
 const useMock = import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL
@@ -33,6 +33,7 @@ interface BackendChatResponse {
   updated_at: string
   error_message?: string | null
   content?: string | null
+  prompt?: string | null
 }
 
 function mapPostInspection(value?: BackendPostInspectionResult | null): PostInspectionResult | undefined {
@@ -59,6 +60,7 @@ function mapResponse(data: BackendChatResponse): AIChatResponse {
     updatedAt: data.updated_at,
     errorMessage: data.error_message ?? undefined,
     content: data.content ?? undefined,
+    prompt: data.prompt ?? undefined,
   }
 }
 
@@ -92,4 +94,28 @@ export async function retryChatRequest(requestId: string): Promise<AIChatRespons
   if (useMock) { const { mockRetryChatRequest } = await import('../mocks/aiChat'); return safeForClient(await mockRetryChatRequest(requestId)) }
   const { data } = await apiClient.post<BackendChatResponse>(`${requestPath(requestId)}/retry`)
   return safeForClient(mapResponse(data))
+}
+
+interface BackendChatHistoryItem {
+  request_id: string
+  created_at: string
+  model: string
+  prompt_preview: string | null
+  response_status: ChatHistoryItem['responseStatus']
+  decision_status: string
+  has_answer: boolean
+}
+
+export async function listChatHistory(): Promise<ChatHistoryItem[]> {
+  if (useMock) return []
+  const { data } = await apiClient.get<BackendChatHistoryItem[]>('/chat/requests')
+  return data.map((item) => ({
+    requestId: item.request_id,
+    createdAt: item.created_at,
+    model: item.model,
+    promptPreview: item.prompt_preview ?? undefined,
+    responseStatus: item.response_status,
+    decisionStatus: item.decision_status,
+    hasAnswer: item.has_answer,
+  }))
 }

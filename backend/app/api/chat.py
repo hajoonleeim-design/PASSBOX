@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from app.api.auth import get_current_user
 from app.db import Settings, get_session_factory
 from app.gateway import GatewayConfigurationError, gateway
+from app.masking import mask_text
 from app.models import ChatRequest, User
 from app.policy import check_outbound_policy, get_active_policy_configuration
 from app.post_inspector import inspect_response
@@ -47,6 +48,17 @@ class ChatResponse(BaseModel):
     updated_at: datetime
     error_message: str | None = None
     content: str | None = None
+    prompt: str | None = None
+
+
+class ChatHistoryItem(BaseModel):
+    request_id: str
+    created_at: datetime
+    model: str
+    prompt_preview: str | None
+    response_status: str
+    decision_status: str
+    has_answer: bool
 
 
 def _hash_text(value: str) -> str:
@@ -134,6 +146,7 @@ def _to_response(chat: ChatRequest) -> ChatResponse:
         updated_at=chat.updated_at,
         error_message=chat.error_message,
         content=chat.response_text if verified else None,
+        prompt=chat.prompt_text,
     )
 
 
@@ -159,6 +172,16 @@ def _finish_without_external_call(
     chat.updated_at = _now()
     db.commit()
     db.refresh(chat)
+
+
+def _history_prompt(prompt: str) -> str:
+    """What stays in the user's chat history after a handled question.
+
+    The prompt already passed the scanner, but a regex scanner misses things, so the
+    stored copy is masked as well: history must never be a second place for a leak.
+    A prompt that was blocked before sending is not kept at all.
+    """
+    return mask_text(prompt).masked_text
 
 
 def _prompt_block_reason(categories: set[str]) -> tuple[str, str]:
@@ -249,14 +272,14 @@ def _process_chat(db, chat: ChatRequest, prompt: str) -> None:
             chat.response_text = gateway_response.content
             chat.error_message = None
             chat.incident_id = None
-            chat.prompt_text = None
+            chat.prompt_text = _history_prompt(prompt)
         else:
             chat.response_status = "BLOCKED"
             chat.post_inspection_status = "BLOCKED"
             chat.response_text = None
             chat.error_message = "Post-Inspector가 AI 응답을 차단했습니다."
             chat.incident_id = _incident_id(chat)
-            chat.prompt_text = None
+            chat.prompt_text = _history_prompt(prompt)
     except GatewayConfigurationError as exc:
         chat.response_status = "FAILED"
         chat.post_inspection_status = "FAILED"
@@ -327,6 +350,42 @@ def create_chat_request(
         return _to_response(chat)
 
 
+@router.get("/requests", response_model=list[ChatHistoryItem], summary="내 대화 기록 목록")
+def list_my_chat_requests(
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+):
+    """Only the caller's own questions, whatever their role: a conversation is personal."""
+    limit = max(1, min(limit, 100))
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        rows = db.scalars(
+            select(ChatRequest)
+            .where(
+                ChatRequest.tenant_id == current_user.tenant_id,
+                ChatRequest.user_id == current_user.id,
+            )
+            .order_by(ChatRequest.id.desc())
+            .limit(limit)
+        )
+        items = []
+        for chat in rows:
+            verified = chat.response_status == "VERIFIED" and chat.post_inspection_status == "VERIFIED"
+            preview = " ".join(chat.prompt_text.split())[:80] if chat.prompt_text else None
+            items.append(
+                ChatHistoryItem(
+                    request_id=f"CHAT-{chat.id}",
+                    created_at=chat.created_at,
+                    model=chat.model,
+                    prompt_preview=preview,
+                    response_status=chat.response_status,
+                    decision_status=chat.decision_status,
+                    has_answer=verified and bool(chat.response_text),
+                )
+            )
+        return items
+
+
 @router.get("/requests/{request_id}", response_model=ChatResponse, summary="AI 채팅 요청 상태 조회")
 def get_chat_request(
     request_id: str,
@@ -345,7 +404,9 @@ def send_chat_request(
     session_factory = get_session_factory()
     with session_factory() as db:
         chat = _get_chat(db, request_id, current_user)
-        if not chat.prompt_text:
+        # A finished question keeps a masked copy of its prompt for the history view; it must
+        # never be sent a second time.
+        if not chat.prompt_text or chat.response_status != "NOT_RECEIVED" or chat.decision_status != "UNKNOWN":
             return _to_response(chat)
         _process_chat(db, chat, chat.prompt_text)
         return _to_response(chat)
@@ -369,7 +430,7 @@ def retry_chat_request(
     session_factory = get_session_factory()
     with session_factory() as db:
         chat = _get_chat(db, request_id, current_user)
-        if not chat.prompt_text:
+        if chat.response_status != "FAILED" or not chat.prompt_text:
             raise HTTPException(
                 status_code=409,
                 detail="재시도할 안전한 Prompt가 보관되어 있지 않습니다. 새 요청을 생성해 주세요.",

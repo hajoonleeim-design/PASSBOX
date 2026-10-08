@@ -1,7 +1,7 @@
 // AI 요청을 만들고 전송한 뒤 Post-Inspection 결과를 표시하는 화면입니다.
-import { useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { createChatRequest } from '../../api/aiChat'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { createChatRequest, listChatHistory } from '../../api/aiChat'
 import { Alert } from '../../components/common/Alert'
 import { Badge, type BadgeVariant } from '../../components/common/Badge'
 import { AnswerText } from '../../components/chat/AnswerText'
@@ -10,7 +10,7 @@ import { Card } from '../../components/common/Card'
 import { FormField, SelectInput, TextareaInput } from '../../components/common/FormControls'
 import { ErrorState, LoadingState } from '../../components/common/StateViews'
 import { useChatRequest } from '../../hooks/useChatRequest'
-import type { AIChatResponse, AIProvider, AIResponseStatus, PayloadStatus, PostInspectionStatus } from '../../types/aiChat'
+import type { AIChatResponse, AIProvider, ChatHistoryItem, AIResponseStatus, PayloadStatus, PostInspectionStatus } from '../../types/aiChat'
 
 const providerLabel: Record<AIProvider, string> = { gemini: 'Google (Gemini)', anthropic: 'Anthropic (Claude)', openai: 'OpenAI (GPT)' }
 
@@ -30,6 +30,25 @@ function ChatOverviewNotice() {
   </div>
 }
 
+function ChatHistory({ currentId, refreshKey }: { currentId?: string; refreshKey?: string }) {
+  const [items, setItems] = useState<ChatHistoryItem[] | null>(null)
+  const [showAll, setShowAll] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void listChatHistory().then((rows) => { if (!cancelled) setItems(rows) }).catch(() => { if (!cancelled) setItems([]) })
+    return () => { cancelled = true }
+  }, [currentId, refreshKey])
+  if (items === null) return null
+  const promptText = (item: ChatHistoryItem) => item.promptPreview ?? (item.hasAnswer ? '(이전 버전에서 보낸 질문 · 내용 미보관)' : '(차단된 질문 · 보안상 내용을 보관하지 않음)')
+  const visible = showAll ? items : items.slice(0, 10)
+  const stateText = (item: ChatHistoryItem) => item.hasAnswer ? '답변 있음' : item.responseStatus === 'BLOCKED' ? '차단됨' : item.responseStatus === 'FAILED' ? '실패' : item.decisionStatus === 'WAITING_APPROVAL' ? '승인 대기' : '처리 중'
+  return <Card className="chat-card chat-history"><h2>내 대화 기록</h2>
+    {items.length === 0 ? <p>아직 대화 기록이 없습니다. 질문하면 여기에 쌓입니다.</p> : <ul className="chat-history__list">{visible.map((item) => <li key={item.requestId} aria-current={item.requestId === currentId ? 'page' : undefined}><Link to={`/chat/${item.requestId}`}><span className="chat-history__prompt">{promptText(item)}</span><small>{new Date(item.createdAt).toLocaleString('ko-KR')} · {stateText(item)}</small></Link></li>)}</ul>}
+    {items.length > 10 && <Button size="sm" variant="ghost" onClick={() => setShowAll((value) => !value)}>{showAll ? '접기' : `이전 대화 ${items.length - 10}건 더 보기`}</Button>}
+    <small>질문은 개인정보가 가려진 상태로 저장되며, 기관 보관 기간이 지나면 질문과 답변 내용이 자동으로 삭제됩니다. 본인 기록만 보입니다.</small>
+  </Card>
+}
+
 export function ChatPage() {
   const { requestId } = useParams(); const navigate = useNavigate(); const [prompt, setPrompt] = useState(''); const [provider, setProvider] = useState<AIProvider>('gemini'); const [submitError, setSubmitError] = useState(''); const [isSubmitting, setIsSubmitting] = useState(false); const { chat, isLoading, errorCode, refresh, retry } = useChatRequest(requestId)
   async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!prompt.trim()) { setSubmitError('질문을 입력해 주세요.'); return }; setIsSubmitting(true); setSubmitError(''); try { const request = await createChatRequest({ prompt, provider }); setPrompt(''); navigate(`/chat/${request.requestId}`) } catch { setSubmitError('AI 요청을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.') } finally { setIsSubmitting(false) } }
@@ -37,5 +56,5 @@ export function ChatPage() {
   if (requestId && errorCode === 'NOT_FOUND') return <section className="state-action-page"><h1>AI 요청을 찾을 수 없습니다.</h1><ErrorState label="입력한 Request ID에 해당하는 요청이 없습니다." /><Button onClick={() => navigate('/chat')}>새 대화 시작</Button></section>
   if (requestId && errorCode && !chat) return <section className="state-action-page"><h1>AI 요청 상태를 확인할 수 없습니다.</h1><ErrorState label="네트워크 연결을 확인한 뒤 다시 시도해 주세요." /><Button onClick={() => void refresh()}>다시 조회</Button></section>
   const responseVisible = chat?.postInspection?.status === 'VERIFIED'
-  return <section aria-live="polite"><p className="eyebrow">보안 AI 대화</p><h1>AI 대화</h1><p>Post-Inspector 검증이 완료되기 전에는 AI 응답 원문을 표시하지 않습니다.</p><ChatOverviewNotice />{!requestId && <Card className="chat-card"><Alert variant="info" title="보안 안내">Prompt는 브라우저 저장소에 저장되지 않습니다. 요청은 공통 정책 검증 후 처리됩니다.</Alert><form onSubmit={submit}><FormField label="AI 제공자" helpText="정책상 허용된 제공자만 선택할 수 있습니다."><SelectInput value={provider} onChange={(event) => setProvider(event.target.value as AIProvider)}>{(Object.entries(providerLabel) as [AIProvider, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput></FormField><FormField label="질문 입력" helpText="민감한 업무 원문은 입력하지 마세요."><TextareaInput rows={7} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="업무 질문을 입력하세요." /></FormField>{submitError && <Alert variant="danger" title="요청 확인 필요">{submitError}</Alert>}<div className="form-actions"><Button type="submit" disabled={isSubmitting}>{isSubmitting ? '요청 생성 중' : '전송'}</Button><Button type="button" variant="ghost" onClick={() => { setPrompt(''); setSubmitError('') }}>입력 취소</Button></div></form></Card>}{chat && <><div className="page-title-row chat-request-title"><div><h2>AI 요청 상태</h2><p>Request ID: <code>{chat.requestId}</code></p></div><Badge variant={variantFor(responseLabel[chat.responseStatus])}>{responseLabel[chat.responseStatus]}</Badge></div>{errorCode && <div className="section-gap"><Alert variant="warning" title="상태 조회 지연">AI 요청 상태를 확인할 수 없습니다. 기존 상태를 유지하고 있습니다.<div className="alert-action"><Button size="sm" variant="secondary" onClick={() => void refresh()}>다시 조회</Button></div></Alert></div>}<div className="chat-status-grid"><Card><h2>요청 및 정책</h2><StatusLine label="Model" value={chat.model} /><StatusLine label="Policy Version" value={chat.policyVersion} /><StatusLine label="Payload" value={payloadLabel[chat.payloadStatus]} /><StatusLine label="판정 상태" value={chat.decisionStatus} /></Card><Card><h2>AI 응답 검증</h2><StatusLine label="AI 전송 상태" value={responseLabel[chat.responseStatus]} /><StatusLine label="Post-Inspector" value={postLabel[chat.postInspection?.status ?? 'PENDING']} /><SecurityNotice chat={chat} /></Card></div>{responseVisible ? <Card className="verified-response"><p className="eyebrow">응답 검증 결과</p><h2>검증된 AI 답변</h2><AnswerText text={chat.content ?? ''} /></Card> : <Card className="response-withheld"><h2>AI 답변</h2><p>보안 검증이 완료될 때까지 AI 응답 원문을 표시하지 않습니다.</p></Card>}{(chat.responseStatus === 'FAILED' || errorCode) && <div className="job-actions"><Button onClick={() => void retry()}>요청 다시 시도</Button></div>}</>}</section>
+  return <section aria-live="polite"><p className="eyebrow">보안 AI 대화</p><h1>AI 대화</h1><p>Post-Inspector 검증이 완료되기 전에는 AI 응답 원문을 표시하지 않습니다.</p><ChatOverviewNotice />{!requestId && <Card className="chat-card"><Alert variant="info" title="보안 안내">질문과 답변은 개인정보가 가려진 상태로 서버에 저장되어 ‘내 대화 기록’에서 다시 볼 수 있습니다(본인만 열람). 브라우저 저장소에는 저장되지 않습니다.</Alert><form onSubmit={submit}><FormField label="AI 제공자" helpText="정책상 허용된 제공자만 선택할 수 있습니다."><SelectInput value={provider} onChange={(event) => setProvider(event.target.value as AIProvider)}>{(Object.entries(providerLabel) as [AIProvider, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput></FormField><FormField label="질문 입력" helpText="민감한 업무 원문은 입력하지 마세요."><TextareaInput rows={7} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="업무 질문을 입력하세요." /></FormField>{submitError && <Alert variant="danger" title="요청 확인 필요">{submitError}</Alert>}<div className="form-actions"><Button type="submit" disabled={isSubmitting}>{isSubmitting ? '요청 생성 중' : '전송'}</Button><Button type="button" variant="ghost" onClick={() => { setPrompt(''); setSubmitError('') }}>입력 취소</Button></div></form></Card>}{chat && <><div className="page-title-row chat-request-title"><div><h2>AI 요청 상태</h2><p>Request ID: <code>{chat.requestId}</code></p></div><Badge variant={variantFor(responseLabel[chat.responseStatus])}>{responseLabel[chat.responseStatus]}</Badge></div>{errorCode && <div className="section-gap"><Alert variant="warning" title="상태 조회 지연">AI 요청 상태를 확인할 수 없습니다. 기존 상태를 유지하고 있습니다.<div className="alert-action"><Button size="sm" variant="secondary" onClick={() => void refresh()}>다시 조회</Button></div></Alert></div>}<div className="chat-status-grid"><Card><h2>요청 및 정책</h2><StatusLine label="Model" value={chat.model} /><StatusLine label="Policy Version" value={chat.policyVersion} /><StatusLine label="Payload" value={payloadLabel[chat.payloadStatus]} /><StatusLine label="판정 상태" value={chat.decisionStatus} /></Card><Card><h2>AI 응답 검증</h2><StatusLine label="AI 전송 상태" value={responseLabel[chat.responseStatus]} /><StatusLine label="Post-Inspector" value={postLabel[chat.postInspection?.status ?? 'PENDING']} /><SecurityNotice chat={chat} /></Card></div>{chat.prompt && <Card className="chat-question"><p className="eyebrow">내 질문</p><p style={{ whiteSpace: 'pre-wrap' }}>{chat.prompt}</p></Card>}{responseVisible ? <Card className="verified-response"><p className="eyebrow">응답 검증 결과</p><h2>검증된 AI 답변</h2><AnswerText text={chat.content ?? ''} /></Card> : <Card className="response-withheld"><h2>AI 답변</h2><p>보안 검증이 완료될 때까지 AI 응답 원문을 표시하지 않습니다.</p></Card>}{(chat.responseStatus === 'FAILED' || errorCode) && <div className="job-actions"><Button onClick={() => void retry()}>요청 다시 시도</Button></div>}</>}<ChatHistory currentId={requestId} refreshKey={chat?.updatedAt} /></section>
 }

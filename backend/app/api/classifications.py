@@ -7,7 +7,7 @@ from sqlalchemy import desc, select
 from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
-from app.classifier import ClassifierUnavailableError, apply_findings_floor, classifier
+from app.classifier import _GRADE_RANK, ClassifierUnavailableError, apply_findings_floor, classifier
 from app.db import get_session_factory
 from app.access import document_access_clause
 from app.models import (
@@ -268,6 +268,17 @@ def confirm_classification(
             raise HTTPException(
                 status_code=409,
                 detail="먼저 분류 추천을 요청해야 등급을 확정할 수 있습니다.",
+            )
+
+        # Separation of duties: confirming your OWN document below the recommended grade
+        # (e.g. S -> O) would let one person decide that their own upload may leave unmasked.
+        if (
+            document.uploaded_by == current_user.id
+            and _GRADE_RANK[payload.confirmed_grade] > _GRADE_RANK.get(recommendation.recommended_grade, 2)
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="본인이 올린 문서의 등급을 추천보다 낮게 확정할 수 없습니다. 다른 담당자에게 확정을 요청하세요.",
             )
 
         decision = ClassificationDecision(

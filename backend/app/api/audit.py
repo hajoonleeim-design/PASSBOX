@@ -20,6 +20,7 @@ from app.models import (
     User,
 )
 from app.policy import POLICY_VERSION
+from app.audit_chain import append_audit_entry
 
 
 router = APIRouter(prefix="/requests", tags=["Audit"])
@@ -476,6 +477,14 @@ def generate_audit_pdf(
                     detail="본인이 생성한 요청의 감사 보고서만 받을 수 있습니다.",
                 )
         record = _audit_record(db, request_id, current_user.tenant_id)
+        append_audit_entry(
+            db,
+            tenant_id=current_user.tenant_id,
+            event_type="AUDIT_REPORT_EXPORTED",
+            payload={"downloaded_by": current_user.id, "role": current_user.role},
+            request_id=request_id,
+        )
+        db.commit()
     return Response(
         content=_build_audit_pdf(record),
         media_type="application/pdf",

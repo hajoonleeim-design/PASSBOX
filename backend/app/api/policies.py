@@ -10,6 +10,7 @@ from sqlalchemy import desc, select
 from app.api.auth import require_roles
 from app.db import get_session_factory
 from app.models import SecurityPolicy, SecurityPolicyHistory, User
+from app.audit_chain import append_audit_entry
 
 
 router = APIRouter(prefix="/admin/policies", tags=["Admin Policies"])
@@ -168,6 +169,47 @@ DEFAULT_DETECTION_PATTERNS = [
 ]
 
 
+_BUILTIN_RULE_INFO = {
+    "PERSONAL_ID": ("주민등록번호", "개인정보", "13자리 형식, 뒷자리 첫 숫자(성별) 1~4"),
+    "PHONE": ("휴대전화 번호", "개인정보", "010-0000-0000, +82, ‘공일공…’ 같은 우회 표기 포함"),
+    "EMAIL": ("이메일 주소", "개인정보", "일반 표기와 ‘앳·닷’ 같은 우회 표기 포함"),
+    "PASSPORT_KR": ("여권번호", "개인정보", "대한민국 여권번호 형식"),
+    "CREDIT_CARD": ("카드번호", "금융정보", "Luhn 체크섬으로 검증된 카드번호"),
+    "BUSINESS_REG_NO": ("사업자등록번호", "기관정보", "000-00-00000 형식"),
+    "PRIVATE_KEY": ("개인키", "인증정보", "PEM 형식 개인키 블록"),
+    "API_KEY": ("API 키", "인증정보", "OpenAI·Anthropic(sk-), AWS, Google, Slack 키 형식"),
+    "ACCESS_TOKEN": ("액세스 토큰", "인증정보", "JWT 형식 토큰"),
+    "SECRET": ("비밀번호·시크릿", "인증정보", "password=, secret: 같은 할당 형식"),
+    "PROMPT_INJECTION": ("프롬프트 인젝션", "AI 공격", "지시 무시·시스템 프롬프트 노출 시도"),
+}
+
+
+def _builtin_detection_patterns() -> list[dict]:
+    from app.security_scan import _RULES
+
+    patterns: list[dict] = []
+    seen: set[str] = set()
+    for rule in _RULES:
+        if rule.category in seen:
+            continue
+        seen.add(rule.category)
+        name, kind, description = _BUILTIN_RULE_INFO.get(rule.category, (rule.category, "기타", ""))
+        patterns.append({
+            "pattern_id": f"builtin-{rule.category.lower()}",
+            "pattern_name": name,
+            "detection_type": kind,
+            "enabled": True,
+            "severity": rule.severity,
+            "description": description,
+        })
+    return patterns
+
+
+# Generated from the scanner's real rule table so the admin screen can never claim a
+# rule exists (or is switched off) when the engine says otherwise.
+BUILTIN_DETECTION_PATTERNS = _builtin_detection_patterns()
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -252,7 +294,7 @@ def _to_response(policy: SecurityPolicy) -> PolicyPayload:
         approval_policy=policy.approval_policy or {},
         model_allowlist=policy.model_allowlist or [],
         retention_policy=policy.retention_policy or {},
-        detection_patterns=policy.detection_patterns or [],
+        detection_patterns=BUILTIN_DETECTION_PATTERNS,
     )
 
 
@@ -321,6 +363,8 @@ def update_policy(
 
         previous = _snapshot(policy)
         next_values = _payload_snapshot(payload.policy)
+        # Built-in detection rules are code, not policy: they can't be switched off here.
+        next_values["detection_patterns"] = previous["detection_patterns"]
         changed_fields = [key for key in previous if previous[key] != next_values[key]]
         if not changed_fields:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="NO_CHANGES")
@@ -347,6 +391,17 @@ def update_policy(
         policy.retention_policy = next_values["retention_policy"]
         policy.detection_patterns = next_values["detection_patterns"]
         db.add(history)
+        append_audit_entry(
+            db,
+            tenant_id=current_user.tenant_id,
+            event_type="POLICY_UPDATED",
+            payload={
+                "changed_by": current_user.id,
+                "version_after": history.version_after,
+                "changed_fields": changed_fields,
+                "reason": payload.change_reason.strip()[:500],
+            },
+        )
         db.commit()
         db.refresh(policy)
         return _to_response(policy)

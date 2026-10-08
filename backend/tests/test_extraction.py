@@ -195,3 +195,24 @@ class OdfContentTextTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ZipBombTests(unittest.TestCase):
+    def test_highly_compressed_office_file_is_refused_before_parsing(self):
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bomb.docx"
+            with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr("word/document.xml", b"0" * (50 * 1024 * 1024))
+            self.assertLess(path.stat().st_size, 1024 * 1024)
+            with self.assertRaises(UnsupportedDocumentError):
+                extract_document(path, ".docx")
+
+    def test_normal_docx_still_extracts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ok.docx"
+            document = WordDocument()
+            document.add_paragraph("정상 문서")
+            document.save(str(path))
+            self.assertIn("정상 문서", extract_document(path, ".docx").text)

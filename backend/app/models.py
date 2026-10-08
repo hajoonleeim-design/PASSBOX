@@ -445,3 +445,22 @@ class SensitiveKeyword(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class RevokedToken(Base):
+    """Access tokens explicitly ended by logout. Kept only until they would have expired."""
+
+    __tablename__ = "revoked_tokens"
+
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TokenCutoff(Base):
+    """Tokens issued before not_before are rejected (password change, forced sign-out)."""
+
+    __tablename__ = "token_cutoffs"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    not_before: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

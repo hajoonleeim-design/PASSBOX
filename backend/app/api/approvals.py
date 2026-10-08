@@ -330,6 +330,13 @@ def approve_request(
                 status_code=409,
                 detail="이미 처리된 승인 요청입니다.",
             )
+        # Separation of duties: whoever asked to send data out must not be the one who
+        # lets it out. Rejecting your own request stays allowed (it's only stricter).
+        if approval.requested_by == current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="본인이 요청한 전송은 승인할 수 없습니다. 다른 승인 권한자에게 요청하세요.",
+            )
 
         now = datetime.now(timezone.utc)
         approval.status = "APPROVED"

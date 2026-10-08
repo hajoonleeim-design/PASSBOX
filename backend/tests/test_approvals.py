@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.approvals import (
     ApprovalDecisionRequest,
     _allowed_approval_roles,
+    approve_request,
     reject_request,
     retry_approved_request,
     retryable_approvals,
@@ -289,6 +290,17 @@ class ApprovalAuditChainTests(unittest.TestCase):
             self.assertEqual(entry.sequence, 1)
             self.assertEqual(entry.payload["decision"], "REJECTED")
             self.assertEqual(entry.payload["approval_id"], approval_id)
+
+    def test_requester_cannot_approve_their_own_transmission(self):
+        approval_id, user_id, _tenant_id = self._seed_pending_approval()
+        with self.Session() as db:
+            requester = db.get(User, user_id)
+        with patch("app.api.approvals.get_session_factory", return_value=self.Session):
+            with self.assertRaises(HTTPException) as ctx:
+                approve_request(approval_id, ApprovalDecisionRequest(comment="self"), requester)
+        self.assertEqual(ctx.exception.status_code, 403)
+        with self.Session() as db:
+            self.assertEqual(db.get(OutboundApproval, approval_id).status, "PENDING")
 
 
 if __name__ == "__main__":

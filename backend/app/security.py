@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import jwt
 from pwdlib import PasswordHash
@@ -26,14 +27,16 @@ def create_access_token(user_id: int, tenant_id: int, role: str) -> str:
     if settings.jwt_access_token_minutes <= 0:
         raise RuntimeError("JWT_ACCESS_TOKEN_MINUTES must be positive")
 
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.jwt_access_token_minutes
-    )
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + timedelta(minutes=settings.jwt_access_token_minutes)
     payload = {
         "sub": str(user_id),
         "tenant_id": tenant_id,
         "role": role,
+        "iat": issued_at,
         "exp": expires_at,
+        # Unique id so a single token can be revoked server-side on logout.
+        "jti": uuid4().hex,
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm="HS256")
 

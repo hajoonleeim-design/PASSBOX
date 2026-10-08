@@ -16,3 +16,17 @@ class PolicyVersionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BuiltinDetectionPatternTests(unittest.TestCase):
+    """The admin screen's detection-rule list used to be two hard-coded rows whose
+    on/off switch the scanner never read. It must mirror the scanner exactly."""
+
+    def test_admin_list_matches_every_scanner_rule(self):
+        from app.api.policies import BUILTIN_DETECTION_PATTERNS
+        from app.security_scan import _RULES
+
+        listed = {p["pattern_id"].removeprefix("builtin-").upper() for p in BUILTIN_DETECTION_PATTERNS}
+        self.assertEqual(listed, {rule.category for rule in _RULES})
+        self.assertTrue(all(p["enabled"] for p in BUILTIN_DETECTION_PATTERNS))
+        self.assertTrue(all(p["description"] for p in BUILTIN_DETECTION_PATTERNS))

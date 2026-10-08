@@ -13,6 +13,7 @@ from app.extraction import UnsupportedDocumentError, decode_plain_text
 from app.access import document_access_clause
 from app.models import Document, User
 from app.security_scan import EICAR_TEST_SIGNATURE, contains_eicar_signature
+from app.audit_chain import append_audit_entry
 
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -172,6 +173,19 @@ def upload_document(
                 status="QUARANTINED",
             )
             db.add(document)
+            db.flush()
+            append_audit_entry(
+                db,
+                tenant_id=current_user.tenant_id,
+                event_type="DOCUMENT_UPLOADED",
+                payload={
+                    "document_id": document.id,
+                    "uploaded_by": current_user.id,
+                    "sha256": document.sha256,
+                    "size_bytes": document.size_bytes,
+                    "extension": document.extension,
+                },
+            )
             db.commit()
             db.refresh(document)
 

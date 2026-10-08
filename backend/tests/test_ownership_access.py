@@ -107,3 +107,43 @@ class SupportInquiryOwnershipTests(OwnershipAccessTests):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClassificationSeparationOfDutiesTests(unittest.TestCase):
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
+        from app.models import ClassificationRecommendation
+
+        with self.Session() as db:
+            tenant = Tenant(name="T")
+            db.add(tenant); db.flush()
+            self.operator = User(tenant_id=tenant.id, username="op", display_name="Op", password_hash="x", role="OPERATOR")
+            self.other_operator = User(tenant_id=tenant.id, username="op2", display_name="Op2", password_hash="x", role="OPERATOR")
+            db.add_all([self.operator, self.other_operator]); db.flush()
+            document = Document(tenant_id=tenant.id, uploaded_by=self.operator.id, original_filename="mine.pdf", storage_key="mine.pdf", extension=".pdf", mime_type="application/pdf", size_bytes=1, sha256="a" * 64, status="READY_FOR_CLASSIFICATION")
+            db.add(document); db.flush()
+            db.add(ClassificationRecommendation(tenant_id=tenant.id, document_id=document.id, recommended_grade="S", reason="r", model_version="m", status="RECOMMENDED"))
+            db.commit()
+            self.document_id = document.id
+
+    def tearDown(self):
+        self.engine.dispose()
+
+    def _confirm(self, grade, user):
+        from app.api.classifications import ConfirmClassificationRequest, confirm_classification
+
+        with patch("app.api.classifications.get_session_factory", return_value=self.Session):
+            return confirm_classification(self.document_id, ConfirmClassificationRequest(confirmed_grade=grade), user)
+
+    def test_uploader_cannot_downgrade_own_document(self):
+        with self.assertRaises(HTTPException) as ctx:
+            self._confirm("O", self.operator)
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_uploader_may_confirm_at_or_above_recommendation(self):
+        self.assertEqual(self._confirm("S", self.operator).confirmed_grade, "S")
+
+    def test_another_operator_may_downgrade(self):
+        self.assertEqual(self._confirm("O", self.other_operator).confirmed_grade, "O")

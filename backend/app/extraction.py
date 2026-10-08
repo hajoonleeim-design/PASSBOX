@@ -50,11 +50,39 @@ class ExtractionResult:
     truncated: bool
 
 
+_ZIP_BASED_EXTENSIONS = {".pptx", ".docx", ".xlsx", ".hwpx"}
+MAX_ZIP_UNCOMPRESSED_BYTES = 300 * 1024 * 1024
+MAX_ZIP_ENTRIES = 10_000
+MAX_ZIP_ENTRY_RATIO = 200  # a real Office part rarely compresses beyond ~20x
+
+
+def _check_zip_safety(path: Path) -> None:
+    """Office/HWPX files are zip archives. Refuse decompression bombs (a few MB that
+    expand to many GB) using the sizes declared in the zip directory, before any parser
+    inflates them."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            entries = archive.infolist()
+    except zipfile.BadZipFile as exc:
+        raise UnsupportedDocumentError("문서 파일 구조가 손상되어 열 수 없습니다.") from exc
+    if len(entries) > MAX_ZIP_ENTRIES:
+        raise UnsupportedDocumentError("문서 내부 파일 수가 너무 많아 안전하게 열 수 없습니다.")
+    total = 0
+    for entry in entries:
+        total += entry.file_size
+        if entry.file_size > 1024 * 1024 and entry.file_size > MAX_ZIP_ENTRY_RATIO * max(entry.compress_size, 1):
+            raise UnsupportedDocumentError("비정상적으로 압축된 내용이 있어 문서를 열지 않았습니다(압축 폭탄 의심).")
+    if total > MAX_ZIP_UNCOMPRESSED_BYTES:
+        raise UnsupportedDocumentError("압축을 풀면 크기가 너무 커서 문서를 열지 않았습니다.")
+
+
 def extract_document(
     path: Path,
     extension: str,
     on_ocr_progress: Callable[[int, int], None] | None = None,
 ) -> ExtractionResult:
+    if extension in _ZIP_BASED_EXTENSIONS:
+        _check_zip_safety(path)
     if extension in {".md", ".txt", ".csv"}:
         text = _extract_plain_text(path)
         extractor = "plain-text"

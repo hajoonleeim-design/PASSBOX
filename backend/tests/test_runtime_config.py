@@ -13,6 +13,8 @@ class RuntimeConfigurationTests(unittest.TestCase):
             "gateway_mode": "LIVE",
             "openai_api_key": "sk-test-key",
             "cors_allowed_origins": "https://passbox.example",
+            # Pinned so a developer's local .env (e.g. REMOTE over http) can't leak in.
+            "classifier_mode": "LOCAL_RULES",
         }
         values.update(overrides)
         return Settings(**values)
@@ -49,6 +51,18 @@ class RuntimeConfigurationTests(unittest.TestCase):
         _validate_runtime_settings(
             self.production_settings(openai_api_key="", anthropic_api_key="sk-ant-test")
         )
+
+
+
+class PlaintextClassifierWarningTests(unittest.TestCase):
+    def test_warns_for_http_to_another_host_but_not_loopback(self):
+        from app.main import _warn_if_plaintext_off_host
+
+        with self.assertLogs("passbox.config", level="WARNING"):
+            _warn_if_plaintext_off_host("http://10.10.70.50:8100")
+        with self.assertNoLogs("passbox.config", level="WARNING"):
+            _warn_if_plaintext_off_host("http://127.0.0.1:8100")
+            _warn_if_plaintext_off_host("https://classifier.internal")
 
 
 if __name__ == "__main__":

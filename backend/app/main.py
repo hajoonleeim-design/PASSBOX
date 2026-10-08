@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
+import logging
 import re
-from urllib.parse import quote
+import threading
+from pathlib import Path
+from urllib.parse import quote, urlparse
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -26,8 +29,9 @@ from app.api.chat import router as chat_router
 from app.api.support import router as support_router
 from app.api.review_requests import router as review_requests_router
 from app.api.siem import router as siem_router
-from app.db import Settings, check_database
+from app.db import Settings, check_database, get_session_factory
 from app.job_worker import start_worker, stop_worker
+from app.retention import cleanup_storage
 
 
 def _parse_cors_origins(value: str) -> list[str]:
@@ -35,6 +39,23 @@ def _parse_cors_origins(value: str) -> list[str]:
     if "*" in origins:
         raise RuntimeError("CORS_ALLOWED_ORIGINS cannot contain '*'")
     return origins
+
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _warn_if_plaintext_off_host(url: str) -> None:
+    """Document text is sent to the classifier. Plain http on loopback never leaves the
+    machine, but plain http to another host puts it on the network unencrypted.
+    Production already refuses http; outside production we warn instead of failing
+    so a separate GPU box can still be used during development."""
+    parsed = urlparse(url.strip())
+    if parsed.scheme.lower() == "http" and (parsed.hostname or "") not in _LOOPBACK_HOSTS:
+        logging.getLogger("passbox.config").warning(
+            "CLASSIFIER_SERVICE_URL uses plain http to %s: document text will cross the "
+            "network unencrypted. Use https:// for any non-local classifier.",
+            parsed.hostname,
+        )
 
 
 def _validate_runtime_settings(settings: Settings) -> None:
@@ -54,6 +75,8 @@ def _validate_runtime_settings(settings: Settings) -> None:
         raise RuntimeError("CLASSIFIER_TIMEOUT_SECONDS must be positive")
     if classifier_mode == "REMOTE" and not settings.classifier_service_url.strip():
         raise RuntimeError("CLASSIFIER_SERVICE_URL is required when CLASSIFIER_MODE=REMOTE")
+    if classifier_mode == "REMOTE":
+        _warn_if_plaintext_off_host(settings.classifier_service_url)
     if settings.job_worker_threads <= 0:
         raise RuntimeError("JOB_WORKER_THREADS must be positive")
     gateway_mode = settings.gateway_mode.strip().upper()
@@ -101,9 +124,19 @@ REQUEST_ID_HEADER = "X-Request-ID"
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,100}$")
 
 
-def _apply_security_headers(response):
+# API responses are JSON/PDF and never need to run script or be framed.
+API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'"
+HSTS_HEADER_VALUE = "max-age=31536000; includeSubDomains"
+
+
+def _apply_security_headers(response, path: str = "", production: bool = False):
     for name, value in SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
+    # The dev-only Swagger page loads its UI from a CDN, so it can't use the strict policy.
+    if path != "/docs":
+        response.headers.setdefault("Content-Security-Policy", API_CONTENT_SECURITY_POLICY)
+    if production:
+        response.headers.setdefault("Strict-Transport-Security", HSTS_HEADER_VALUE)
     return response
 
 
@@ -114,12 +147,39 @@ def _resolve_request_id(value: str | None) -> str:
     return uuid4().hex
 
 
+_IS_PRODUCTION = Settings().app_env.strip().lower() == "production"
+
+
+_RETENTION_INTERVAL_SECONDS = 24 * 60 * 60
+_retention_stop = threading.Event()
+
+
+def _retention_loop() -> None:
+    """Apply the retention policy once a day. Production only: in development it would
+    silently delete demo documents; run cleanup_retention.py by hand there instead."""
+    log = logging.getLogger("passbox.retention")
+    delay = 60  # let startup finish, then once a day
+    while not _retention_stop.wait(delay):
+        delay = _RETENTION_INTERVAL_SECONDS
+        try:
+            summary = cleanup_storage(get_session_factory(), storage_root=Path(Settings().storage_root), apply=True)
+            log.info("retention cleanup: %s files deleted, %s texts purged", summary["deleted_count"], summary["purged_text_count"])
+        except Exception:
+            log.exception("retention cleanup failed")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     start_worker()
+    retention_thread = None
+    if _IS_PRODUCTION:
+        _retention_stop.clear()
+        retention_thread = threading.Thread(target=_retention_loop, name="retention-cleanup", daemon=True)
+        retention_thread.start()
     try:
         yield
     finally:
+        _retention_stop.set()
         stop_worker()
 
 
@@ -138,6 +198,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
     docs_url=None,
+    redoc_url=None,
+    # In production the full API map is not handed to anonymous visitors.
+    openapi_url=None if _IS_PRODUCTION else "/openapi.json",
 )
 
 _SWAGGER_FAVICON = "data:image/svg+xml," + quote(
@@ -355,6 +418,8 @@ def _swagger_custom_markup(environment: str) -> tuple[str, str]:
 
 @app.get("/docs", include_in_schema=False)
 def custom_swagger_ui_html() -> HTMLResponse:
+    if _IS_PRODUCTION:
+        raise HTTPException(status_code=404, detail="Not Found")
     response = get_swagger_ui_html(
         openapi_url=app.openapi_url or "/openapi.json",
         title=f"{app.title} - Docs",
@@ -392,7 +457,7 @@ app.add_middleware(
 @app.middleware("http")
 async def security_headers_middleware(request, call_next):
     response = await call_next(request)
-    return _apply_security_headers(response)
+    return _apply_security_headers(response, request.url.path, _IS_PRODUCTION)
 
 
 @app.middleware("http")

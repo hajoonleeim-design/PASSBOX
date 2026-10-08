@@ -9,6 +9,7 @@ from app.security_scan import (
     EMAIL_OBFUSCATED_PATTERN,
     EMAIL_PATTERN,
     KEYWORD_CATEGORY,
+    normalize_for_scan,
     PASSPORT_KR_PATTERN,
     PERSONAL_ID_PATTERN,
     PHONE_INTL_PATTERN,
@@ -55,7 +56,7 @@ _MASK_RULES: tuple[tuple[str, str], ...] = (
 
 
 def mask_text(text: str, keyword_patterns: tuple[str, ...] = ()) -> MaskingResult:
-    masked = text
+    masked = normalize_for_scan(text)
     categories: list[str] = []
     replacement_count = 0
 

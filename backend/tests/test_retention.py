@@ -27,3 +27,39 @@ class RetentionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetentionPurgeTests(unittest.TestCase):
+    def test_apply_deletes_file_wipes_extracted_text_and_audits(self):
+        import tempfile
+        from datetime import datetime, timedelta, timezone
+        from pathlib import Path
+
+        from sqlalchemy import create_engine, select
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        from app.db import Base
+        from app.models import AuditLogEntry, Document, DocumentText, Tenant, User
+        from app.retention import cleanup_storage
+
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(engine)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+        with tempfile.TemporaryDirectory() as root:
+            (Path(root) / "old.pdf").write_bytes(b"%PDF-1.4 secret")
+            with Session() as db:
+                tenant = Tenant(name="T"); db.add(tenant); db.flush()
+                user = User(tenant_id=tenant.id, username="u", display_name="U", password_hash="x", role="USER"); db.add(user); db.flush()
+                document = Document(tenant_id=tenant.id, uploaded_by=user.id, original_filename="old.pdf", storage_key="old.pdf", extension=".pdf", mime_type="application/pdf", size_bytes=1, sha256="a" * 64, status="CLASSIFICATION_CONFIRMED", created_at=datetime.now(timezone.utc) - timedelta(days=4000))
+                db.add(document); db.flush()
+                db.add(DocumentText(tenant_id=tenant.id, document_id=document.id, extracted_text="주민번호 900101-1234567", extractor="t", status="EXTRACTED"))
+                db.commit()
+            summary = cleanup_storage(Session, storage_root=Path(root), apply=True)
+            self.assertFalse((Path(root) / "old.pdf").exists())
+        self.assertEqual(summary["purged_text_count"], 1)
+        with Session() as db:
+            text = db.scalars(select(DocumentText)).one()
+            self.assertEqual(text.extracted_text, "")
+            self.assertEqual(db.scalars(select(AuditLogEntry)).one().event_type, "RETENTION_PURGED")
+        engine.dispose()

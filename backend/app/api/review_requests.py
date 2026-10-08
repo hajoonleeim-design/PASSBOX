@@ -226,6 +226,8 @@ def decide_review_request(
             raise HTTPException(status_code=404, detail="재검토 요청을 찾을 수 없습니다.")
         if item.status != "PENDING":
             raise HTTPException(status_code=409, detail="이미 처리된 재검토 요청입니다.")
+        if item.requested_by == current_user.id:
+            raise HTTPException(status_code=403, detail="본인이 올린 재검토 요청은 직접 처리할 수 없습니다.")
 
         document = db.scalar(select(Document).where(Document.id == item.document_id))
         if document is None:

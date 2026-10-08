@@ -2,10 +2,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import select
+from collections import Counter
+
+from sqlalchemy import select, update
 
 from app.api.policies import DEFAULT_RETENTION_POLICY
-from app.models import Document, SecurityPolicy
+from app.audit_chain import append_audit_entry
+from app.models import Document, DocumentText, SecurityPolicy
 
 
 TERMINAL_DOCUMENT_STATUSES = frozenset({"CLASSIFICATION_CONFIRMED", "REJECTED"})
@@ -97,6 +100,7 @@ def cleanup_storage(
         candidates = list_storage_candidates(db, storage_root=storage_root, now=now)
         deleted_count = 0
         missing_count = 0
+        purged_text_count = 0
         if apply:
             for candidate in candidates:
                 if not candidate.file_exists:
@@ -104,12 +108,33 @@ def cleanup_storage(
                     continue
                 candidate.path.unlink()
                 deleted_count += 1
+            # Deleting only the file left the full extracted text in the database
+            # forever; expiry has to remove that copy too.
+            document_ids = [candidate.document_id for candidate in candidates]
+            if document_ids:
+                purged_text_count = db.execute(
+                    update(DocumentText)
+                    .where(DocumentText.document_id.in_(document_ids), DocumentText.extracted_text != "")
+                    .values(extracted_text="", char_count=0, status="PURGED_BY_RETENTION")
+                ).rowcount or 0
+            for tenant_id, count in Counter(c.tenant_id for c in candidates).items():
+                append_audit_entry(
+                    db,
+                    tenant_id=tenant_id,
+                    event_type="RETENTION_PURGED",
+                    payload={
+                        "document_ids": [c.document_id for c in candidates if c.tenant_id == tenant_id],
+                        "document_count": count,
+                    },
+                )
+            db.commit()
 
     return {
         "dry_run": not apply,
         "candidate_count": len(candidates),
         "deleted_count": deleted_count,
         "missing_count": missing_count,
+        "purged_text_count": purged_text_count,
         "candidates": [
             {
                 "document_id": candidate.document_id,

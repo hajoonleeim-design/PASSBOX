@@ -22,3 +22,19 @@ class SecurityHeadersTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StrictHeaderTests(unittest.TestCase):
+    def test_api_responses_get_a_deny_all_csp(self):
+        from app.main import API_CONTENT_SECURITY_POLICY
+
+        response = _apply_security_headers(Response(), "/api/v1/jobs")
+        self.assertEqual(response.headers["Content-Security-Policy"], API_CONTENT_SECURITY_POLICY)
+        self.assertNotIn("Strict-Transport-Security", response.headers)
+
+    def test_hsts_only_in_production(self):
+        response = _apply_security_headers(Response(), "/api/v1/jobs", production=True)
+        self.assertIn("max-age=", response.headers["Strict-Transport-Security"])
+
+    def test_dev_swagger_page_is_not_broken_by_csp(self):
+        self.assertNotIn("Content-Security-Policy", _apply_security_headers(Response(), "/docs").headers)

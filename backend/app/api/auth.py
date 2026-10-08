@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -6,13 +8,14 @@ from sqlalchemy.orm import joinedload
 
 from app.db import Settings, get_session_factory
 from app.rate_limit import login_rate_limiter
-from app.models import User
+from app.models import AuditLogEntry, RevokedToken, Tenant, TokenCutoff, User
 from app.security import (
     create_access_token,
     decode_access_token,
     hash_password,
     verify_password,
 )
+from app.audit_chain import append_audit_entry
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -75,6 +78,12 @@ def login(payload: LoginRequest, request: Request):
 
     session_factory = get_session_factory()
     with session_factory() as db:
+        if _recent_account_failures(db, payload.tenant_id, payload.username) >= ACCOUNT_LOCK_FAILURES:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="이 계정에 로그인 실패가 반복되어 잠시 잠겼습니다. 15분 후 다시 시도하거나 관리자에게 문의해 주세요.",
+                headers={"Retry-After": str(int(ACCOUNT_LOCK_WINDOW.total_seconds()))},
+            )
         user = db.scalar(
             select(User).where(
                 User.tenant_id == payload.tenant_id,
@@ -84,6 +93,14 @@ def login(payload: LoginRequest, request: Request):
         )
 
         if user is None or not verify_password(payload.password, user.password_hash):
+            if db.get(Tenant, payload.tenant_id) is not None:
+                append_audit_entry(
+                    db,
+                    tenant_id=payload.tenant_id,
+                    event_type="LOGIN_FAILED",
+                    payload={"username": payload.username[:100], "client_ip": client_host},
+                )
+                db.commit()
             login_rate_limiter.record_failure(
                 rate_limit_key,
                 max_attempts=settings.login_rate_limit_attempts,
@@ -95,6 +112,13 @@ def login(payload: LoginRequest, request: Request):
             )
 
         login_rate_limiter.reset(rate_limit_key)
+        append_audit_entry(
+            db,
+            tenant_id=user.tenant_id,
+            event_type="LOGIN_SUCCEEDED",
+            payload={"user_id": user.id, "role": user.role, "client_ip": client_host},
+        )
+        db.commit()
         token = create_access_token(user.id, user.tenant_id, user.role)
         return LoginResponse(
             access_token=token,
@@ -108,6 +132,26 @@ def login(payload: LoginRequest, request: Request):
         )
 
 
+# Per-account limit on top of the in-memory per-IP limiter: counted from the audit chain
+# in the database, so it survives restarts, is shared across workers, and still applies
+# when an attacker rotates IP addresses.
+ACCOUNT_LOCK_FAILURES = 10
+ACCOUNT_LOCK_WINDOW = timedelta(minutes=15)
+
+
+def _recent_account_failures(db, tenant_id: int, username: str) -> int:
+    since = datetime.now(timezone.utc) - ACCOUNT_LOCK_WINDOW
+    recent = db.scalars(
+        select(AuditLogEntry.payload).where(
+            AuditLogEntry.tenant_id == tenant_id,
+            AuditLogEntry.event_type == "LOGIN_FAILED",
+            AuditLogEntry.created_at >= since,
+        )
+    ).all()
+    wanted = username[:100]
+    return sum(1 for item in recent if isinstance(item, dict) and item.get("username") == wanted)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> User:
@@ -115,6 +159,8 @@ def get_current_user(
         payload = decode_access_token(credentials.credentials)
         user_id = int(payload["sub"])
         tenant_id = int(payload["tenant_id"])
+        jti = payload.get("jti")
+        issued_at = payload.get("iat")
     except (KeyError, TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -138,8 +184,44 @@ def get_current_user(
                 detail="사용자를 확인할 수 없습니다.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        if _token_is_revoked(db, user.id, jti, issued_at):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="로그아웃되었거나 비밀번호 변경으로 만료된 세션입니다. 다시 로그인해 주세요.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         return user
+
+
+def _token_is_revoked(db, user_id: int, jti: str | None, issued_at) -> bool:
+    if jti and db.get(RevokedToken, jti) is not None:
+        return True
+    cutoff = db.get(TokenCutoff, user_id)
+    if cutoff is None:
+        return False
+    not_before = cutoff.not_before if cutoff.not_before.tzinfo else cutoff.not_before.replace(tzinfo=timezone.utc)
+    # Tokens without iat predate revocation support; treat them as issued before any cutoff.
+    return issued_at is None or datetime.fromtimestamp(int(issued_at), timezone.utc) < not_before
+
+
+@router.post("/logout", status_code=204, summary="현재 토큰을 서버에서 무효화")
+def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    current_user: User = Depends(get_current_user),
+):
+    payload = decode_access_token(credentials.credentials)
+    jti, exp = payload.get("jti"), payload.get("exp")
+    if jti:
+        now = datetime.now(timezone.utc)
+        session_factory = get_session_factory()
+        with session_factory() as db:
+            db.query(RevokedToken).filter(RevokedToken.expires_at < now).delete()
+            if db.get(RevokedToken, jti) is None:
+                expires_at = datetime.fromtimestamp(int(exp), timezone.utc) if exp else now
+                db.add(RevokedToken(jti=jti, user_id=current_user.id, expires_at=expires_at))
+            db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/password", response_model=PasswordChangeResponse)
@@ -173,6 +255,20 @@ def change_password(
                 detail="사용자 계정을 확인할 수 없습니다.",
             )
         user.password_hash = hash_password(payload.new_password)
+        # Every token issued before this moment (including a stolen one) stops working.
+        # Whole seconds, because JWT iat is stored in whole seconds.
+        not_before = datetime.now(timezone.utc).replace(microsecond=0)
+        cutoff = db.get(TokenCutoff, user.id)
+        if cutoff is None:
+            db.add(TokenCutoff(user_id=user.id, not_before=not_before))
+        else:
+            cutoff.not_before = not_before
+        append_audit_entry(
+            db,
+            tenant_id=user.tenant_id,
+            event_type="PASSWORD_CHANGED",
+            payload={"user_id": user.id},
+        )
         db.commit()
 
     return PasswordChangeResponse(status="updated")

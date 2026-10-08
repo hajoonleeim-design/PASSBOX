@@ -1,5 +1,6 @@
 import hashlib
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Callable
 
@@ -35,8 +36,9 @@ def contains_eicar_signature(data: bytes) -> bool:
 
 # Pattern strings are exported so app.masking can reuse the exact same
 # definitions instead of maintaining a second, drift-prone copy.
-PERSONAL_ID_PATTERN = r"(?<!\d)\d{6}[- ]?[1-4]\d{6}(?!\d)"
-PHONE_PATTERN = r"(?<!\d)01[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)"
+PERSONAL_ID_PATTERN = r"(?<!\d)\d{6}\s{0,2}-?\s{0,2}[1-4]\d{6}(?!\d)"
+# Separators: "-", ".", spaces or a line break (010.1234.5678, numbers split over lines).
+PHONE_PATTERN = r"(?<!\d)01[016789][-.\s]{0,2}\d{3,4}[-.\s]{0,2}\d{4}(?!\d)"
 # +82/0082로 국가번호를 쓰면 앞자리 0이 빠져 "10/11/16/17/18/19"로 시작한다
 # (예: +82 10 1234 5678). 국내 표기(PHONE_PATTERN)만으로는 못 잡는, 실제
 # QA에서 보고된 회피 패턴이다.
@@ -51,10 +53,14 @@ EMAIL_PATTERN = r"(?i)(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.-])"
 # "user 앳 gmail 닷 com"처럼 @과 .을 한글 단어로 치환하는 회피 패턴. 실제
 # 도메인 접미사(com/net/go.kr 등)로 끝날 때만 매칭해 "닷새" 같은 일반 단어와
 # 오인하지 않도록 범위를 좁혔다.
+# Written to be linear-time: the old form backtracked quadratically (20k chars of "a"
+# took ~6s, enough for a single chat message to stall the server). Matching may only
+# start at a token boundary, the pieces are ASCII-only (so "앳"/"닷" can't be swallowed
+# into a name), and possessive quantifiers never give characters back.
 EMAIL_OBFUSCATED_PATTERN = (
-    r"(?i)[\w.+-]+\s*(?:앳|\bat\b)\s*[\w-]+"
-    r"(?:\s*(?:닷|\bdot\b)\s*[\w-]+)*"
-    r"\s*(?:닷|\bdot\b)\s*(?:com|co\.kr|net|org|kr|go\.kr)\b"
+    r"(?i)(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++\s*+(?:앳|\bat\b)\s*+"
+    r"(?:[A-Za-z0-9-]++\s*+(?:닷|\bdot\b)\s*+)++"
+    r"(?:com|co\.kr|net|org|kr|go\.kr)\b"
 )
 PRIVATE_KEY_PATTERN = r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"
 API_KEY_PATTERN = (
@@ -89,12 +95,14 @@ PROMPT_INJECTION_PATTERN = (
     # 1. 지시 무효화 시도
     r"ignore\s+(?:all\s+|any\s+)?(?:the\s+)?(?:previous|prior|above)\s+instructions?"
     r"|disregard\s+(?:the\s+)?(?:above|previous|prior)\s+instructions?"
+    r"|(?:ignore|disregard|forget)\s+(?:all\s+|everything\s+|anything\s+)?(?:you\s+were\s+(?:told|given)\s+)?(?:above|before|so\s+far|previously)\b"
     r"|forget\s+(?:everything|all)\s+(?:you\s+were\s+told|above)"
     r"|이전\s*(?:지시|명령)\s*사항?\s*(?:은|는|을|를)?\s*(?:모두\s*)?무시"
     r"|위\s*(?:내용|지시|명령)\s*(?:은|는|을|를)?\s*무시하고"
     r"|지금까지\s*(?:의\s*)?규칙\s*(?:은|는|을|를)?\s*(?:잊어|무시)"
     # 2. 시스템 프롬프트 탈취 시도
     r"|(?:reveal|print|show|output|repeat)\s+.{0,30}(?:system\s+prompt|your\s+instructions)"
+    r"|(?:reveal|print|show|output|repeat)\s+.{0,30}(?:hidden|secret|internal|initial|original)\s+(?:instructions|prompt|rules)"
     r"|repeat\s+everything\s+above"
     r"|시스템\s*프롬프트\s*(?:를|을)?\s*(?:그대로\s*)?(?:보여|출력|알려)"
     r"|(?:너의|당신의)\s*(?:지시사항|시스템\s*프롬프트)\s*(?:을|를)?\s*(?:알려|보여|출력)"
@@ -212,12 +220,24 @@ def keyword_rules(keywords: list[tuple[str, str]]) -> tuple[_Rule, ...]:
     )
 
 
+_INVISIBLE_CHARS = dict.fromkeys(map(ord, "​‌‍⁠﻿­"))
+
+
+def normalize_for_scan(text: str) -> str:
+    """Undo cheap evasion before matching: fullwidth/compatibility forms become plain
+    characters (０１０ -> 010) and invisible zero-width characters are removed
+    (kim​@agency.go.kr). Masking applies the same normalization, so what we detect
+    is exactly what we replace."""
+    return unicodedata.normalize("NFKC", text).translate(_INVISIBLE_CHARS)
+
+
 def scan_text(
     text: str,
     rules: tuple[_Rule, ...] = _RULES,
     extra_rules: tuple[_Rule, ...] = (),
 ) -> list[Finding]:
     """Scan extracted text and return safe metadata without retaining matches."""
+    text = normalize_for_scan(text)
     findings: list[Finding] = []
     for rule in rules + extra_rules:
         matches = list(re.finditer(rule.pattern, text))

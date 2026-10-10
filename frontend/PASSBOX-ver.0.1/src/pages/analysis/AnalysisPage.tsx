@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   confirmClassification,
+  downloadSourceDocument,
   getClassificationDecision,
   getClassificationRecommendation,
   type ClassificationDecision,
@@ -172,7 +173,16 @@ function ClassificationCard({ documentId, jobStatus, onConfirmed }: { documentId
   const [isLoading, setIsLoading] = useState(true)
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState('')
+  const [downloadError, setDownloadError] = useState('')
   const canConfirm = session !== null && ['OPERATOR', 'SECURITY_ADMIN', 'ADMIN'].includes(session.role)
+  async function openSourceDocument() {
+    setDownloadError('')
+    try {
+      await downloadSourceDocument(documentId)
+    } catch {
+      setDownloadError('원본 문서를 불러오지 못했습니다.')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -225,8 +235,12 @@ function ClassificationCard({ documentId, jobStatus, onConfirmed }: { documentId
           <p className="eyebrow">보안등급 분류</p>
           <h2>보안등급 추천 및 최종 확정</h2>
         </div>
-        {decision && <StatusBadge label="완료" />}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {canConfirm && <Button size="sm" variant="secondary" onClick={() => void openSourceDocument()}>원본 문서 열어보기</Button>}
+          {decision && <StatusBadge label="완료" />}
+        </div>
       </div>
+      {downloadError && <div className="section-gap"><Alert variant="danger" title="다운로드 실패">{downloadError}</Alert></div>}
       {isLoading && <p>분류 결과를 불러오는 중입니다.</p>}
       {error && <div className="section-gap"><Alert variant="danger" title="분류 처리 실패">{error}</Alert></div>}
       {!isLoading && recommendation && (

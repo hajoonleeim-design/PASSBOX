@@ -1,6 +1,8 @@
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
@@ -8,7 +10,7 @@ from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
 from app.classifier import _GRADE_RANK, ClassifierUnavailableError, apply_confidential_ceiling, apply_findings_floor, classifier
-from app.db import get_session_factory
+from app.db import Settings, get_session_factory
 from app.access import document_access_clause
 from app.models import (
     ClassificationRecommendation,
@@ -193,6 +195,49 @@ def get_classification_recommendation(
         if recommendation is None:
             raise HTTPException(status_code=404, detail="분류 추천 결과가 없습니다.")
         return _to_response(recommendation)
+
+
+@router.get(
+    "/{document_id}/source-document",
+    summary="분류 확정 전 원본 문서 다운로드",
+    description=(
+        "OPERATOR, SECURITY_ADMIN 또는 ADMIN 담당자가 C/S/O 등급을 확정하기 전, "
+        "판단 근거가 되는 원본 문서를 내려받습니다. 이미 등급이 확정된 문서는 "
+        "/approvals/{approval_id}/document 에서 같은 방식으로 확인합니다."
+    ),
+)
+def download_source_document(
+    document_id: int,
+    current_user: User = Depends(
+        require_roles("OPERATOR", "SECURITY_ADMIN", "ADMIN")
+    ),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        document = db.scalar(
+            select(Document).where(
+                Document.id == document_id,
+                Document.tenant_id == current_user.tenant_id,
+                document_access_clause(current_user),
+            )
+        )
+        if document is None:
+            raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+
+        storage_root = Path(Settings().storage_root).resolve()
+        storage_path = (storage_root / document.storage_key).resolve()
+        if storage_root not in storage_path.parents:
+            raise HTTPException(status_code=500, detail="Invalid document storage path.")
+        if not storage_path.is_file():
+            raise HTTPException(status_code=404, detail="저장된 문서 파일을 찾을 수 없습니다.")
+
+        return FileResponse(
+            path=storage_path,
+            media_type="application/octet-stream",
+            filename=Path(document.original_filename).name,
+            content_disposition_type="attachment",
+            headers={"X-Content-Type-Options": "nosniff"},
+        )
 
 
 @router.get(

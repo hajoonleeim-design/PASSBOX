@@ -113,3 +113,19 @@ export async function confirmClassification(
     createdAt: data.created_at,
   }
 }
+
+export async function downloadSourceDocument(documentId: number): Promise<void> {
+  const { data, headers } = await apiClient.get<Blob>(`/documents/${documentId}/source-document`, {
+    responseType: 'blob',
+  })
+  const disposition = headers['content-disposition'] as string | undefined
+  const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const quotedName = disposition?.match(/filename="?([^";]+)"?/i)?.[1]
+  const fileName = encodedName ? decodeURIComponent(encodedName) : (quotedName ?? `document-${documentId}`)
+  const objectUrl = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+}

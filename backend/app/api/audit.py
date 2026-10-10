@@ -174,6 +174,81 @@ def _find_request(db, request_id: int, tenant_id: int):
     ).first()
 
 
+def _pending_audit_record(request, job, document, findings) -> AuditRecordResponse:
+    status = job.status if job is not None else "RECEIVED"
+    events = [
+        _event(
+            request.id,
+            "created",
+            "REQUEST_CREATED",
+            "RECEIVED",
+            request.created_at,
+            "Analysis request created.",
+        )
+    ]
+    if document.status not in {"QUARANTINED", "REJECTED"}:
+        events.append(
+            _event(
+                request.id,
+                "validated",
+                "FILE_VALIDATED",
+                "VALIDATED",
+                document.created_at,
+                "Document metadata and hash validation completed.",
+            )
+        )
+    if job is not None:
+        events.append(
+            _event(
+                request.id,
+                "started",
+                "ANALYSIS_STARTED",
+                job.status,
+                job.created_at,
+                "Analysis job created for the document.",
+            )
+        )
+        if job.status == "BLOCKED":
+            events.append(
+                _event(
+                    request.id,
+                    "blocked",
+                    "ANALYSIS_BLOCKED",
+                    "BLOCKED",
+                    job.updated_at,
+                    "Processing was blocked by the security policy before classification.",
+                )
+            )
+    events.sort(key=lambda item: _timestamp(item.timestamp))
+
+    return AuditRecordResponse(
+        request_id=str(request.id),
+        job_id=str(job.id) if job is not None else None,
+        grade="PENDING",
+        policy_version=POLICY_VERSION,
+        current_status=status,
+        created_at=request.created_at,
+        completed_at=None,
+        incident_id=None,
+        events=events,
+        evidence=AuditEvidenceResponse(
+            file_name=document.original_filename,
+            file_size=f"{document.size_bytes} bytes",
+            file_hash=f"SHA-256: {document.sha256}",
+            file_type=document.mime_type,
+            request_id=str(request.id),
+            job_id=str(job.id) if job is not None else None,
+            grade="PENDING",
+            detection_type=", ".join(sorted({finding.category for finding in findings})) or None,
+            policy_version=POLICY_VERSION,
+            approval_status=status,
+            post_inspection_status=None,
+            incident_id=None,
+        ),
+        approval_history=[],
+    )
+
+
 def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
     result = _find_request(db, request_id, tenant_id)
     if result is None:
@@ -188,8 +263,19 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
         )
         .order_by(desc(ClassificationDecision.created_at))
     )
+    scan = db.scalar(select(DocumentScan).where(DocumentScan.document_id == document.id))
+    findings = []
+    if scan is not None:
+        findings = list(
+            db.scalars(
+                select(SecurityFinding).where(SecurityFinding.scan_id == scan.id)
+            )
+        )
     if classification is None:
-        raise HTTPException(status_code=404, detail="최종 등급 결정이 없습니다.")
+        # 아직 등급이 확정되지 않은 문서다. 이전에는 이 경우 통째로 404를 돌려줘서
+        # "조회가 되는 문서/안 되는 문서"가 갈렸다. 최종 판정 이후 단계(승인·전송)는
+        # 존재할 수 없으므로, 그때까지 실제로 일어난 이벤트만 담아 돌려준다.
+        return _pending_audit_record(request, job, document, findings)
 
     transmission = db.scalar(
         select(GatewayTransmission)
@@ -205,15 +291,6 @@ def _audit_record(db, request_id: int, tenant_id: int) -> AuditRecordResponse:
             select(OutboundApproval).where(
                 OutboundApproval.gateway_transmission_id == transmission.id,
                 OutboundApproval.tenant_id == tenant_id,
-            )
-        )
-
-    scan = db.scalar(select(DocumentScan).where(DocumentScan.document_id == document.id))
-    findings = []
-    if scan is not None:
-        findings = list(
-            db.scalars(
-                select(SecurityFinding).where(SecurityFinding.scan_id == scan.id)
             )
         )
 

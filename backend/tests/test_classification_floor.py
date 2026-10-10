@@ -105,3 +105,66 @@ class ConfidentialCeilingTests(unittest.TestCase):
 
         for grade in ("S", "O", None):
             self.assertEqual(apply_confidential_ceiling(_result(grade), [], "x").recommended_grade, grade)
+
+
+class SourceDocumentAccessTests(unittest.TestCase):
+    """A confirming OPERATOR/SECURITY_ADMIN/ADMIN must be able to open the original
+    document before confirming its grade -- before this, the recommendation reason
+    was the only thing shown and the file itself was not reachable at this stage."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        from app.db import Base
+
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.storage_root = Path(self.tmpdir.name)
+        (self.storage_root / "doc.txt").write_text("원본 내용", encoding="utf-8")
+
+    def tearDown(self):
+        self.engine.dispose()
+        self.tmpdir.cleanup()
+
+    def _seed(self, *, role: str):
+        from app.models import Document, Tenant, User
+
+        with self.Session() as db:
+            tenant = Tenant(name="T")
+            db.add(tenant); db.flush()
+            user = User(tenant_id=tenant.id, username="u", display_name="U", password_hash="x", role=role)
+            db.add(user); db.flush()
+            document = Document(tenant_id=tenant.id, uploaded_by=999, original_filename="doc.txt", storage_key="doc.txt", extension=".txt", mime_type="text/plain", size_bytes=10, sha256="a" * 64, status="READY_FOR_CLASSIFICATION")
+            db.add(document); db.commit()
+            return document.id, user.id
+
+    def test_operator_can_download_before_confirming(self):
+        from unittest.mock import patch
+        from app.api.classifications import download_source_document
+        from app.db import Settings
+        from app.models import User
+
+        document_id, user_id = self._seed(role="OPERATOR")
+        with self.Session() as db:
+            user = db.get(User, user_id)
+        with patch("app.api.classifications.get_session_factory", return_value=self.Session), \
+             patch("app.api.classifications.Settings", return_value=Settings(storage_root=str(self.storage_root))):
+            response = download_source_document(document_id, user)
+        self.assertEqual(response.path.name, "doc.txt")
+
+    def test_plain_user_is_forbidden(self):
+        from app.api.auth import require_roles
+        from fastapi import HTTPException
+
+        _document_id, user_id = self._seed(role="USER")
+        with self.Session() as db:
+            from app.models import User
+            user = db.get(User, user_id)
+        with self.assertRaises(HTTPException) as ctx:
+            require_roles("OPERATOR", "SECURITY_ADMIN", "ADMIN")(current_user=user)
+        self.assertEqual(ctx.exception.status_code, 403)

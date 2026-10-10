@@ -23,6 +23,13 @@ export interface ApprovalItem {
   isEscalated: boolean
 }
 
+export interface MaskedPayloadPreview {
+  approvalId: number
+  maskedPayload: string
+  maskingVersion: string
+  maskingCategories: string[]
+}
+
 interface BackendApprovalResponse {
   approval_id: number
   document_id: number
@@ -74,6 +81,39 @@ function mapApproval(data: BackendApprovalResponse): ApprovalItem {
 export async function getPendingApprovals(): Promise<ApprovalItem[]> {
   const { data } = await apiClient.get<BackendApprovalResponse[]>('/approvals/pending')
   return data.map(mapApproval)
+}
+
+export async function getMaskedPayloadPreview(approvalId: number): Promise<MaskedPayloadPreview> {
+  const { data } = await apiClient.get<{
+    approval_id: number
+    masked_payload: string
+    masking_version: string
+    masking_categories: string[]
+  }>(`/approvals/${approvalId}/masked-payload`)
+  return {
+    approvalId: data.approval_id,
+    maskedPayload: data.masked_payload,
+    maskingVersion: data.masking_version,
+    maskingCategories: data.masking_categories,
+  }
+}
+
+export async function downloadApprovalDocument(approvalId: number): Promise<void> {
+  const { data, headers } = await apiClient.get<Blob>(`/approvals/${approvalId}/document`, {
+    responseType: 'blob',
+  })
+  const disposition = headers['content-disposition'] as string | undefined
+  const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const quotedName = disposition?.match(/filename="?([^";]+)"?/i)?.[1]
+  const fileName = encodedName
+    ? decodeURIComponent(encodedName)
+    : quotedName ?? `document-${approvalId}`
+  const objectUrl = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
 }
 
 export async function getApprovalHistory(): Promise<ApprovalItem[]> {

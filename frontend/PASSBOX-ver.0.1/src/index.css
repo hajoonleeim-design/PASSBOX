@@ -4411,8 +4411,11 @@ html.hide-native-scrollbar::-webkit-scrollbar { display: none; }
 .landing-dock a.is-active { color: #fff; background: #2f6fed; }
 
 @media (max-width: 560px) {
-  .landing-dock { gap: 2px; padding: 5px; }
-  .landing-dock a { padding: 8px 12px; font-size: 10px; }
+  /* A fixed bottom dock permanently covers the last ~70px of a short phone viewport,
+     landing on top of whatever content is there at any scroll position (e.g. the hero
+     ticket's bottom row). There's no safe zone small enough to reserve on every section,
+     so the dock -- a desktop "jump to section" convenience -- is hidden on phones instead. */
+  .landing-dock { display: none; }
 }
 
 /* PASSBOX cursor: brand cube as the pointer, a scanner-bracket frame that trails it. */

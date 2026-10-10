@@ -124,8 +124,8 @@ export function LandingPage() {
               <em>PASSBOX</em>
             </h1>
             <p className="landing-hero__sub">
-              망분리 환경에서도 안전하게. 검증되지 않은 문서는 단 한 글자도
-              내보내지 않는, 국내 유일의 샌드박스 패스박스.
+              망분리 환경에서도 안전하게. 검증을 통과하지 못한 문서는 외부로
+              나가지 않는, 공공기관 전용 AI 보안 게이트웨이.
             </p>
             <div className="landing-hero__actions">
               <Link to="/login" className="button button--primary button--lg">지금 시작하기</Link>

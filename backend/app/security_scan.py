@@ -319,8 +319,8 @@ def normalize_for_scan(text: str) -> str:
 
 
 _B64_RUN = re.compile(r"[A-Za-z0-9+/]{16,}={0,2}")
-_PCT_RUN = re.compile(r"(?:%[0-9A-Fa-f]{2}){6,}")
-_SPACED = re.compile(r"(?<![A-Za-z])(?:[A-Za-z][ .\-_]){5,}[A-Za-z](?![A-Za-z])")
+_PCT_ESCAPE = re.compile(r"%[0-9A-Fa-f]{2}")
+_SPACED = re.compile(r"(?<![A-Za-z])(?:[A-Za-z][ .\-_]){2,}[A-Za-z](?![A-Za-z])")
 
 
 def _decoded_variants(text: str) -> list[str]:
@@ -339,8 +339,10 @@ def _decoded_variants(text: str) -> list[str]:
             continue
         if decoded.replace("\n", " ").isprintable():
             out.append(decoded)
-    for m in _PCT_RUN.finditer(text):
-        out.append(unquote(m.group(0)))
+    # Percent-encoding is usually mixed with plain letters ("Ignore%20all%20previous..."),
+    # so decode the whole text once there are at least a few escapes in it.
+    if len(_PCT_ESCAPE.findall(text)) >= 3:
+        out.append(unquote(text))
     collapsed = _SPACED.sub(lambda m: re.sub(r"[ .\-_]", "", m.group(0)), text)
     if collapsed != text:
         out.append(collapsed)

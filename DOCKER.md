@@ -44,6 +44,13 @@ docker compose exec -it backend python seed_demo_user.py   # 시연용 계정 �
 
 검증일 / 환경 / 결과: (여기에 기록)
 
+## Docker 없이 미리 확인한 것 (2026-10-11, Windows 개발 PC)
+컨테이너 안에서 일어나는 일 중 Docker 없이도 재현할 수 있는 부분을 깨끗한 체크아웃(`feat/docker-compose`)에서 실제로 돌려 봤습니다.
+- [x] 프런트: `npm ci` 후 `VITE_API_BASE_URL=/api/v1 npm run build` 성공(`tsc -b` 포함). 상대 주소 `/api/v1`이 번들에 들어감
+- [x] 백엔드: 빈 DB에서 `create_tables.py`가 22개 테이블을 모두 생성하고, 컴포즈와 같은 환경변수로 서버가 떠서 `/api/v1/health`(컴포즈 헬스체크)와 `/health/ready`가 200
+- [x] 로그인 → 업로드 → 검사(`/inspect`)까지 빈 DB에서 정상(이 PC에는 ClamAV 데몬이 이미 떠 있어 백신 단계는 통과)
+- [ ] **미확인**: 이미지 빌드(Dockerfile 3개), 컨테이너 간 네트워크, nginx `/api` 전달, ClamAV 컨테이너 헬스체크, 분류기 컨테이너의 모델 마운트
+
 ## 알려진 한계 (솔직히)
 - `APP_ENV=development` 로 띄웁니다. production 모드는 분류기 주소가 HTTPS 여야 하고(내부 http 불가), 기관 도메인 HTTPS 종단이 필요합니다. 실제 설치 시 앞단에 TLS(nginx/로드밸런서)를 두고 production 으로 전환하는 작업이 남아 있습니다.
 - 이미지가 큽니다(PyTorch). 폐쇄망 설치는 이미지를 미리 만들어 `docker save/load` 로 옮겨야 합니다.

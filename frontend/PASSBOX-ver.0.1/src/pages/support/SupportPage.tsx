@@ -50,7 +50,7 @@ export function SupportPage() {
     <p className="eyebrow">도움말 및 문의</p><h1>사용자 지원</h1><p>서비스 이용 방법과 보안 안내를 확인하고, 필요한 경우 안전한 범위에서 문의를 접수할 수 있습니다.</p>
     {empty ? <Card className="section-gap"><EmptyState label="현재 표시할 지원 콘텐츠가 없습니다." /></Card> : <>
       <Card className="support-section"><h2>도움말</h2><div className="support-help-grid">{content.help.map((item) => <div key={item.id}><strong>{item.title}</strong><p>{item.description}</p></div>)}</div></Card>
-      <Card className="support-section"><h2>지원 파일 형식</h2><div className="format-list">{content.fileFormats.map((format) => <Badge key={format} variant="info">{format}</Badge>)}</div><p>파일 크기와 개수 제한은 관리자 및 서버 정책에 따라 달라질 수 있습니다.</p></Card>
+      <Card className="support-section"><h2>지원 파일 형식</h2><div className="format-list">{content.fileFormats.map((format) => <Badge key={format} variant="info">{format}</Badge>)}</div><p>파일 한 개당 50MB 이하로 올릴 수 있고, 여러 파일을 한 번에 올릴 수 있습니다.</p></Card>
       <Card className="support-section"><h2>개인정보·민감정보 보호 안내</h2><div className="privacy-grid">{content.privacy.map((item) => <div key={item.category}><strong>{item.category}</strong><small>대표 예시: {item.example}</small><p>{item.caution}</p></div>)}</div></Card>
       <Card className="support-section"><h2>자주 묻는 질문</h2><div className="faq-list">{content.faqs.map((item) => <details key={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div></Card>
     </>}

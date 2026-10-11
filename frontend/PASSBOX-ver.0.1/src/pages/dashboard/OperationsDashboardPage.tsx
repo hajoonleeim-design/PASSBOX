@@ -80,9 +80,9 @@ export function OperationsDashboardPage() {
               <p className="radar-kpi__meta">처리 중 {sum.processingRequests}건 · 실패 {sum.failedRequests}건</p>
             </div>
             <div className="radar-kpi">
-              <div className="radar-kpi__header"><span className="radar-kpi__label">처리 완료</span><span className="radar-kpi__pill radar-kpi__pill--success">성공률 {successPct}%</span></div>
+              <div className="radar-kpi__header"><span className="radar-kpi__label">처리 완료</span><span className="radar-kpi__pill radar-kpi__pill--success">완료율 {successPct}%</span></div>
               <p className="radar-kpi__value">{sum.completedRequests}건</p>
-              <p className="radar-kpi__meta">평균 {(perf.averageProcessingTimeMs / 1000).toFixed(2)}s · p95 {(perf.p95ProcessingTimeMs / 1000).toFixed(2)}s</p>
+              <p className="radar-kpi__meta">요청~종료 평균 {(perf.averageProcessingTimeMs / 1000).toFixed(1)}s · p95 {(perf.p95ProcessingTimeMs / 1000).toFixed(1)}s (사람 확인 시간 포함)</p>
             </div>
             <div className="radar-kpi is-warn">
               <div className="radar-kpi__header"><span className="radar-kpi__label">승인 대기</span><span className="radar-kpi__pill radar-kpi__pill--warning">4h SLA</span></div>

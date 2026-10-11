@@ -290,7 +290,8 @@ def _dashboard_response(
     processing_times = [
         duration
         for job in jobs
-        if job.status in _TERMINAL_JOB_STATUSES and _timestamp(job.updated_at) >= recent_cutoff
+        # 취소·실패 건은 사람이 뒤늦게 정리하면 갱신 시각만 바뀌어 수십 시간짜리 이상치가 되므로 제외한다.
+        if job.status in {"COMPLETED", "BLOCKED"} and _timestamp(job.updated_at) >= recent_cutoff
         for duration in [_duration_ms(job.created_at, job.updated_at)]
         if duration is not None
     ]

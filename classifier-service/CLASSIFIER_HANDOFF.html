@@ -95,7 +95,7 @@ v3에서는 재현되지 않음 — <strong>해결된 것으로 확인</strong>.
 <li><strong>검증 표본이 적음</strong>: 지금 확인한 건 2청크/3청크 문서 각 1건, 키워드 숏컷 케이스 4건뿐.
 4청크 이상 문서, "진짜 마지막 부분만 민감한 문서"(재분배로 위험 신호가 희석돼 S를 O로 놓치는 경우) 등은
 아직 테스트 안 함.</li>
-<li><strong>자동화된 회귀 테스트 없음</strong>: 지금까지 전부 1회성 스크립트로 수동 검증. 다음에 모델이나
+<li><strong>(해결됨 — 7번) 자동화된 회귀 테스트 없음</strong>: 지금까지 전부 1회성 스크립트로 수동 검증. 다음에 모델이나
 코드를 또 바꿀 때 이번 사례들(작품설명서/발표자료/기밀 키워드 숏컷)이 자동으로 재검증되도록 pytest
 케이스로 만들어두는 게 안전함.</li>
 <li><strong>원시 문서 볼륨 자체는 그대로</strong>: 특정 오탐 패턴만 고친 것이고, 전체 학습 데이터 양(문서 수)을
@@ -106,12 +106,23 @@ v3에서는 재현되지 않음 — <strong>해결된 것으로 확인</strong>.
 
 <h2>6. 현재 배포 상태</h2>
 <ul>
-<li><code>classifier-service/model_out/</code> — <strong>v3 모델 적용됨</strong> (서비스 재시작 완료, 정상 동작 확인)</li>
+<li><code>classifier-service/model_out/</code> — <strong>v5 모델 적용됨</strong> (2026-10-08 13:32 교체, <code>model_out_v5_candidate/</code>와 바이트 단위로 동일함을 2026-10-11에 확인. 아래 7번 참고)</li>
 <li><code>classifier-service/model_out_v2_backup/</code> — v2 모델 백업 (롤백용)</li>
-<li><code>classifier-service/model_out_v1_backup/</code> — v1 모델 백업 (롤백용)</li>
+<li><code>classifier-service/model_out_v1_backup/</code> — v1 모델 백업 (롤백용)</li><li><code>model_out_v3_backup/</code>, <code>model_out_v4_backup/</code> — v3·v4 백업 (롤백용)</li>
 <li>백업 폴더들은 전부 git에는 커밋 안 됨 (<code>.gitignore</code>의 <code>model_out_*_backup/</code> 패턴)</li>
 <li><code>classifier-service/app.py</code> — 청킹 재분배 로직 반영 (<code>_chunk_text()</code>, <code>MIN_TAIL_TOKENS=200</code>), v3에도 동일 적용</li>
 </ul>
+
+<h2>7. 현재 상태 (2026-10-11 재확인) <span class="badge ok">v5 적용 · 하이브리드 판정</span></h2>
+<p>위 1~6번은 v3 시점의 기록입니다. 그 뒤 v4(hotfix), v5가 적용되어 현재 서비스는 <strong>v5</strong>로 동작합니다.</p>
+<ul>
+<li><strong>모델</strong>: <code>model_out/</code> = <code>model_out_v5_candidate/</code> (model.safetensors 동일). v1~v4는 <code>model_out_v{N}_backup/</code>에 보관.</li>
+<li><strong>하이브리드 판정</strong>: 모델은 문맥을 보고 C·S·O를 추천하고, 백엔드(<code>backend/app/classifier.py</code>)가 근거로 보정합니다. ① 개인정보 등 위험도 중간 이상 탐지가 있으면 최소 S로 올림(<code>apply_findings_floor</code>). ② 모델이 C로 판단해도 비밀 표기나 등록 기밀 키워드 근거가 없으면 S로 낮춤(<code>apply_confidential_ceiling</code>, 가이드라인 표 2-8). 보정은 등급을 올리거나(바닥) C를 낮추기만 하고, 최종 확정은 담당자가 합니다.</li>
+<li><strong>청킹</strong>: 너무 짧은 마지막 조각은 앞 조각과 합쳐 맥락을 유지(<code>MIN_TAIL_TOKENS=200</code>).</li>
+<li><strong>회귀 테스트</strong>: <code>tests/test_classification_regression.py</code>(실제 모델로 추론, 모델 파일이 없으면 skip)를 v5에서 실행 — 6건 통과. 분류 서비스 전체 테스트 16건 통과, 백엔드 297건 통과(2026-10-11).</li>
+<li><strong>발표 자료의 실측</strong>: 실제 업로드 문서 101건 중 근거 없는 C 판정이 모델 단독 38건 → 하이브리드 4건(남은 4건은 본문에 비밀 표기가 실제로 있는 문서). 정답 라벨이 없는 문서라 정확도가 아니라 "근거 없는 차단 수"입니다.</li>
+</ul>
+<p><strong>이 절에서 확인하지 못한 것</strong>: v4·v5가 v3 대비 무엇을 어떻게 학습/수정했는지의 상세 기록(학습 데이터 변경점, 모델 단독 성능 수치)은 저장소에 없습니다. 학습 담당 팀원의 전달 자료(Downloads의 <code>최종배포용_v4_hotfix_model</code>, <code>최종배포용_v5_모델</code>)를 근거로 별도 정리가 필요합니다.</p>
 
 </body>
 </html>

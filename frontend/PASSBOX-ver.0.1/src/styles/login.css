@@ -1,0 +1,88 @@
+/* PASSBOX login — single centered card on a quiet background. */
+.auth-layout:has(.ap) { display: grid; place-items: center; min-height: 100vh; padding: 24px; background: #fbfbfd; }
+.auth-layout:has(.ap) .auth-card { all: unset; display: contents; }
+.auth-layout:has(.ap) .auth-card::before,
+.auth-layout:has(.ap) .auth-card::after { display: none !important; }
+html:not([data-theme="dark"]) body:has(.ap)::before { display: none; }
+.auth-layout:has(.ap) .auth-brand { position: absolute; top: 24px; left: 28px; color: #1d1d1f; font-size: 14px; font-weight: 600; text-decoration: none; }
+
+.ap {
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", Inter, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.ap-card {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 380px);
+  margin: 0 auto;
+  padding: 44px 36px 32px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 12px 40px rgb(0 0 0 / 6%);
+  text-align: center;
+}
+.ap-mark { width: 40px; height: 40px; margin-bottom: 18px; }
+html .auth-layout .ap .ap-title { margin: 0; color: #1d1d1f; font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+html .auth-layout .ap .ap-sub { margin: 8px 0 28px; color: #86868b; font-size: 15px; line-height: 1.4; }
+
+.ap-form { display: grid; gap: 10px; width: 100%; }
+.ap-input {
+  width: 100%;
+  height: 50px;
+  padding: 0 16px;
+  border: 1px solid #d2d2d7;
+  border-radius: 12px;
+  color: #1d1d1f;
+  font-size: 16px;
+  background: #fff;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.ap-input::placeholder { color: #86868b; }
+.ap-input:focus { border-color: #0071e3; box-shadow: 0 0 0 4px rgb(0 113 227 / 15%); }
+.ap-error { margin: 2px 0 0; color: #e30000; font-size: 13px; text-align: left; }
+
+.ap-submit {
+  height: 50px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #1d1d1f;
+  transition: background-color .2s ease;
+}
+.ap-submit:hover:not(:disabled) { background: #333336; }
+.ap-submit:disabled { cursor: default; opacity: .55; }
+.ap-submit:focus-visible { outline: none; box-shadow: 0 0 0 4px rgb(0 113 227 / 30%); }
+
+.ap-demo {
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+  color: #0066cc;
+  font-size: 13px;
+  cursor: pointer;
+  background: none;
+}
+.ap-demo:hover { text-decoration: underline; }
+.ap-demo:focus-visible { outline: 2px solid #0071e3; outline-offset: 3px; border-radius: 4px; }
+
+/* dark */
+html[data-theme="dark"] .auth-layout:has(.ap) { background: #000; }
+html[data-theme="dark"] .auth-layout:has(.ap) .auth-brand { color: #f5f5f7; }
+html[data-theme="dark"] .ap-card { background: #1c1c1e; box-shadow: 0 0 0 1px rgb(255 255 255 / 6%), 0 12px 40px rgb(0 0 0 / 50%); }
+html[data-theme="dark"] .ap-mark path:nth-child(1) { fill: #d1d1d6; }
+html[data-theme="dark"] .ap-mark path:nth-child(2) { fill: #8e8e93; }
+html[data-theme="dark"] .ap-mark path:nth-child(3) { fill: #f5f5f7; }
+html[data-theme="dark"] .auth-layout .ap .ap-title { color: #f5f5f7; }
+html[data-theme="dark"] .ap-input { color: #f5f5f7; border-color: #424245; background: #2c2c2e; }
+html[data-theme="dark"] .ap-submit { color: #1d1d1f; background: #f5f5f7; }
+html[data-theme="dark"] .ap-submit:hover:not(:disabled) { background: #fff; }
+html[data-theme="dark"] .ap-demo { color: #2997ff; }
+
+@media (prefers-reduced-motion: reduce) { .ap-input, .ap-submit { transition: none; } }
+html:not([data-theme="dark"]) .auth-layout:has(.ap) { background: #fbfbfd; }

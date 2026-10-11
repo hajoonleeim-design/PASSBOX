@@ -6,7 +6,6 @@ import { useScrollStages } from '../../hooks/useScrollStages'
 import { useActiveSection } from '../../hooks/useActiveSection'
 import { ThemeToggle } from '../../components/common/ThemeToggle'
 import { ClearancePassTicket } from '../../components/marketing/ClearancePassTicket'
-import { CustomCursor } from '../../components/marketing/CustomCursor'
 import {
   NetworkLockIcon,
   AlertDocIcon,
@@ -98,7 +97,6 @@ export function LandingPage() {
 
   return (
     <div ref={revealRef} className="landing">
-      <CustomCursor />
       <header className={`landing-nav ${scrolled ? 'is-scrolled' : ''}`}>
         <Link to="/" className="landing-nav__brand"><img src="/passbox-logo.svg" alt="PASSBOX" /></Link>
         <nav className="landing-nav__links" aria-label="주 메뉴">

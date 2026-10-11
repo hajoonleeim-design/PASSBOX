@@ -372,13 +372,10 @@ body {
     radial-gradient(circle at 88% -10%, rgb(20 173 130 / 10%), transparent 28rem),
     radial-gradient(circle at 10% 12%, rgb(39 123 181 / 7%), transparent 32rem),
     var(--color-background);
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 2.5 18.5 15l-6 .8 3.2 5.2-2.5 1.5-3.1-5.3-4.2 4.2V2.5Z' fill='%23102331' stroke='%2314ad82' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 3 3, auto;
 }
 
 body::selection { color: #ffffff; background: var(--color-accent-strong); }
-a, button, select, .button, .icon-button, summary, label[for] {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 2.5 18.5 15l-6 .8 3.2 5.2-2.5 1.5-3.1-5.3-4.2 4.2V2.5Z' fill='%2314ad82' stroke='%23102331' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 3 3, pointer;
-}
+a, button, select, .button, .icon-button, summary, label[for], [role="button"] { cursor: pointer; }
 input, textarea, [contenteditable='true'] { cursor: text; }
 
 .header {
@@ -3878,11 +3875,6 @@ p { color: var(--color-text-secondary); }
   box-shadow: 0 8px 24px rgb(33 39 123 / 8%);
 }
 
-/* Keep the native arrow cursor consistent across the interface. */
-body,
-body * {
-  cursor: default !important;
-}
 
 /* Brand labels and informational panels use the blue theme, not success green. */
 .showroom-hero-copy > .badge--success {
@@ -3963,7 +3955,6 @@ body * {
    Public landing — bright redesign (White / Light Gray / Navy ink / Point
    Blue), structurally inspired by palantir.com: huge confident type, hairline
    borders, pill chips and buttons, generous whitespace. No dark hero.
-   Scoped entirely under .landing (plus the page-fixed .pb-cursor-*), so every
    property re-declared here is the last occurrence in the file and wins over
    the older landing blocks above without needing to touch them.
    ========================================================================== */
@@ -4129,12 +4120,6 @@ body * {
 
 /* Custom cursor — desktop pointer devices only; fixed to the viewport so it
    can sit over the landing page regardless of scroll position. */
-.pb-cursor-dot, .pb-cursor-ring { position: fixed; top: 0; left: 0; z-index: 999; border-radius: 50%; pointer-events: none; will-change: transform; }
-.pb-cursor-dot { width: 6px; height: 6px; margin: -3px 0 0 -3px; background: var(--pb-ink, #0b1526); transition: opacity .2s ease; }
-.pb-cursor-dot.is-hover { opacity: 0; }
-.pb-cursor-ring { width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 1.5px solid rgb(11 21 38 / 35%); transition: width .25s ease, height .25s ease, margin .25s ease, border-color .25s ease, background-color .25s ease; }
-.pb-cursor-ring.is-hover { width: 56px; height: 56px; margin: -28px 0 0 -28px; border-color: var(--pb-blue, #2f6fed); background: rgb(47 111 237 / 8%); }
-@media (hover: hover) and (pointer: fine) { .landing, .landing * { cursor: none !important; } }
 
 @media (max-width: 900px) {
   .landing-hero__inner { grid-template-columns: 1fr; }
@@ -4143,8 +4128,6 @@ body * {
   .landing-nav__links { display: none; }
   .landing-footer { grid-template-columns: 1fr 1fr; }
   .landing-footer__brand { grid-column: 1 / -1; }
-  .pb-cursor-dot, .pb-cursor-ring { display: none; }
-  @media (hover: hover) and (pointer: fine) { .landing, .landing * { cursor: auto !important; } }
 }
 @media (max-width: 560px) {
   .landing-hero { padding-top: 96px; min-height: auto; }
@@ -4418,33 +4401,6 @@ html.hide-native-scrollbar::-webkit-scrollbar { display: none; }
   .landing-dock { display: none; }
 }
 
-/* PASSBOX cursor: brand cube as the pointer, a scanner-bracket frame that trails it. */
-.pb-cursor-dot { width: 18px; height: 18px; margin: -3px 0 0 -3px; background: none; filter: drop-shadow(0 2px 4px rgb(11 21 38 / 35%)); transition: opacity .2s ease; }
-.pb-cursor-dot svg { display: block; }
-.pb-cursor-dot.is-hover { opacity: 1; }
-.pb-cursor-ring {
-  width: 40px; height: 40px; margin: -20px 0 0 -20px; border: none; border-radius: 0; background: none;
-  --b: rgb(11 21 38 / 55%);
-  background:
-    linear-gradient(var(--b), var(--b)) top left / 10px 2px no-repeat,
-    linear-gradient(var(--b), var(--b)) top left / 2px 10px no-repeat,
-    linear-gradient(var(--b), var(--b)) top right / 10px 2px no-repeat,
-    linear-gradient(var(--b), var(--b)) top right / 2px 10px no-repeat,
-    linear-gradient(var(--b), var(--b)) bottom left / 10px 2px no-repeat,
-    linear-gradient(var(--b), var(--b)) bottom left / 2px 10px no-repeat,
-    linear-gradient(var(--b), var(--b)) bottom right / 10px 2px no-repeat,
-    linear-gradient(var(--b), var(--b)) bottom right / 2px 10px no-repeat;
-  transition: width .25s ease, height .25s ease, margin .25s ease, --b .25s ease;
-}
-.pb-cursor-ring span { position: absolute; left: 50%; top: calc(100% + 6px); padding: 2px 7px; border-radius: 999px; color: #fff; background: #2f6fed; font: 700 9px/1.4 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .1em; opacity: 0; transform: translateX(-50%) translateY(-4px); transition: opacity .2s ease, transform .2s ease; }
-.pb-cursor-ring.is-hover { width: 56px; height: 56px; margin: -28px 0 0 -28px; --b: #2f6fed; border: none; background-color: transparent; background-image: linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)),linear-gradient(var(--b),var(--b)); }
-.pb-cursor-ring.is-hover span { opacity: 1; transform: translateX(-50%); }
-@property --b { syntax: "<color>"; inherits: true; initial-value: rgb(11 21 38 / 55%); }
-
-/* One cursor for every route: mounted once in App, hides the native pointer app-wide. */
-@media (hover: hover) and (pointer: fine) { body.has-pb-cursor, body.has-pb-cursor * { cursor: none !important; } }
-.pb-cursor-ring.is-hover { background-size: 12px 2px, 2px 12px, 12px 2px, 2px 12px, 12px 2px, 2px 12px, 12px 2px, 2px 12px; background-position: top left, top left, top right, top right, bottom left, bottom left, bottom right, bottom right; background-repeat: no-repeat; }
-.pb-cursor-dot, .pb-cursor-ring { z-index: 9999; }
 
 /* /home pinned flow — same scroll-pinned "stage" mechanic as the landing's core features. */
 
@@ -4620,8 +4576,6 @@ html[data-theme="dark"] .auth-card .alert--warning { background: #2e2410; border
 html[data-theme="dark"] .auth-card .alert--danger { background: #321618; border-color: #6b2a2f; color: #f87171; }
 
 /* cursor on dark */
-html[data-theme="dark"] .pb-cursor-ring { --b: rgb(230 237 247 / 70%); }
-html[data-theme="dark"] .pb-cursor-dot { filter: drop-shadow(0 2px 6px rgb(0 0 0 / 60%)); }
 html[data-theme="dark"] .icon-button { background: #111a2b; color: #e6edf7; border-color: #25324a; }
 html[data-theme="dark"] .icon-button:hover { background: #1a2740; }
 html[data-theme="dark"] .alert { background: #152033; border-color: #25324a; color: #cbd5e1; }

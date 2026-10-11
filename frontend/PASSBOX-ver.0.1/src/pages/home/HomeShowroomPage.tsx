@@ -34,13 +34,13 @@ export function HomeShowroomPage() {
             <Button size="lg" onClick={() => navigate('/upload')}>문서 분석 시작</Button>
             <Button size="lg" variant="secondary" onClick={() => navigate('/chat')}>일상 AI 대화</Button>
           </div>
-          <div className="showroom-hero-specs" aria-label="PASSBOX 핵심 보안 원칙">
-            <span><b>OCR</b> PDF·PPT·워드 속 캡처 이미지 글자까지 검사</span>
-            <span><b>변형 탐지</b> ‘공일공’, ‘앳·닷’ 같은 우회 표기도 탐지</span>
-            <span><b>SHA-256</b> 처리 기록 조작 여부를 검증 가능</span>
-            <span><b>AES-256</b> 저장되는 문서 본문·대화 기록 암호화</span>
-            <span><b>ClamAV</b> 업로드 파일 백신 검사</span>
-          </div>
+          <ul className="showroom-hero-specs" aria-label="PASSBOX 핵심 보안 원칙">
+            <li>이미지 속 글자까지 OCR</li>
+            <li>‘공일공’ 같은 우회 표기 탐지</li>
+            <li>ClamAV 백신 검사</li>
+            <li>AES-256 저장 암호화</li>
+            <li>SHA-256 기록 검증</li>
+          </ul>
         </div>
 
         <MaskingDemo />

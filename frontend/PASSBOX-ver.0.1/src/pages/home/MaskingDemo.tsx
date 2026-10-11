@@ -5,8 +5,6 @@ import { useEffect, useState } from 'react'
 // this card claims to show what actually leaves the building.
 const LINES = [
   { label: '전화번호', before: ['담당자 연락처: ', '010-1234-5678', ''], token: 'PHONE' },
-  { label: '이메일', before: ['회신 메일: ', 'kim.minsu@agency.go.kr', ''], token: 'EMAIL' },
-  { label: '주민등록번호', before: ['신청인 주민번호 ', '900101-1234567', ''], token: 'PERSONAL_ID' },
   { label: '우회 표기', before: ['문의는 ', '공일공 구팔칠육 오사삼이', ' 로'], token: 'PHONE' },
   { label: '등록된 기밀 키워드', before: ['', '블루문', ' 사업 예산 3억 원 검토 요청'], token: 'CONFIDENTIAL_KEYWORD' },
   { label: '인증정보', before: ['연동 설정 ', 'api_key=sk-live-8f2Kx91QmZ', ''], token: 'SECRET' },

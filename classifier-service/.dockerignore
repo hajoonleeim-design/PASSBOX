@@ -1,0 +1,7 @@
+.venv
+__pycache__
+*.pyc
+model_out
+model_out_*
+tests
+*.log

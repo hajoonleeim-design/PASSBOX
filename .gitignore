@@ -10,6 +10,9 @@
 !/frontend/**
 !/classifier-service/
 !/classifier-service/**
+!/docker-compose.yml
+!/docker.env.example
+!/DOCKER.md
 
 # Local secrets and environment files
 **/.env

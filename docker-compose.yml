@@ -1,0 +1,101 @@
+# PASSBOX 한 번에 실행하기 (기관 서버 1대에 설치하는 형태)
+#   cp docker.env.example .env      # 값 채우기
+#   docker compose up -d --build
+# 접속: http://서버주소:8080  (화면과 /api 가 같은 주소로 나간다)
+#
+# 밖으로 열리는 포트는 프런트(8080) 하나뿐이다. DB·백엔드·분류기·백신은 내부 네트워크에서만 통신한다.
+# 이 구성은 아직 실제 Docker 환경에서 검증되지 않았다. 검증 절차와 결과는 DOCKER.md 에 기록한다.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: passbox_db
+      POSTGRES_USER: passbox
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 를 .env 에 설정하세요}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U passbox -d passbox_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes:
+      - clamav_db:/var/lib/clamav
+    # 처음 실행 때 바이러스 정의를 내려받느라 몇 분 걸린다(인터넷 필요).
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 60s
+
+  classifier:
+    build: ./classifier-service
+    restart: unless-stopped
+    environment:
+      CLASSIFIER_AUTH_TOKEN: ${CLASSIFIER_TOKEN:?CLASSIFIER_TOKEN 을 .env 에 설정하세요}
+    volumes:
+      # 모델 파일은 이미지에 넣지 않고 서버의 이 폴더를 읽기 전용으로 연결한다.
+      - ./classifier-service/model_out:/model_out:ro
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+      classifier:
+        condition: service_started
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://passbox:${POSTGRES_PASSWORD}@db:5432/passbox_db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY 를 .env 에 설정하세요}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?DATA_ENCRYPTION_KEY(32자 이상)를 .env 에 설정하세요}
+      STORAGE_ROOT: /app/storage
+      # 기본은 MOCK(외부 AI 호출 없음). 실제 호출은 .env 에서 LIVE 로 바꾸고 해당 서비스 키만 넣는다.
+      GATEWAY_MODE: ${GATEWAY_MODE:-MOCK}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CLASSIFIER_MODE: REMOTE
+      CLASSIFIER_SERVICE_URL: http://classifier:8100/classify
+      CLASSIFIER_SERVICE_TOKEN: ${CLASSIFIER_TOKEN}
+      CLASSIFIER_TIMEOUT_SECONDS: "30"
+      CLAMAV_MODE: ${CLAMAV_MODE:-required}
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      JOB_WORKER_THREADS: "8"
+    volumes:
+      - storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend/PASSBOX-ver.0.1
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_TENANT_ID: ${VITE_TENANT_ID:-}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:
+  clamav_db:
+  storage:

@@ -34,6 +34,9 @@ class ApprovalPolicyPayload(BaseModel):
     approver_roles: list[str]
     c_grade_approvable: bool
     o_grade_requires_approval: bool
+    # 대량 처리용 선택 기능(기본 꺼짐): 모델이 O로 추천하고 탐지·비밀 표기가 전혀 없을 때만 정책이 O를 자동 확정한다.
+    o_grade_auto_confirm: bool = False
+    o_auto_confirm_min_confidence: float = Field(default=0.95, ge=0.5, le=1.0)
 
 
 class ModelAllowlistPayload(BaseModel):
@@ -124,6 +127,8 @@ DEFAULT_APPROVAL_POLICY = {
     "approver_roles": ["APPROVER", "ADMIN"],
     "c_grade_approvable": False,
     "o_grade_requires_approval": False,
+    "o_grade_auto_confirm": False,
+    "o_auto_confirm_min_confidence": 0.95,
 }
 DEFAULT_MODEL_ALLOWLIST = [
     {

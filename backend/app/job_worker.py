@@ -5,6 +5,7 @@ from threading import Event, Lock, Thread
 
 from sqlalchemy import select
 
+from app.auto_confirm import maybe_auto_confirm
 from app.classifier import ClassifierUnavailableError, apply_confidential_ceiling, apply_designation_floor, apply_findings_floor, classifier
 from app.db import Settings, get_session_factory
 from app.extraction import UnsupportedDocumentError, extract_document
@@ -259,7 +260,10 @@ def process_document_job(job_id: int, tenant_id: int, session_factory=None) -> N
             # 상태를 CLASSIFICATION_REVIEW로 바꾸지 않는다. 먼저 바꾸면, 프론트엔드가
             # "분류 검토" 상태를 보고 추천 결과를 조회했을 때 아직 저장되지 않은
             # 레코드를 404로 받고, 재시도 로직이 없어 영구적으로 실패 화면에 멈춘다.
-            _save_recommendation(db, document, scan, text_record)
+            recommendation = _save_recommendation(db, document, scan, text_record)
+            # 기관이 정책에서 켠 경우에만, 위험이 없는 O를 정책이 대신 확정한다(기본 꺼짐).
+            if maybe_auto_confirm(db, document, recommendation, scan.id):
+                db.commit()
             has_decision = db.scalar(
                 select(ClassificationDecision.id).where(
                     ClassificationDecision.document_id == document.id,

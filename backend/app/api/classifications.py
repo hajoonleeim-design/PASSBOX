@@ -42,6 +42,24 @@ class ConfirmClassificationRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
 
 
+class BulkConfirmRequest(BaseModel):
+    document_ids: list[int] = Field(min_length=1, max_length=200)
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class BulkConfirmItem(BaseModel):
+    document_id: int
+    result: str  # CONFIRMED | SKIPPED
+    confirmed_grade: str | None = None
+    reason: str | None = None
+
+
+class BulkConfirmResponse(BaseModel):
+    confirmed: int
+    skipped: int
+    items: list[BulkConfirmItem]
+
+
 class ClassificationDecisionResponse(BaseModel):
     decision_id: int
     document_id: int
@@ -273,6 +291,82 @@ def get_classification_decision(
             raise HTTPException(status_code=404, detail="최종 확정 결과가 없습니다.")
         recommendation = _latest_recommendation(db, document.id, current_user.tenant_id)
         return _to_decision_response(decision, recommendation)
+
+
+@router.post(
+    "/classification/bulk-confirm",
+    response_model=BulkConfirmResponse,
+    summary="AI 추천 등급 그대로 일괄 확정",
+    description=(
+        "대량 문서를 처리할 때 담당자가 각 문서의 AI 추천 등급을 그대로 인정해 한 번에 확정합니다. "
+        "추천과 다른 등급으로는 확정할 수 없고(등급을 바꾸려면 개별 확정), 한 번에 최대 200건입니다. "
+        "확정 가능한 상태가 아니거나 본인이 올린 문서는 건너뜁니다."
+    ),
+)
+def bulk_confirm_classification(
+    payload: BulkConfirmRequest,
+    current_user: User = Depends(require_roles("OPERATOR", "SECURITY_ADMIN", "ADMIN")),
+):
+    session_factory = get_session_factory()
+    items: list[BulkConfirmItem] = []
+    with session_factory() as db:
+        for document_id in dict.fromkeys(payload.document_ids):
+            document = db.scalar(
+                select(Document).where(
+                    Document.id == document_id,
+                    Document.tenant_id == current_user.tenant_id,
+                    document_access_clause(current_user),
+                )
+            )
+            if document is None:
+                items.append(BulkConfirmItem(document_id=document_id, result="SKIPPED", reason="문서를 찾을 수 없습니다."))
+                continue
+            if document.status != "READY_FOR_CLASSIFICATION":
+                items.append(BulkConfirmItem(document_id=document_id, result="SKIPPED", reason="확정 대기 상태가 아닙니다."))
+                continue
+            recommendation = _latest_recommendation(db, document.id, current_user.tenant_id)
+            if recommendation is None or recommendation.recommended_grade not in _GRADE_RANK:
+                items.append(BulkConfirmItem(document_id=document_id, result="SKIPPED", reason="유효한 AI 추천이 없습니다."))
+                continue
+            if document.uploaded_by == current_user.id:
+                # 본인 문서를 본인이 확정하면 직무 분리가 깨진다. 일괄 확정에서는 아예 제외한다.
+                items.append(BulkConfirmItem(document_id=document_id, result="SKIPPED", reason="본인이 올린 문서는 다른 담당자가 확정해야 합니다."))
+                continue
+            decision = ClassificationDecision(
+                tenant_id=document.tenant_id,
+                document_id=document.id,
+                user_id=current_user.id,
+                recommendation_id=recommendation.id,
+                confirmed_grade=recommendation.recommended_grade,
+                comment=payload.comment or "AI 추천 등급을 그대로 인정해 일괄 확정했습니다.",
+            )
+            db.add(decision)
+            db.flush()
+            append_audit_entry(
+                db,
+                tenant_id=document.tenant_id,
+                event_type="CLASSIFICATION_CONFIRMED",
+                payload={
+                    "document_id": document.id,
+                    "confirmed_grade": decision.confirmed_grade,
+                    "confirmed_by": current_user.id,
+                    "recommendation_id": recommendation.id,
+                    "bulk": True,
+                },
+            )
+            document.status = "CLASSIFICATION_CONFIRMED"
+            _update_latest_job_for_document(
+                db,
+                document_id=document.id,
+                tenant_id=current_user.tenant_id,
+                status_value="COMPLETED",
+                progress=100,
+                error_message=None,
+            )
+            items.append(BulkConfirmItem(document_id=document_id, result="CONFIRMED", confirmed_grade=decision.confirmed_grade))
+        db.commit()
+    confirmed = sum(1 for item in items if item.result == "CONFIRMED")
+    return BulkConfirmResponse(confirmed=confirmed, skipped=len(items) - confirmed, items=items)
 
 
 @router.post(

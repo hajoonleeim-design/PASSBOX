@@ -12,7 +12,7 @@ interface BackendPolicy {
   updated_at: string
   updated_by: string
   cso_rules: Array<{ rule_id: string; rule_name: string; detection_type: string; grade: SecurityPolicy['csoRules'][number]['grade']; enabled: boolean; description: string }>
-  approval_policy: { s_grade_requires_approval: boolean; approver_roles: SecurityPolicy['approvalPolicy']['approverRoles']; c_grade_approvable: boolean; o_grade_requires_approval: boolean }
+  approval_policy: { s_grade_requires_approval: boolean; approver_roles: SecurityPolicy['approvalPolicy']['approverRoles']; c_grade_approvable: boolean; o_grade_requires_approval: boolean; o_grade_auto_confirm?: boolean; o_auto_confirm_min_confidence?: number }
   model_allowlist: Array<{ model_id: string; model_name: string; provider: string; enabled: boolean; description: string }>
   retention_policy: { audit_days: number; evidence_days: number; incident_days: number }
   detection_patterns: Array<{ pattern_id: string; pattern_name: string; detection_type: string; enabled: boolean; severity: SecurityPolicy['detectionPatterns'][number]['severity']; description: string }>
@@ -56,6 +56,8 @@ function mapPolicy(data: BackendPolicy): SecurityPolicy {
       approverRoles: data.approval_policy.approver_roles,
       cGradeApprovable: data.approval_policy.c_grade_approvable,
       oGradeRequiresApproval: data.approval_policy.o_grade_requires_approval,
+      oGradeAutoConfirm: data.approval_policy.o_grade_auto_confirm ?? false,
+      oAutoConfirmMinConfidence: data.approval_policy.o_auto_confirm_min_confidence ?? 0.95,
     },
     modelAllowlist: data.model_allowlist.map((item) => ({
       modelId: item.model_id,
@@ -102,6 +104,8 @@ function toBackendPolicy(policy: SecurityPolicy) {
       approver_roles: policy.approvalPolicy.approverRoles,
       c_grade_approvable: policy.approvalPolicy.cGradeApprovable,
       o_grade_requires_approval: policy.approvalPolicy.oGradeRequiresApproval,
+      o_grade_auto_confirm: policy.approvalPolicy.oGradeAutoConfirm,
+      o_auto_confirm_min_confidence: policy.approvalPolicy.oAutoConfirmMinConfidence,
     },
     model_allowlist: policy.modelAllowlist.map((item) => ({
       model_id: item.modelId,

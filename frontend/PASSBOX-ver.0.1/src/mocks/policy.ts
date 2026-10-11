@@ -32,6 +32,8 @@ const base = (policyId = 'mock-current'): SecurityPolicy => ({
     approverRoles: ['APPROVER', 'ADMIN'],
     cGradeApprovable: false,
     oGradeRequiresApproval: false,
+    oGradeAutoConfirm: false,
+    oAutoConfirmMinConfidence: 0.95,
   },
   modelAllowlist: [
     { modelId: 'gpt-4o-mini', modelName: 'gpt-4o-mini', provider: 'openai', enabled: true, description: '기관에서 허용한 OpenAI 모델입니다.' },

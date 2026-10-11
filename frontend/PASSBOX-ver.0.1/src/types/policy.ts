@@ -2,7 +2,7 @@ import type { UserRole } from './auth'
 import type { SecurityGrade } from './security'
 export type PolicyStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE'
 export interface CsoRule { ruleId: string; ruleName: string; detectionType: string; grade: SecurityGrade; enabled: boolean; description: string }
-export interface ApprovalPolicy { sGradeRequiresApproval: boolean; approverRoles: UserRole[]; cGradeApprovable: boolean; oGradeRequiresApproval: boolean }
+export interface ApprovalPolicy { sGradeRequiresApproval: boolean; approverRoles: UserRole[]; cGradeApprovable: boolean; oGradeRequiresApproval: boolean; oGradeAutoConfirm: boolean; oAutoConfirmMinConfidence: number }
 export interface ModelAllowlistEntry { modelId: string; modelName: string; provider: string; enabled: boolean; description: string }
 export interface RetentionPolicy { auditDays: number; evidenceDays: number; incidentDays: number }
 export interface DetectionPattern { patternId: string; patternName: string; detectionType: string; enabled: boolean; severity: 'LOW' | 'MEDIUM' | 'HIGH'; description: string }

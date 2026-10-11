@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import { markLoggedOut } from './logoutMarker'
 import { getSession, login as loginRequest, logout as logoutRequest } from '../api/auth'
 import type { LoginCredentials, UserSession } from '../types/auth'
 import { AuthContext } from './authContextValue'
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const logout = useCallback(async () => {
     await logoutRequest()
+    markLoggedOut()
     setSession(null)
   }, [])
 

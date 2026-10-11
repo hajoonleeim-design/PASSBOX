@@ -292,6 +292,13 @@ function ClassificationCard({ documentId, jobStatus, onConfirmed }: { documentId
   )
 }
 
+// 서비스를 바꾸면 그 서비스에서 흔히 쓰는 모델명을 채워 준다. 실제 허용 여부는 서버의 모델 허용 목록이 판단한다.
+const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
+  openai: 'gpt-4o-mini',
+  gemini: 'gemini-3.5-flash-lite',
+  anthropic: 'claude-haiku-4-5-20251001',
+}
+
 function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKey: number }) {
   const [provider, setProvider] = useState('openai')
   const [model, setModel] = useState('gpt-4o-mini')
@@ -359,8 +366,10 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
           <div className="gateway-form section-gap">
             <label className="form-field">
               AI 서비스
-              <select className="form-control" value={provider} onChange={(event) => setProvider(event.target.value)}>
+              <select className="form-control" value={provider} onChange={(event) => { setProvider(event.target.value); setModel(PROVIDER_DEFAULT_MODEL[event.target.value] ?? '') }}>
                 <option value="openai">OpenAI</option>
+                <option value="gemini">Google (Gemini)</option>
+                <option value="anthropic">Anthropic (Claude)</option>
               </select>
             </label>
             <label className="form-field">

@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from app.api.gateway import DOCUMENT_CHAR_LIMIT, compose_outbound_prompt
 from app.gateway import (
     GatewayConfigurationError,
     LocalMockGateway,
@@ -63,6 +64,25 @@ class GatewayConfigurationTests(unittest.TestCase):
         ):
             with self.assertRaises(GatewayConfigurationError):
                 build_gateway()
+
+
+class OutboundPromptCompositionTests(unittest.TestCase):
+    def test_without_include_document_only_the_instruction_goes_out(self):
+        self.assertEqual(compose_outbound_prompt("요약해줘", "본문 010-1234-5678", False), "요약해줘")
+
+    def test_include_document_appends_the_body_so_it_gets_scanned_and_masked(self):
+        prompt = compose_outbound_prompt("요약해줘", "연락처 010-1234-5678", True)
+        self.assertTrue(prompt.startswith("요약해줘"))
+        self.assertIn("010-1234-5678", prompt)
+
+    def test_no_instruction_sends_the_document_text(self):
+        self.assertEqual(compose_outbound_prompt(None, "본문", True), "본문")
+        self.assertEqual(compose_outbound_prompt("  ", "본문", False), "본문")
+
+    def test_long_documents_are_cut_and_marked(self):
+        prompt = compose_outbound_prompt("요약", "가" * (DOCUMENT_CHAR_LIMIT + 5), True)
+        self.assertTrue(prompt.endswith("[이하 생략]"))
+        self.assertEqual(prompt.count("가"), DOCUMENT_CHAR_LIMIT)
 
 
 if __name__ == "__main__":

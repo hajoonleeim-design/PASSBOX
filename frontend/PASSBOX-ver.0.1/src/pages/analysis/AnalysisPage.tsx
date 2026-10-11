@@ -296,6 +296,7 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
   const [provider, setProvider] = useState('openai')
   const [model, setModel] = useState('gpt-4o-mini')
   const [prompt, setPrompt] = useState('이 문서를 간단히 요약해줘.')
+  const [includeDocument, setIncludeDocument] = useState(true)
   const [decision, setDecision] = useState<ClassificationDecision | null>(null)
   const [result, setResult] = useState<GatewayForwardResult | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -329,7 +330,7 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
     setIsSending(true)
     setError('')
     try {
-      setResult(await forwardToGateway(documentId, { provider, model, prompt }))
+      setResult(await forwardToGateway(documentId, { provider, model, prompt, includeDocument }))
     } catch (requestError: unknown) {
       setError((requestError as ApiError).message ?? 'Gateway 요청에 실패했습니다.')
     } finally {
@@ -342,13 +343,13 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
       <div className="page-title-row">
         <div>
           <p className="eyebrow">외부 AI 전송</p>
-          <h2>정책 통과 문서 전송</h2>
+          <h2>외부 AI로 전송</h2>
         </div>
         {result && <StatusBadge label={result.status === 'COMPLETED' ? '완료' : result.status === 'BLOCKED' ? '차단' : result.status === 'WAITING_APPROVAL' ? '승인대기' : result.status === 'FAILED' ? '실패' : '전송'} />}
       </div>
-      <p>확정된 보안등급과 전송 정책을 확인한 뒤 백엔드 Gateway를 통해 AI를 호출합니다.</p>
+      <p>확정된 보안등급과 전송 정책을 확인한 뒤, 게이트웨이를 통해서만 외부 AI로 보냅니다.</p>
       {isLoading && <p>최종 등급을 확인하는 중입니다.</p>}
-      {error && <div className="section-gap"><Alert variant="danger" title="Gateway 처리 실패">{error}</Alert></div>}
+      {error && <div className="section-gap"><Alert variant="danger" title="전송 처리 실패">{error}</Alert></div>}
       {!isLoading && decision && (
         <>
           <dl className="info-list">
@@ -357,22 +358,26 @@ function GatewayCard({ documentId, refreshKey }: { documentId: number; refreshKe
           </dl>
           <div className="gateway-form section-gap">
             <label className="form-field">
-              Provider
+              AI 서비스
               <select className="form-control" value={provider} onChange={(event) => setProvider(event.target.value)}>
                 <option value="openai">OpenAI</option>
               </select>
             </label>
             <label className="form-field">
-              Model
+              모델
               <input className="form-control" value={model} onChange={(event) => setModel(event.target.value)} />
             </label>
             <label className="form-field">
-              요청 내용
+              AI에게 시킬 일
               <textarea className="form-control" rows={3} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+            </label>
+            <label className="form-check" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.5 }}>
+              <input type="checkbox" checked={includeDocument} onChange={(event) => setIncludeDocument(event.target.checked)} />
+              <span>문서 본문도 함께 보냅니다 — 나가는 내용 전체가 탐지·마스킹을 거치고, S등급은 승인자가 가려진 내용을 확인합니다.</span>
             </label>
             <div className="form-actions">
               <Button onClick={() => void sendToGateway()} disabled={isSending || !model.trim() || !prompt.trim()}>
-                {isSending ? '정책 확인 및 전송 중' : 'Gateway 전송 테스트'}
+                {isSending ? '정책 확인 및 전송 중' : decision.confirmedGrade === 'S' ? '승인 요청 보내기' : '외부 AI로 전송'}
               </Button>
             </div>
           </div>

@@ -46,6 +46,23 @@ class GatewayForwardRequest(BaseModel):
     provider: str = Field(min_length=1, max_length=100)
     model: str = Field(min_length=1, max_length=100)
     prompt: str | None = Field(default=None, max_length=10000)
+    # True면 요청문 뒤에 문서 본문을 붙여 보냅니다. 외부로 나가는 내용 전체가 탐지·마스킹·승인 대상이 됩니다.
+    include_document: bool = False
+
+
+# 외부 AI에 한 번에 보낼 문서 본문 길이 상한(요청문 제외). 넘으면 잘린 사실을 표시합니다.
+DOCUMENT_CHAR_LIMIT = 20_000
+
+
+def compose_outbound_prompt(instruction: str | None, document_text: str, include_document: bool) -> str:
+    instruction = (instruction or "").strip()
+    if not instruction:
+        return document_text
+    if not include_document:
+        return instruction
+    body = document_text[:DOCUMENT_CHAR_LIMIT]
+    suffix = "\n[이하 생략]" if len(document_text) > DOCUMENT_CHAR_LIMIT else ""
+    return f"{instruction}\n\n[문서 내용]\n{body}{suffix}"
 
 
 class GatewayForwardResponse(BaseModel):
@@ -184,7 +201,7 @@ def forward_to_gateway(
         }:
             raise HTTPException(status_code=409, detail="Gateway 호출 전에 문서 텍스트가 필요합니다.")
 
-        prompt = payload.prompt.strip() if payload.prompt else text_record.extracted_text
+        prompt = compose_outbound_prompt(payload.prompt, text_record.extracted_text, payload.include_document)
         if not prompt:
             raise HTTPException(status_code=422, detail="Gateway에 전달할 텍스트가 없습니다.")
 

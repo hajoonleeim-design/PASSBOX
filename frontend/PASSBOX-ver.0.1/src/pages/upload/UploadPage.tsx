@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import analysisStartExample from '../../assets/onboarding-upload-analysis-example.png'
+import type { ApiError } from '../../api/client'
 import { getUploadPolicyHint, uploadDocument } from '../../api/upload'
 import { createJob } from '../../api/jobs'
 import { Alert } from '../../components/common/Alert'
@@ -35,6 +36,18 @@ const hashLabels: Record<HashStatus, string> = {
   PROCESSING: '계산 중',
   COMPLETED: '계산 완료',
   FAILED: '계산 실패',
+}
+const MAX_FILE_BYTES = 50 * 1024 * 1024
+const MAX_FILE_MESSAGE = '파일 크기는 50MB 이하만 업로드할 수 있습니다.'
+
+// 서버가 거부한 사유(형식 불일치·악성코드·크기 초과 등)를 그대로 보여 주어, 사용자가 무엇을 고쳐야 하는지 알 수 있게 합니다.
+function describeUploadFailure(reason: unknown): { status: UploadStatus; message: string } {
+  const error = (reason && typeof reason === 'object' ? reason : {}) as Partial<ApiError>
+  if (!error.status) return { status: 'FAILED', message: '서버에 연결하지 못했습니다. 네트워크 연결 또는 서버 상태를 확인해 주세요.' }
+  if (error.status === 401) return { status: 'FAILED', message: '로그인이 만료되었습니다. 다시 로그인한 뒤 업로드해 주세요.' }
+  const detail = typeof error.message === 'string' && error.message ? error.message : '서버가 파일을 처리하지 못했습니다.'
+  // 400번대 거부(형식·크기·악성코드)는 서버가 파일을 막은 것이므로 '차단'으로, 그 밖의 오류는 '실패'로 표시합니다.
+  return { status: error.status >= 400 && error.status < 500 ? 'BLOCKED' : 'FAILED', message: detail }
 }
 const formatSize = (size: number) => `${(size / 1024 / 1024).toFixed(size < 1024 * 1024 ? 2 : 1)} MB`
 const extensionOf = (file: File) => file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -71,8 +84,8 @@ export function UploadPage() {
   const [activeOnboardingStep, setActiveOnboardingStep] = useState<number | null>(null)
   const [policyHint, setPolicyHint] = useState<UploadPolicyHint>({
     allowedExtensions: Array.from(acceptedExtensions),
-    maxFileSizeText: '서버 정책에 따라 제한됩니다.',
-    maxFileCountText: '서버 정책에 따라 제한됩니다.',
+    maxFileSizeText: '파일당 50MB 이하',
+    maxFileCountText: '여러 파일을 한 번에 올릴 수 있습니다.',
   })
   const navigate = useNavigate()
   const fileListRef = useRef<HTMLDivElement>(null)
@@ -91,7 +104,7 @@ export function UploadPage() {
     setError('')
     const next = selected.map((file): UploadDraftRow => {
       const extension = extensionOf(file)
-      const allowed = acceptedExtensions.has(extension)
+      const allowed = acceptedExtensions.has(extension) && file.size <= MAX_FILE_BYTES
       return {
         id: createId(),
         file,
@@ -99,12 +112,12 @@ export function UploadPage() {
         uploadStatus: allowed ? 'PENDING' : 'FAILED',
         validationStatus: allowed ? 'PENDING' : 'FAILED',
         hashStatus: allowed ? 'PENDING' : 'FAILED',
-        message: allowed ? undefined : '지원하지 않는 파일 형식입니다.',
+        message: allowed ? undefined : acceptedExtensions.has(extension) ? MAX_FILE_MESSAGE : '지원하지 않는 파일 형식입니다.',
       }
     })
     setFiles((current) => [...current, ...next])
     if (next.some((item) => item.uploadStatus === 'FAILED')) {
-      setError('지원하지 않는 파일 형식이 포함되어 있습니다. 허용 형식을 확인해 주세요.')
+      setError('올릴 수 없는 파일이 포함되어 있습니다. 허용 형식과 크기(50MB 이하)를 확인해 주세요.')
     }
     requestAnimationFrame(() => fileListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 
@@ -134,12 +147,13 @@ export function UploadPage() {
         hashStatus: result.hashStatus,
         message: result.message,
       })
-    } catch {
+    } catch (reason) {
+      const failure = describeUploadFailure(reason)
       updateFile(item.id, {
-        uploadStatus: 'FAILED',
-        validationStatus: 'FAILED',
+        uploadStatus: failure.status,
+        validationStatus: failure.status,
         hashStatus: 'FAILED',
-        message: '업로드에 실패했습니다. 네트워크 연결 또는 서버 상태를 확인해 주세요.',
+        message: failure.message,
       })
     }
   }

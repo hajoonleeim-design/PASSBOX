@@ -4,6 +4,7 @@ export interface GatewayForwardInput {
   provider: string
   model: string
   prompt?: string
+  includeDocument?: boolean
 }
 
 export interface GatewayForwardResult {
@@ -72,6 +73,7 @@ export async function forwardToGateway(
       provider: input.provider,
       model: input.model,
       prompt: input.prompt?.trim() || null,
+      include_document: input.includeDocument ?? false,
     },
   )
   return mapGatewayResponse(data)

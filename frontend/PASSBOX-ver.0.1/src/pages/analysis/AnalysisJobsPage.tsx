@@ -198,6 +198,7 @@ export function AnalysisJobsPage() {
           <p>분석을 시작한 문서의 진행 상태와 결과를 한 곳에서 확인합니다.</p>
         </div>
         <div className="table-actions">
+          {canViewAudit && <Link to="/analysis/bulk-confirm" className="button button--secondary">등급 일괄 확정</Link>}
           <Button size="sm" variant="ghost" onClick={restartAnalysisListOnboarding}>사용 안내 다시 보기</Button>
           <Button variant="secondary" onClick={() => void loadJobs()}>새로고침</Button>
         </div>

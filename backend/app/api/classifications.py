@@ -60,6 +60,16 @@ class BulkConfirmResponse(BaseModel):
     items: list[BulkConfirmItem]
 
 
+class PendingConfirmationItem(BaseModel):
+    document_id: int
+    file_name: str
+    created_at: datetime
+    recommended_grade: str | None
+    confidence: float | None
+    model_version: str | None
+    uploaded_by_me: bool  # 본인이 올린 문서는 일괄 확정에서 제외된다
+
+
 class ClassificationDecisionResponse(BaseModel):
     decision_id: int
     document_id: int
@@ -291,6 +301,46 @@ def get_classification_decision(
             raise HTTPException(status_code=404, detail="최종 확정 결과가 없습니다.")
         recommendation = _latest_recommendation(db, document.id, current_user.tenant_id)
         return _to_decision_response(decision, recommendation)
+
+
+@router.get(
+    "/classification/pending",
+    response_model=list[PendingConfirmationItem],
+    summary="등급 확정을 기다리는 문서와 AI 추천 목록",
+    description="담당자가 일괄 확정 화면에서 쓰는 목록입니다. 최신 순으로 최대 200건이며, 추천이 아직 없는 문서는 제외합니다.",
+)
+def list_pending_confirmations(
+    current_user: User = Depends(require_roles("OPERATOR", "SECURITY_ADMIN", "ADMIN")),
+):
+    session_factory = get_session_factory()
+    with session_factory() as db:
+        documents = db.scalars(
+            select(Document)
+            .where(
+                Document.tenant_id == current_user.tenant_id,
+                Document.status == "READY_FOR_CLASSIFICATION",
+                document_access_clause(current_user),
+            )
+            .order_by(desc(Document.created_at), desc(Document.id))
+            .limit(200)
+        ).all()
+        items: list[PendingConfirmationItem] = []
+        for document in documents:
+            recommendation = _latest_recommendation(db, document.id, current_user.tenant_id)
+            if recommendation is None:
+                continue
+            items.append(
+                PendingConfirmationItem(
+                    document_id=document.id,
+                    file_name=document.original_filename,
+                    created_at=document.created_at,
+                    recommended_grade=recommendation.recommended_grade,
+                    confidence=recommendation.confidence,
+                    model_version=recommendation.model_version,
+                    uploaded_by_me=document.uploaded_by == current_user.id,
+                )
+            )
+        return items
 
 
 @router.post(

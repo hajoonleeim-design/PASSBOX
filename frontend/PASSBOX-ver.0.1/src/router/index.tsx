@@ -13,6 +13,7 @@ import { AuditPage } from '../pages/audit/AuditPage'
 import { PolicyPage } from '../pages/policy/PolicyPage'
 import { PermissionGuard } from '../components/security/PermissionGuard'
 import { OperationsDashboardPage } from '../pages/dashboard/OperationsDashboardPage'
+import { BulkConfirmPage } from '../pages/analysis/BulkConfirmPage'
 import { SupportPage } from '../pages/support/SupportPage'
 import { ApprovalPage } from '../pages/approvals/ApprovalPage'
 import { ReviewQueuePage } from '../pages/reviews/ReviewQueuePage'
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
         { path: '/home', element: <HomeShowroomPage /> },
         { path: '/upload', element: <UploadPage /> },
         { path: '/analysis/recent', element: <AnalysisJobsPage /> },
+        { path: '/analysis/bulk-confirm', element: <PermissionGuard roles={['OPERATOR','SECURITY_ADMIN','ADMIN']} fallback={<Navigate to="/home" replace />}><BulkConfirmPage /></PermissionGuard> },
         { path: '/analysis/:jobId', element: <AnalysisPage /> },
         { path: '/result/:requestId', element: <ResultPage /> },
         { path: '/chat', element: <ChatPage /> },

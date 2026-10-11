@@ -202,3 +202,31 @@ class BulkConfirmTests(_DbCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PendingListTests(_DbCase):
+    def _operator(self, tenant_id, role="OPERATOR"):
+        with self.Session() as db:
+            user = User(tenant_id=tenant_id, username=f"pl{role}", display_name="Op", password_hash="x", role=role)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            return user
+
+    def test_lists_only_waiting_documents_with_recommendation_and_flags_own_ones(self):
+        from app.api.classifications import list_pending_confirmations
+
+        waiting = self._seed_document(grade="O")
+        self._seed_document(status="CLASSIFICATION_CONFIRMED")
+        user = self._operator(waiting[3])
+        own = self._seed_document(grade="S")
+        with self.Session() as db:
+            db.get(Document, own[0]).uploaded_by = user.id
+            db.commit()
+        with patch("app.api.classifications.get_session_factory", return_value=self.Session):
+            items = list_pending_confirmations(user)
+        by_id = {item.document_id: item for item in items}
+        self.assertEqual(set(by_id), {waiting[0], own[0]})
+        self.assertEqual(by_id[waiting[0]].recommended_grade, "O")
+        self.assertFalse(by_id[waiting[0]].uploaded_by_me)
+        self.assertTrue(by_id[own[0]].uploaded_by_me)

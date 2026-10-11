@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str = ""
     jwt_secret_key: str = ""
+    data_encryption_key: str = ""
     storage_root: str = "storage"
     gateway_mode: str = "MOCK"
     openai_api_key: str = ""
@@ -27,6 +28,10 @@ class Settings(BaseSettings):
     login_rate_limit_window_seconds: int = 60
     cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173"
     escalation_hours: float = 4.0
+    clamav_mode: str = "optional"
+    clamav_host: str = "127.0.0.1"
+    clamav_port: int = 3310
+    clamav_timeout_seconds: float = 60.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

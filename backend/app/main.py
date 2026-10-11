@@ -88,6 +88,10 @@ def _validate_runtime_settings(settings: Settings) -> None:
 
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL is required in production")
+    if settings.clamav_mode.strip().lower() != "required":
+        raise RuntimeError("CLAMAV_MODE must be required in production (uploads may not skip malware scanning)")
+    if len(settings.data_encryption_key.strip()) < 32:
+        raise RuntimeError("DATA_ENCRYPTION_KEY (32+ characters) is required in production to encrypt stored document and chat text")
     if (
         len(settings.jwt_secret_key.strip()) < 32
         or settings.jwt_secret_key.strip() == "CHANGE_ME_TO_A_LONG_RANDOM_VALUE"
@@ -490,7 +494,7 @@ app.include_router(review_requests_router, prefix="/api/v1")
 app.include_router(siem_router, prefix="/api/v1")
 
 
-@app.get("/api/v1/health")
+@app.get("/api/v1/health", tags=["System"])
 def health_check():
     return {
         "status": "ok",
@@ -498,7 +502,7 @@ def health_check():
     }
 
 
-@app.get("/api/v1/health/ready")
+@app.get("/api/v1/health/ready", tags=["System"])
 def readiness_check():
     try:
         check_database()
@@ -515,7 +519,7 @@ def readiness_check():
     }
 
 
-@app.get("/api/v1/db-check")
+@app.get("/api/v1/db-check", tags=["System"])
 def database_check():
     try:
         check_database()

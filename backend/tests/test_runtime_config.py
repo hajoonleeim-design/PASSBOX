@@ -10,6 +10,8 @@ class RuntimeConfigurationTests(unittest.TestCase):
             "app_env": "production",
             "database_url": "postgresql+psycopg://user:password@db/passbox",
             "jwt_secret_key": "x" * 64,
+            "data_encryption_key": "k" * 48,
+            "clamav_mode": "required",
             "gateway_mode": "LIVE",
             "openai_api_key": "sk-test-key",
             "cors_allowed_origins": "https://passbox.example",
@@ -67,3 +69,10 @@ class PlaintextClassifierWarningTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EncryptionKeyRequirementTests(unittest.TestCase):
+    def test_production_requires_a_data_encryption_key(self):
+        settings = RuntimeConfigurationTests().production_settings(data_encryption_key="")
+        with self.assertRaisesRegex(RuntimeError, "DATA_ENCRYPTION_KEY"):
+            _validate_runtime_settings(settings)

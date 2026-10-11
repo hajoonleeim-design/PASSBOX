@@ -191,9 +191,8 @@ def create_job(
     response_model=list[JobResponse],
     summary="최근 문서 분석 작업 목록 조회",
     description=(
-        "q를 주면 파일명과 추출된 문서 본문(DocumentText.extracted_text)에서 "
-        "부분 일치하는 작업을 created_at 최신순으로 반환합니다. 최근 N건이 아니라 "
-        "테넌트 전체 이력에서 검색합니다."
+        "q를 주면 파일명에서 부분 일치하는 작업을 created_at 최신순으로 반환합니다. "
+        "문서 본문은 암호화 저장되며 검색 대상이 아닙니다."
     ),
 )
 def list_jobs(
@@ -211,14 +210,9 @@ def list_jobs(
         )
         search_term = q.strip() if q else ""
         if search_term:
-            query = query.outerjoin(
-                DocumentText, DocumentText.document_id == Document.id
-            ).where(
-                or_(
-                    Document.original_filename.ilike(f"%{search_term}%"),
-                    DocumentText.extracted_text.ilike(f"%{search_term}%"),
-                )
-            )
+            # Search by file name only. Matching inside the extracted text would mean the
+            # job list can be used to probe document contents, and that text is encrypted at rest.
+            query = query.where(Document.original_filename.ilike(f"%{search_term}%"))
         rows = db.execute(
             query.order_by(desc(Job.created_at)).limit(limit)
         ).all()

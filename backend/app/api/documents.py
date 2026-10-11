@@ -12,6 +12,7 @@ from app.db import Settings, get_session_factory
 from app.extraction import UnsupportedDocumentError, decode_plain_text
 from app.access import document_access_clause
 from app.models import Document, User
+from app.antivirus import AntivirusUnavailable, scan_file
 from app.security_scan import EICAR_TEST_SIGNATURE, contains_eicar_signature
 from app.audit_chain import append_audit_entry
 
@@ -59,10 +60,18 @@ def _expected_format(extension: str) -> tuple[str, ...]:
     return ()
 
 
+# Windows PE, Linux ELF, Mach-O (fat / 64-bit), shell script.
+_EXECUTABLE_HEADERS = (bytes([0x4D, 0x5A]), bytes([0x7F, 0x45, 0x4C, 0x46]), bytes([0xCA, 0xFE, 0xBA, 0xBE]),
+                       bytes([0xCF, 0xFA, 0xED, 0xFE]), b"#!")
+
+
 def _detect_format(path: Path, extension: str | None = None) -> str:
     with path.open("rb") as source:
         header = source.read(8)
 
+    # Executables renamed to an allowed extension (.exe -> .txt) are refused outright.
+    if header.startswith(_EXECUTABLE_HEADERS):
+        return "EXECUTABLE"
     if header.startswith(b"%PDF-"):
         return "PDF"
     if header.startswith(b"PK") and zipfile.is_zipfile(path):
@@ -216,11 +225,10 @@ def upload_document(
     response_model=InspectionResponse,
     summary="격리 문서 기본 안전성 검사",
     description=(
-        "격리 저장된 파일의 확장자와 실제 파일 서명, 크기, SHA-256을 확인하고, "
-        "EICAR 표준 안티바이러스 테스트 시그니처를 검사합니다. EICAR 탐지는 "
-        "실제 악성코드에 대한 방어가 아니라 이 체크포인트가 배선되어 동작한다는 "
-        "것을 증명하는 자리 표시자이며, 실제 백신·샌드박스 검사를 대체하지 "
-        "않습니다. 통과한 파일만 파싱 대기 상태로 바뀝니다."
+        "격리 저장된 파일의 확장자와 실제 파일 서명(Magic number), 크기, SHA-256을 확인하고, "
+        "ClamAV 백신 엔진(clamd)으로 악성코드를 검사합니다. 실행 파일을 다른 확장자로 바꾼 "
+        "파일은 거부하며, 검사 서버에 연결할 수 없으면(운영 모드) 통과시키지 않습니다. "
+        "통과한 파일만 파싱 대기 상태로 바뀝니다."
     ),
 )
 def inspect_document(
@@ -254,8 +262,21 @@ def inspect_document(
             db.commit()
             raise HTTPException(status_code=422, detail="격리 저장 파일을 찾을 수 없습니다.")
 
-        detected_format = _detect_format(storage_path, document.extension)
-        actual_sha256, actual_size = _file_sha256_and_size(storage_path)
+        try:
+            detected_format = _detect_format(storage_path, document.extension)
+            actual_sha256, actual_size = _file_sha256_and_size(storage_path)
+        except OSError:
+            # The file exists but cannot be read: on a host with real-time antivirus this is
+            # what a quarantined/locked malicious file looks like. Fail closed, not 500.
+            document.status = "REJECTED"
+            append_audit_entry(
+                db,
+                tenant_id=document.tenant_id,
+                event_type="MALWARE_DETECTED",
+                payload={"document_id": document.id, "engine": "host-antivirus", "signature": "file locked by host antivirus", "sha256": document.sha256},
+            )
+            db.commit()
+            raise HTTPException(status_code=422, detail="서버 백신이 파일을 차단해 검사할 수 없습니다. 파일을 거부했습니다.")
         expected_formats = _expected_format(document.extension)
 
         if (
@@ -270,15 +291,25 @@ def inspect_document(
                 detail="파일 형식 또는 무결성 검사에 실패했습니다.",
             )
 
-        if _scan_for_eicar(storage_path):
+        try:
+            av = scan_file(storage_path)
+        except AntivirusUnavailable as exc:
+            # Fail closed: a file that could not be scanned stays quarantined.
+            db.rollback()
+            raise HTTPException(status_code=503, detail=f"{exc} 잠시 후 다시 검사해 주세요.") from exc
+        if av.status == "INFECTED" or _scan_for_eicar(storage_path):
             document.status = "REJECTED"
+            append_audit_entry(
+                db,
+                tenant_id=document.tenant_id,
+                event_type="MALWARE_DETECTED",
+                payload={"document_id": document.id, "engine": av.engine if av.status == "INFECTED" else "eicar-selftest",
+                         "signature": av.signature or "Eicar-Test-Signature", "sha256": document.sha256},
+            )
             db.commit()
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    "악성코드 검사(EICAR 표준 테스트 시그니처)에서 탐지되어 파일을 "
-                    "거부했습니다."
-                ),
+                detail=f"악성코드가 탐지되어 파일을 거부했습니다 ({av.signature or 'EICAR 테스트 시그니처'}).",
             )
 
         document.status = "READY_FOR_PARSING"

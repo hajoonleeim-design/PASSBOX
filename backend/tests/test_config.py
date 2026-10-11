@@ -41,6 +41,8 @@ class CorsConfigurationTests(unittest.TestCase):
             app_env="production",
             database_url="postgresql+psycopg://user:pass@localhost/db",
             jwt_secret_key="a" * 32,
+            data_encryption_key="k" * 48,
+            clamav_mode="required",
             gateway_mode="MOCK",
             cors_allowed_origins="https://passbox.example",
         )

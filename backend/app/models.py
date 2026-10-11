@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.field_crypto import EncryptedText
 from app.db import Base
 
 
@@ -70,7 +71,7 @@ class DocumentText(Base):
     document_id: Mapped[int] = mapped_column(
         ForeignKey("documents.id"), nullable=False
     )
-    extracted_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    extracted_text: Mapped[str] = mapped_column(EncryptedText, nullable=False, default="")
     extractor: Mapped[str] = mapped_column(String(50), nullable=False)
     char_count: Mapped[int] = mapped_column(nullable=False, default=0)
     truncated: Mapped[bool] = mapped_column(nullable=False, default=False)
@@ -226,7 +227,7 @@ class OutboundApproval(Base):
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     masked_payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    masked_payload: Mapped[str] = mapped_column(Text, nullable=False)
+    masked_payload: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     masking_version: Mapped[str] = mapped_column(String(50), nullable=False)
     masking_categories: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING")
@@ -284,13 +285,13 @@ class ChatRequest(Base):
     policy_version: Mapped[str] = mapped_column(String(100), nullable=False)
     prompt_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     # 재시도에 필요한 동안만 보관하며, 성공·차단 처리 후 즉시 비웁니다.
-    prompt_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prompt_text: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
     payload_status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING")
     response_status: Mapped[str] = mapped_column(String(40), nullable=False, default="NOT_RECEIVED")
     decision_status: Mapped[str] = mapped_column(String(40), nullable=False, default="UNKNOWN")
     post_inspection_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     post_inspected_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response_text: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
     response_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     response_categories: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

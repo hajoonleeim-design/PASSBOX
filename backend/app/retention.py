@@ -114,7 +114,7 @@ def cleanup_storage(
             if document_ids:
                 purged_text_count = db.execute(
                     update(DocumentText)
-                    .where(DocumentText.document_id.in_(document_ids), DocumentText.extracted_text != "")
+                    .where(DocumentText.document_id.in_(document_ids), DocumentText.status != "PURGED_BY_RETENTION")
                     .values(extracted_text="", char_count=0, status="PURGED_BY_RETENTION")
                 ).rowcount or 0
             for tenant_id, count in Counter(c.tenant_id for c in candidates).items():

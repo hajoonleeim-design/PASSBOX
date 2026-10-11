@@ -271,6 +271,11 @@ _RULES: tuple[_Rule, ...] = (
 RISKY_COMMAND_PATTERN = (
     r"(?i)\b(?:curl|wget)\b[^\n|;]{0,300}\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b"
     r"|\b(?:iwr|irm|invoke-webrequest|invoke-restmethod)\b[^\n|;]{0,300}\|\s*(?:iex|invoke-expression)\b"
+    # PowerShell one-liners used by "ClickFix"-style lures: an encoded command, or
+    # download-string-then-execute without a pipe, or an HTA fetched over the network.
+    r"|\bpowershell(?:\.exe)?\b[^\n]{0,80}?\s-(?:e|ec|enc|encodedcommand)\s+[A-Za-z0-9+/=]{16,}"
+    r"|\b(?:iex|invoke-expression)\s*\(?\s*\(?\s*new-object\s+(?:system\.)?net\.webclient\s*\)?\s*\.\s*download(?:string|file)\b"
+    r"|\bmshta(?:\.exe)?\s+https?://"
 )
 
 _LINK_RULES: tuple[_Rule, ...] = (
@@ -313,6 +318,35 @@ def normalize_for_scan(text: str) -> str:
     return unicodedata.normalize("NFKC", text).translate(_INVISIBLE_CHARS)
 
 
+_B64_RUN = re.compile(r"[A-Za-z0-9+/]{16,}={0,2}")
+_PCT_RUN = re.compile(r"(?:%[0-9A-Fa-f]{2}){6,}")
+_SPACED = re.compile(r"(?<![A-Za-z])(?:[A-Za-z][ .\-_]){5,}[A-Za-z](?![A-Za-z])")
+
+
+def _decoded_variants(text: str) -> list[str]:
+    """Hidden copies of the text an attacker can use to smuggle an instruction past a
+    plain-text rule: Base64 blobs, percent-encoding, and letters split by spaces or dots
+    ("i g n o r e  p r e v i o u s"). Only used to look for PROMPT_INJECTION."""
+    import base64
+    from urllib.parse import unquote
+
+    out: list[str] = []
+    for m in _B64_RUN.finditer(text):
+        blob = m.group(0)
+        try:
+            decoded = base64.b64decode(blob + "=" * (-len(blob) % 4), validate=True).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            continue
+        if decoded.replace("\n", " ").isprintable():
+            out.append(decoded)
+    for m in _PCT_RUN.finditer(text):
+        out.append(unquote(m.group(0)))
+    collapsed = _SPACED.sub(lambda m: re.sub(r"[ .\-_]", "", m.group(0)), text)
+    if collapsed != text:
+        out.append(collapsed)
+    return [normalize_for_scan(v) for v in out]
+
+
 def scan_text(
     text: str,
     rules: tuple[_Rule, ...] = _RULES,
@@ -321,6 +355,13 @@ def scan_text(
     """Scan extracted text and return safe metadata without retaining matches."""
     text = normalize_for_scan(text)
     findings: list[Finding] = []
+    if any(r.category == "PROMPT_INJECTION" for r in rules) and not re.search(PROMPT_INJECTION_PATTERN, text):
+        for variant in _decoded_variants(text):
+            hit = re.search(PROMPT_INJECTION_PATTERN, variant)
+            if hit:
+                findings.append(Finding(category="PROMPT_INJECTION", severity="HIGH", match_count=1,
+                                        evidence_hash=_hash_evidence(hit.group(0)), line_hint=None))
+                break
     for rule in rules + extra_rules:
         matches = list(re.finditer(rule.pattern, text))
         if rule.validator is not None:

@@ -39,7 +39,7 @@ export async function login(credentials: LoginCredentials): Promise<UserSession>
   }
 
   const { data } = await apiClient.post<BackendLoginResponse>('/auth/login', {
-    tenant_id: credentials.tenantId ?? 1,
+    tenant_id: credentials.tenantId ?? (Number(import.meta.env.VITE_TENANT_ID) || 1),
     username: credentials.username,
     password: credentials.password,
   })

@@ -34,8 +34,9 @@ class LocalMockGateway:
     ) -> GatewayResponse:
         return GatewayResponse(
             content=(
-                f"[MOCK 응답] {provider}/{model} Gateway 연결 전 테스트 응답입니다. "
-                "Post-Inspector 검사를 통과한 응답만 사용자에게 표시합니다."
+                f"[시연 모드] 외부 AI를 호출하지 않고 만든 예시 응답입니다({provider}/{model}). "
+                "실제 운영에서는 선택한 AI 서비스의 답변이 이 자리에 표시되며, "
+                "Post-Inspector 검사를 통과한 답변만 사용자에게 보여 줍니다."
             )
         )
 

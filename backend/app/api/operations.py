@@ -170,6 +170,12 @@ def _current_step(status: str) -> str:
     }.get(status, status)
 
 
+def _effective_grade(decision: ClassificationDecision | None, job: Job | None) -> str:
+    if decision is not None:
+        return decision.confirmed_grade
+    return "C" if job is not None and job.status == "BLOCKED" else "O"
+
+
 def _request_state(
     request: AnalysisRequest,
     job: Job | None,
@@ -318,7 +324,7 @@ def _dashboard_response(
                 fileNameDisplay=document.original_filename if document else "문서 없음",
                 status=_job_display_status(state),
                 currentStep=_current_step(state),
-                grade=decision.confirmed_grade if decision else "O",
+                grade=_effective_grade(decision, job),
                 startedAt=job.created_at,
                 updatedAt=job.updated_at,
                 processingTimeMs=_duration_ms(job.created_at, job.updated_at)
@@ -331,6 +337,12 @@ def _dashboard_response(
     for decision in decision_by_document.values():
         if decision.confirmed_grade in {"C", "S", "O"}:
             cso_counts[decision.confirmed_grade] += 1
+    # 탐지 단계에서 기밀 키워드·인증정보로 차단된 문서는 등급을 확정하는 단계까지 가지 않지만,
+    # 정책상 C(전송 차단)에 해당하므로 분포에도 C로 센다.
+    for job in job_by_request.values():
+        request = request_by_id.get(job.request_id)
+        if request is not None and job.status == "BLOCKED" and request.document_id not in decision_by_document:
+            cso_counts["C"] += 1
 
     latest_provider = _latest_by(transmissions, lambda item: item.provider)
     provider_names = set(latest_provider)

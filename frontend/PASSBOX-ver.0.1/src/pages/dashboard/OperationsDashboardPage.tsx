@@ -1,84 +1,197 @@
-// 운영 지표와 알림을 역할별로 보여 주는 관리자 대시보드 화면입니다.
-import { useParams } from 'react-router-dom'
-import { Alert } from '../../components/common/Alert'
-import { Badge, type BadgeVariant } from '../../components/common/Badge'
-import { Button } from '../../components/common/Button'
-import { Card } from '../../components/common/Card'
-import { DataTable, type DataTableColumn } from '../../components/common/DataTable'
-import { EmptyState, ErrorState, LoadingState } from '../../components/common/StateViews'
-import { GradeBadge } from '../../components/security/GradeBadge'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useOperations } from '../../hooks/useOperations'
-import type { OperationsIncident, ProviderHealth, ProviderStatus, RecentOperationsJob } from '../../types/operations'
+import type { RecentOperationsJob } from '../../types/operations'
+import '../../styles/stripe-radar.css'
 
-const providerVariant: Record<ProviderHealth, BadgeVariant> = { HEALTHY: 'success', DEGRADED: 'warning', DOWN: 'danger', UNKNOWN: 'neutral' }
-const providerLabel: Record<ProviderHealth, string> = { HEALTHY: '정상', DEGRADED: '지연', DOWN: '장애', UNKNOWN: '확인 불가' }
-const incidentVariant: Record<OperationsIncident['severity'], BadgeVariant> = { LOW: 'info', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' }
-const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
-const formatDuration = (milliseconds: number | null | undefined) => milliseconds == null ? 'N/A' : `${(milliseconds / 1000).toFixed(1)}초`
+const RULES = [
+  { name: 'IF-8 · 개인 식별 정보(PII) 검출 시 마스킹 및 전송 통제', sub: '주민번호·여권번호 검출 시 S등급 승인 대기 강제' },
+  { name: 'IF-14 · 사내 등록 기밀 키워드 외부 전송 차단', sub: '비밀 표기 및 기밀 코드명 검출 시 즉각 C등급 차단' },
+  { name: 'CD-11 · 인코딩 우회 프롬프트 인젝션 탐지 및 무력화', sub: 'Base64/URL 인코딩 및 공백 분리 악성 프롬프트 정규화 차단' },
+  { name: 'CD-5 · 실행 파일 위장 및 매직 넘버 검사', sub: 'MZ, ELF, Shell 실행 헤더 위장 파일 업로드 격리' },
+]
 
-function StatusPill({ status }: { status: string }) {
-  const variant: BadgeVariant = ['COMPLETED', 'ALLOWED'].includes(status) ? 'success' : ['BLOCKED', 'FAILED', 'DOWN'].includes(status) ? 'danger' : ['WAITING_APPROVAL', 'DEGRADED'].includes(status) ? 'warning' : 'info'
-  const labels: Record<string, string> = { DETECTING: '탐지 중', CLASSIFICATION_REVIEW: '분류 검토', COMPLETED: '완료', BLOCKED: '차단', WAITING_APPROVAL: '승인 대기', FAILED: '실패' }
-  return <Badge variant={variant}><span aria-hidden="true">●</span> {labels[status] ?? status}</Badge>
+const GRADE_LABEL = { C: 'C 기밀', S: 'S 민감', O: 'O 공개' } as const
+
+function latency(job: RecentOperationsJob) {
+  return job.processingTimeMs == null ? '-' : `${(job.processingTimeMs / 1000).toFixed(2)}s`
 }
 
-const providerColumns: DataTableColumn<ProviderStatus>[] = [
-  { key: 'name', header: 'Provider', render: (row) => row.providerName },
-  { key: 'status', header: '상태', render: (row) => <Badge variant={providerVariant[row.status]}><span aria-hidden="true">●</span> {row.status} · {providerLabel[row.status]}</Badge> },
-  { key: 'response', header: '응답 시간', render: (row) => row.responseTimeMs == null ? 'N/A' : `${row.responseTimeMs.toLocaleString()} ms` },
-  { key: 'checked', header: '마지막 확인', render: (row) => formatDate(row.lastCheckedAt) },
-  { key: 'message', header: '메시지', render: (row) => row.message },
-]
-
-const jobColumns: DataTableColumn<RecentOperationsJob>[] = [
-  { key: 'job', header: 'Job ID', render: (row) => <code>{row.jobId}</code> },
-  { key: 'request', header: 'Request ID', render: (row) => <code>{row.requestId}</code> },
-  { key: 'file', header: '파일명', render: (row) => row.fileNameDisplay },
-  { key: 'status', header: '상태', render: (row) => <StatusPill status={row.status} /> },
-  { key: 'step', header: '현재 단계', render: (row) => row.currentStep },
-  { key: 'grade', header: 'C/S/O', render: (row) => <GradeBadge grade={row.grade} /> },
-  { key: 'started', header: '시작 시간', render: (row) => formatDate(row.startedAt) },
-  { key: 'duration', header: '처리 시간', render: (row) => formatDuration(row.processingTimeMs) },
-]
-
 export function OperationsDashboardPage() {
-  const { scenario = 'mock-normal' } = useParams()
+  const navigate = useNavigate()
   const { session } = useAuth()
-  const { dashboard, isLoading, errorCode, refresh } = useOperations(scenario, session?.role)
+  const { dashboard, isLoading, errorCode, refresh } = useOperations('live', session?.role)
+  const [filterTab, setFilterTab] = useState<'ALL' | 'C' | 'S' | 'O'>('ALL')
 
-  if (isLoading && !dashboard) return <LoadingState label="운영 데이터를 불러오는 중입니다." />
-  if (errorCode === 'FORBIDDEN') return <section className="state-action-page"><h1>운영 대시보드 권한이 없습니다.</h1><ErrorState label="관리자만 운영 현황을 조회할 수 있습니다." /></section>
-  if (errorCode === 'NOT_FOUND') return <section className="state-action-page"><h1>대시보드 시나리오를 찾을 수 없습니다.</h1><ErrorState label="요청한 운영 데이터 시나리오가 없습니다." /></section>
-  if (errorCode || !dashboard) return <section className="state-action-page"><h1>운영 데이터를 불러오지 못했습니다.</h1><ErrorState label="네트워크 연결을 확인한 뒤 다시 시도해 주세요." /><Button onClick={() => void refresh()}>다시 조회</Button></section>
+  const dist = useMemo(() => {
+    const map = { C: 0, S: 0, O: 0 }
+    dashboard?.csoDistribution.forEach((d) => { map[d.grade] = d.count })
+    const total = map.C + map.S + map.O
+    const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0)
+    return { ...map, total, c: pct(map.C), s: pct(map.S), o: pct(map.O) }
+  }, [dashboard])
 
-  const summary = [
-    ['전체 요청', dashboard.summary.totalRequests, '현재 집계 기준 요청'],
-    ['처리 완료', dashboard.summary.completedRequests, `성공률 ${dashboard.summary.successRate}%`],
-    ['처리 중', dashboard.summary.processingRequests, `대기열 ${dashboard.queue.totalQueued}건`],
-    ['차단', dashboard.summary.blockedRequests, '보안 정책 차단'],
-    ['실패', dashboard.summary.failedRequests, `실패율 ${dashboard.summary.failureRate}%`],
-  ]
-  const queueItems = [['접수', dashboard.queue.received], ['검사', dashboard.queue.inspecting], ['파싱', dashboard.queue.parsing], ['탐지', dashboard.queue.detecting], ['마스킹', dashboard.queue.masking], ['승인대기', dashboard.queue.waitingApproval], ['전송', dashboard.queue.transmitting], ['답변검사', dashboard.queue.postInspecting]]
-  const csoTotal = dashboard.csoDistribution.reduce((total, item) => total + item.count, 0)
+  const stream = (dashboard?.recentJobs ?? []).filter((j) => filterTab === 'ALL' || j.grade === filterTab)
+  const q = dashboard?.queue
+  const perf = dashboard?.performance
+  const sum = dashboard?.summary
 
-  return <section className="operations-dashboard">
-    <div className="page-title-row"><div><p className="eyebrow">운영 현황</p><h1>운영 대시보드</h1><p>데이터 기준 시각: {formatDate(dashboard.generatedAt)}</p></div><Button onClick={() => void refresh()} disabled={isLoading}>{isLoading ? '새로고침 중' : '새로고침'}</Button></div>
+  const queueRows = q
+    ? [
+        { name: '승인 대기', count: q.waitingApproval },
+        { name: '검사·파싱·탐지 중', count: q.received + q.inspecting + q.parsing + q.detecting },
+        { name: '마스킹·전송·답변 재검사', count: q.masking + q.transmitting + q.postInspecting },
+      ]
+    : []
+  const maxQueue = Math.max(1, ...queueRows.map((r) => r.count))
+  const successPct = sum ? Math.round(sum.successRate) : 0
 
-    <div className="operations-summary-grid">{summary.map(([label, value, description]) => <Card key={label} className="operations-kpi"><span>{label}</span><strong>{Number(value).toLocaleString()}</strong><small>{description}</small></Card>)}</div>
+  return (
+    <section className="radar-console" aria-labelledby="radar-dashboard-title">
+      <header className="radar-head">
+        <div className="radar-head__title-group">
+          <nav className="radar-head__breadcrumb" aria-label="브레드크럼">
+            PASSBOX <span>/</span> 대시보드 <span>/</span> <strong>Radar</strong>
+          </nav>
+          <h1 id="radar-dashboard-title" className="radar-head__title">운영 대시보드 · Radar 보안 관제</h1>
+          <p className="radar-head__sub">
+            국가 망 보안체계(N2SF) 기준 문서 등급 판정 현황 · 서버 집계{dashboard ? ` ${new Date(dashboard.generatedAt).toLocaleString('ko-KR')}` : ''}
+          </p>
+        </div>
+        <div className="radar-head__actions">
+          <button type="button" className="radar-head__filter-btn" onClick={() => void refresh()} disabled={isLoading}>새로고침</button>
+          <button type="button" className="radar-btn-primary" onClick={() => navigate('/upload')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+            새 문서 검사
+          </button>
+        </div>
+      </header>
 
-    <div className="operations-layout">
-      <Card><div className="section-heading"><div><h2>Queue 현황</h2><p>현재 대기열: {dashboard.queue.totalQueued.toLocaleString()}건</p></div></div><div className="queue-grid">{queueItems.map(([label, count]) => <div className="queue-item" key={label}><span>{label}</span><strong>{Number(count).toLocaleString()}건</strong></div>)}</div></Card>
-      <Card><h2>처리 성능</h2><div className="performance-list"><div><span>시간당 처리량</span><strong>{dashboard.performance.throughputPerHour.toLocaleString()}건</strong></div><div><span>평균 처리시간</span><strong>{formatDuration(dashboard.performance.averageProcessingTimeMs)}</strong></div><div><span>P95 처리시간</span><strong>{formatDuration(dashboard.performance.p95ProcessingTimeMs)}</strong></div><div><span>성공률</span><strong>{dashboard.summary.successRate}%</strong><div className="metric-bar" role="progressbar" aria-label="성공률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={dashboard.summary.successRate}><span style={{ width: `${dashboard.summary.successRate}%` }} /></div></div><div><span>실패율</span><strong>{dashboard.summary.failureRate}%</strong><div className="metric-bar metric-bar--danger" role="progressbar" aria-label="실패율" aria-valuemin={0} aria-valuemax={100} aria-valuenow={dashboard.summary.failureRate}><span style={{ width: `${dashboard.summary.failureRate}%` }} /></div></div></div></Card>
-    </div>
+      {errorCode && <p className="radar-head__sub" role="alert">대시보드를 불러오지 못했습니다 ({errorCode}). ADMIN·OPERATOR 권한이 필요합니다.</p>}
+      {isLoading && !dashboard && <p className="radar-head__sub" aria-busy="true">불러오는 중입니다…</p>}
 
-    <Card className="operations-section"><h2>외부 AI 연결 상태</h2><DataTable columns={providerColumns} rows={dashboard.providers.map((item) => ({ ...item, id: item.providerId }))} /></Card>
-    <Card className="operations-section"><h2>최근 작업</h2><DataTable columns={jobColumns} rows={dashboard.recentJobs.map((item) => ({ ...item, id: item.jobId }))} emptyMessage="현재 표시할 최근 작업이 없습니다." /></Card>
+      {dashboard && sum && q && perf && (
+        <>
+          <div className="radar-kpis">
+            <div className="radar-kpi">
+              <div className="radar-kpi__header"><span className="radar-kpi__label">총 요청</span><span className="radar-kpi__pill radar-kpi__pill--neutral">전체 누적</span></div>
+              <p className="radar-kpi__value">{sum.totalRequests}건</p>
+              <p className="radar-kpi__meta">처리 중 {sum.processingRequests}건 · 실패 {sum.failedRequests}건</p>
+            </div>
+            <div className="radar-kpi">
+              <div className="radar-kpi__header"><span className="radar-kpi__label">처리 완료</span><span className="radar-kpi__pill radar-kpi__pill--success">성공률 {successPct}%</span></div>
+              <p className="radar-kpi__value">{sum.completedRequests}건</p>
+              <p className="radar-kpi__meta">평균 {(perf.averageProcessingTimeMs / 1000).toFixed(2)}s · p95 {(perf.p95ProcessingTimeMs / 1000).toFixed(2)}s</p>
+            </div>
+            <div className="radar-kpi is-warn">
+              <div className="radar-kpi__header"><span className="radar-kpi__label">승인 대기</span><span className="radar-kpi__pill radar-kpi__pill--warning">4h SLA</span></div>
+              <p className="radar-kpi__value">{q.waitingApproval}건</p>
+              <p className="radar-kpi__meta">담당자 확인 필요</p>
+            </div>
+            <div className="radar-kpi is-danger">
+              <div className="radar-kpi__header"><span className="radar-kpi__label">전송 차단</span><span className="radar-kpi__pill radar-kpi__pill--danger">C 기밀 {dist.C}건</span></div>
+              <p className="radar-kpi__value">{sum.blockedRequests}건</p>
+              <p className="radar-kpi__meta">시간당 처리량 {perf.throughputPerHour}건</p>
+            </div>
+          </div>
 
-    <div className="operations-layout">
-      <Card><h2>C/S/O 분포</h2><div className="distribution-list">{dashboard.csoDistribution.map((item) => <div key={item.grade}><GradeBadge grade={item.grade} /><strong>{item.count.toLocaleString()}건</strong><span>{csoTotal === 0 ? 0 : ((item.count / csoTotal) * 100).toFixed(1)}%</span></div>)}</div></Card>
-      <Card><h2>장애 및 보안 이벤트</h2>{dashboard.incidents.length === 0 ? <EmptyState label="현재 열린 장애나 보안 이벤트가 없습니다." /> : <div className="incident-list">{dashboard.incidents.map((item) => <div key={item.incidentId} className="incident-item"><div><Badge variant={incidentVariant[item.severity]}><span aria-hidden="true">●</span> {item.severity} · {item.status}</Badge><strong>{item.incidentId}</strong></div><p>{item.summary}</p><small>발생: {formatDate(item.occurredAt)}{item.relatedJobId ? ` · 관련 작업: ${item.relatedJobId}` : ''}</small></div>)}</div>}</Card>
-    </div>
-    {dashboard.providers.some((item) => item.status === 'DOWN') && <div className="section-gap"><Alert variant="danger" title="Provider 장애 감지">Provider 상태를 확인할 수 없습니다. 이 화면은 현황 조회 전용이며 실제 장애 조치는 운영 절차에 따라 수행해야 합니다.</Alert></div>}
-  </section>
+          <div className="radar-analytics">
+            <div className="radar-card">
+              <div className="radar-card__head">
+                <h2 className="radar-card__title">N2SF 등급 분포</h2>
+                <span className="radar-card__desc">표 2-8 C/S/O 업무정보 분류 기준 · 판정 {dist.total}건</span>
+              </div>
+              <div className="radar-spectrum-bar" aria-label="C/S/O 등급 비율 바">
+                <div className="radar-spectrum-seg--o" style={{ width: `${dist.o}%` }} title={`O등급: ${dist.o}%`} />
+                <div className="radar-spectrum-seg--s" style={{ width: `${dist.s}%` }} title={`S등급: ${dist.s}%`} />
+                <div className="radar-spectrum-seg--c" style={{ width: `${dist.c}%` }} title={`C등급: ${dist.c}%`} />
+              </div>
+              <div className="radar-spectrum-legends">
+                {([['o', 'O 공개', dist.O, dist.o], ['s', 'S 민감', dist.S, dist.s], ['c', 'C 기밀', dist.C, dist.c]] as const).map(([k, name, n, p]) => (
+                  <div className="radar-legend" key={k}>
+                    <span className={`radar-legend__dot radar-legend__dot--${k}`} />
+                    <span className="radar-legend__name">{name}</span>
+                    <div className="radar-legend__stat"><strong>{n}건</strong><small>{p}%</small></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="radar-card">
+              <div className="radar-card__head">
+                <h2 className="radar-card__title">처리 대기열</h2>
+                <span className="radar-card__desc">현재 진행 중인 요청 {q.totalQueued}건</span>
+              </div>
+              <div className="radar-triggers">
+                {queueRows.map((row) => (
+                  <div key={row.name} className="radar-trigger-row">
+                    <div className="radar-trigger-info"><span>{row.name}</span><span>{row.count}건</span></div>
+                    <div className="radar-trigger-track"><div className="radar-trigger-fill" style={{ width: `${(row.count / maxQueue) * 100}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="radar-stream">
+            <div className="radar-stream__head">
+              <div>
+                <h2 className="radar-stream__title">최근 보안 판정 내역</h2>
+                <p className="radar-head__sub">서버에 기록된 최근 요청 {dashboard.recentJobs.length}건</p>
+              </div>
+              <div className="radar-stream__tabs" role="tablist" aria-label="등급 필터">
+                {(['ALL', 'C', 'S', 'O'] as const).map((tab) => (
+                  <button key={tab} type="button" className={`radar-stream__tab ${filterTab === tab ? 'is-active' : ''}`} onClick={() => setFilterTab(tab)}>
+                    {tab === 'ALL' ? '전체 내역' : `${GRADE_LABEL[tab]} (${dist[tab]})`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="radar-table-wrap">
+              <table className="radar-table">
+                <thead>
+                  <tr><th>등급</th><th>문서명</th><th>요청 ID</th><th>처리시간</th><th>처리 상태</th><th>조치</th></tr>
+                </thead>
+                <tbody>
+                  {stream.length === 0 && <tr><td colSpan={6}>해당하는 내역이 없습니다.</td></tr>}
+                  {stream.map((job) => (
+                    <tr key={job.jobId}>
+                      <td><span className={`radar-badge-${job.grade.toLowerCase()}`}>{GRADE_LABEL[job.grade]}</span></td>
+                      <td><div className="radar-table__doc"><span>{job.fileNameDisplay}</span></div></td>
+                      <td><span className="radar-chip">{job.requestId}</span></td>
+                      <td style={{ color: '#697386', fontVariantNumeric: 'tabular-nums' }}>{latency(job)}</td>
+                      <td style={{ fontWeight: 600 }}>{job.currentStep || job.status}</td>
+                      <td><button type="button" className="radar-action-link" onClick={() => navigate(`/analysis/${job.jobId}`)}>상세보기 →</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="radar-rules">
+        <div className="radar-rules__head">
+          <div>
+            <h2 className="radar-card__title">적용 중인 보안 통제</h2>
+            <p className="radar-head__sub">게이트웨이 연계 구간 ③에서 코드로 강제되는 통제 (N2SF 해설서 항목)</p>
+          </div>
+          <button type="button" className="radar-action-link" onClick={() => navigate('/admin/policy')}>정책 규칙 관리 →</button>
+        </div>
+        <div className="radar-triggers">
+          {RULES.map((rule) => (
+            <div key={rule.name} className="radar-rule-item">
+              <div className="radar-rule-info">
+                <span className="radar-rule-name">{rule.name}</span>
+                <span className="radar-rule-sub">{rule.sub}</span>
+              </div>
+              <span className="radar-toggle-active">적용 중</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }

@@ -11,6 +11,7 @@ import { AnalysisJobsPage } from '../pages/analysis/AnalysisJobsPage'
 import { ResultPage } from '../pages/result/ResultPage'
 import { AuditPage } from '../pages/audit/AuditPage'
 import { PolicyPage } from '../pages/policy/PolicyPage'
+import { PermissionGuard } from '../components/security/PermissionGuard'
 import { OperationsDashboardPage } from '../pages/dashboard/OperationsDashboardPage'
 import { SupportPage } from '../pages/support/SupportPage'
 import { ApprovalPage } from '../pages/approvals/ApprovalPage'
@@ -40,8 +41,8 @@ const router = createBrowserRouter([
         { path: '/audit/:requestId', element: <AuditPage /> },
         { path: '/admin/policy', element: <PolicyPage /> },
         { path: '/admin/policy/:policyId', element: <PolicyPage /> },
-        { path: '/dashboard', element: <OperationsDashboardPage /> },
-        { path: '/dashboard/:scenario', element: <OperationsDashboardPage /> },
+        { path: '/dashboard', element: <PermissionGuard roles={['ADMIN','OPERATOR']} fallback={<Navigate to="/home" replace />}><OperationsDashboardPage /></PermissionGuard> },
+        { path: '/dashboard/:scenario', element: <PermissionGuard roles={['ADMIN','OPERATOR']} fallback={<Navigate to="/home" replace />}><OperationsDashboardPage /></PermissionGuard> },
         { path: '/support', element: <SupportPage /> },
         { path: '/support/:scenario', element: <SupportPage /> },
         { path: '/approvals', element: <ApprovalPage /> },

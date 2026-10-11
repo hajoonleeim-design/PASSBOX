@@ -117,7 +117,7 @@ v3에서는 재현되지 않음 — <strong>해결된 것으로 확인</strong>.
 <p>위 1~6번은 v3 시점의 기록입니다. 그 뒤 v4(hotfix), v5가 적용되어 현재 서비스는 <strong>v5</strong>로 동작합니다.</p>
 <ul>
 <li><strong>모델</strong>: <code>model_out/</code> = <code>model_out_v5_candidate/</code> (model.safetensors 동일). v1~v4는 <code>model_out_v{N}_backup/</code>에 보관.</li>
-<li><strong>하이브리드 판정</strong>: 모델은 문맥을 보고 C·S·O를 추천하고, 백엔드(<code>backend/app/classifier.py</code>)가 근거로 보정합니다. ① 개인정보 등 위험도 중간 이상 탐지가 있으면 최소 S로 올림(<code>apply_findings_floor</code>). ② 모델이 C로 판단해도 비밀 표기나 등록 기밀 키워드 근거가 없으면 S로 낮춤(<code>apply_confidential_ceiling</code>, 가이드라인 표 2-8). 보정은 등급을 올리거나(바닥) C를 낮추기만 하고, 최종 확정은 담당자가 합니다.</li>
+<li><strong>하이브리드 판정</strong>: 모델은 문맥을 보고 C·S·O를 추천하고, 백엔드(<code>backend/app/classifier.py</code>)가 근거로 보정합니다. ① 개인정보 등 위험도 중간 이상 탐지가 있으면 최소 S로 올림(<code>apply_findings_floor</code>). ② 모델이 C로 판단해도 비밀 표기나 등록 기밀 키워드 근거가 없으면 S로 낮춤(<code>apply_confidential_ceiling</code>, 가이드라인 표 2-8). ③ 문서 머리말에 비밀 표기("[대외비]", "(2급 비밀)" 등 첫 300자의 괄호 표지, 또는 쪽 머리말 줄)가 있으면 모델이 S로 봐도 C로 올림(<code>apply_designation_floor</code>, 2026-10-11 추가). 본문에서 그 단어를 언급만 한 경우는 올리지 않음(실제 문서 5,531건·가이드라인 정상 문장 1,456건에서 오탐 0건). 보정은 등급을 올리거나(바닥) C를 낮추기만 하고, 최종 확정은 담당자가 합니다.</li>
 <li><strong>청킹</strong>: 너무 짧은 마지막 조각은 앞 조각과 합쳐 맥락을 유지(<code>MIN_TAIL_TOKENS=200</code>).</li>
 <li><strong>회귀 테스트</strong>: <code>tests/test_classification_regression.py</code>(실제 모델로 추론, 모델 파일이 없으면 skip)를 v5에서 실행 — 6건 통과. 분류 서비스 전체 테스트 16건 통과, 백엔드 297건 통과(2026-10-11).</li>
 <li><strong>발표 자료의 실측</strong>: 실제 업로드 문서 101건 중 근거 없는 C 판정이 모델 단독 38건 → 하이브리드 4건(남은 4건은 본문에 비밀 표기가 실제로 있는 문서). 정답 라벨이 없는 문서라 정확도가 아니라 "근거 없는 차단 수"입니다.</li>

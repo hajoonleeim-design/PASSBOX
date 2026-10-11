@@ -9,7 +9,7 @@ from sqlalchemy import desc, select
 from app.api.auth import get_current_user, require_roles
 from app.api.jobs import _update_latest_job_for_document
 from app.audit_chain import append_audit_entry
-from app.classifier import _GRADE_RANK, ClassifierUnavailableError, apply_confidential_ceiling, apply_findings_floor, classifier
+from app.classifier import _GRADE_RANK, ClassifierUnavailableError, apply_confidential_ceiling, apply_designation_floor, apply_findings_floor, classifier
 from app.db import Settings, get_session_factory
 from app.access import document_access_clause
 from app.models import (
@@ -156,6 +156,7 @@ def recommend_classification(
             ) from exc
         recommendation_result = apply_confidential_ceiling(recommendation_result, findings, text_record.extracted_text)
         recommendation_result = apply_findings_floor(recommendation_result, findings)
+        recommendation_result = apply_designation_floor(recommendation_result, text_record.extracted_text)
         recommendation = ClassificationRecommendation(
             tenant_id=document.tenant_id,
             document_id=document.id,

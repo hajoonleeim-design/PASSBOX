@@ -253,6 +253,54 @@ def apply_confidential_ceiling(
     )
 
 
+# 문서 자체가 비밀 표기를 달고 있는 경우("[대외비]", "(2급 비밀)" 같은 머리말·쪽 표지).
+# 본문 문장 속에서 그 단어를 '언급'하는 것(교육 자료, 분류기 설명서 등)과 구분하려고
+# 위치와 형태를 제한한다: 첫 300자 안의 괄호 표지 또는 단독 줄, 그 밖에는 괄호 표지만 있는 줄.
+_DESIGNATION_WORD = r"(?:대외비|극비|[123I]급\s?비밀|비밀|(?i:top\s?secret)|군사\s?기밀|국가\s?기밀)"
+_DESIGNATION_BRACKETED = re.compile(r"[\[\(\{〈《【<]\s*" + _DESIGNATION_WORD + r"\s*[\]\)\}〉》】>]")
+_DESIGNATION_ALONE = re.compile(_DESIGNATION_WORD)
+_DESIGNATION_HEAD_CHARS = 300
+
+
+def has_designation_marking(text: str) -> bool:
+    normalized = normalize_for_scan(text or "")
+    head = normalized[:_DESIGNATION_HEAD_CHARS]
+    if _DESIGNATION_BRACKETED.search(head):
+        return True
+    for line in head.splitlines():
+        if _DESIGNATION_ALONE.fullmatch(line.strip()):
+            return True
+    for line in normalized.splitlines():
+        stripped = line.strip()
+        if stripped and _DESIGNATION_BRACKETED.fullmatch(stripped):
+            return True
+    return False
+
+
+def apply_designation_floor(
+    result: ClassificationRecommendation, text: str
+) -> ClassificationRecommendation:
+    """문서가 스스로 비밀 표기를 달고 있으면 C 미만으로 내려가지 않게 한다.
+
+    모델은 문맥을 보고 판단하므로 "[대외비]" 머리말이 있어도 S로 추천할 수 있다. 하지만 표기는
+    작성자가 그 문서를 비공개로 지정했다는 가장 직접적인 근거이고(가이드라인 표 2-8 C 항목),
+    표기 문서가 S로 분류되면 승인자가 마스킹만 거쳐 외부 AI로 내보낼 수 있다. 그래서 올리기만 한다
+    (이미 C면 그대로, 절대 낮추지 않음). 최종 확정은 여전히 담당자가 한다.
+    """
+    if result.recommended_grade == "C" or not has_designation_marking(text):
+        return result
+    return ClassificationRecommendation(
+        recommended_grade="C",
+        confidence=result.confidence,
+        reason=result.reason
+        + " [자동 보정] 문서 머리말에 비밀 표기(대외비·비밀 등)가 있어 모델 추천("
+        + f"{result.recommended_grade or '없음'}"
+        + ")보다 높은 C로 올렸습니다. 표기가 잘못 붙었거나 해제된 문서라면 담당자가 직접 확인해 등급을 확정해 주세요.",
+        model_version=result.model_version,
+        status=result.status,
+    )
+
+
 def build_classifier(settings: Settings | None = None) -> DocumentClassifier:
     runtime_settings = settings or Settings()
     if runtime_settings.classifier_mode.strip().upper() == "REMOTE":

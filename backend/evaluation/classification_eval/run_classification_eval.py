@@ -20,7 +20,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
-from app.classifier import apply_confidential_ceiling, apply_findings_floor, classifier  # noqa: E402
+from app.classifier import apply_confidential_ceiling, apply_designation_floor, apply_findings_floor, classifier  # noqa: E402
 from app.security_scan import scan_text  # noqa: E402
 
 GRADES = ["C", "S", "O"]
@@ -30,7 +30,7 @@ RANK = {"O": 0, "S": 1, "C": 2}
 def predict(text: str) -> tuple[str | None, str | None]:
     findings = scan_text(text)
     raw = classifier.recommend(text, findings)
-    final = apply_findings_floor(apply_confidential_ceiling(raw, findings, text), findings)
+    final = apply_designation_floor(apply_findings_floor(apply_confidential_ceiling(raw, findings, text), findings), text)
     return raw.recommended_grade, final.recommended_grade
 
 

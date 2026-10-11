@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     classifier_timeout_seconds: float = 10.0
     classifier_model: str = "passbox-classifier-v0"
     classifier_policy_version: str = "LOCAL-TEMPLATE-v1"
-    job_worker_threads: int = 3
+    job_worker_threads: int = 8
     jwt_access_token_minutes: int = 60
     login_rate_limit_attempts: int = 5
     login_rate_limit_window_seconds: int = 60

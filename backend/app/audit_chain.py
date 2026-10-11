@@ -16,7 +16,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, text
 
 from app.models import AuditLogEntry
 
@@ -72,6 +72,10 @@ def append_audit_entry(
     request_id: int | None = None,
 ) -> AuditLogEntry:
     """Append one entry to the tenant's chain and return it (not yet committed)."""
+    # Concurrent writers would read the same latest row and collide on
+    # (tenant_id, sequence). Serialize per tenant until this transaction ends.
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:ns, :tenant)"), {"ns": 7001, "tenant": tenant_id})
     latest = db.scalar(
         select(AuditLogEntry)
         .where(AuditLogEntry.tenant_id == tenant_id)

@@ -5,6 +5,7 @@ export interface ApiError {
   message: string
   code?: string
   requestId?: string
+  retryAfterSeconds?: number
 }
 
 export function getApiErrorCode(error: unknown): string | undefined {
@@ -59,6 +60,10 @@ apiClient.interceptors.response.use(
       status: error.response?.status,
       code: error.response?.data?.code,
       requestId: error.response?.headers?.['x-request-id'],
+      retryAfterSeconds: (() => {
+        const seconds = Number(error.response?.headers?.['retry-after'])
+        return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined
+      })(),
       message: error.response?.data?.message ?? error.response?.data?.detail ?? (error.request ? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.' : '요청을 처리하지 못했습니다.'),
     }
     if (apiError.requestId && typeof window !== 'undefined') {

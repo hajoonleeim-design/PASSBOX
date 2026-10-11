@@ -1,0 +1,43 @@
+/* 로그인 화면 보조 요소(비밀번호 표시, 안내 문구, 데모 계정 빠른 입력). 기본 카드 모양은 login.css가 담당합니다. */
+.ap-pw { position: relative; width: 100%; }
+.ap-pw .ap-input { padding-right: 46px; }
+.ap-eye {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  color: #8898aa;
+  background: transparent;
+  transform: translateY(-50%);
+}
+.ap-eye:hover { color: #425466; background: rgb(66 84 102 / 8%); }
+.ap-eye:focus-visible { outline: 2px solid #635bff; outline-offset: 1px; }
+
+.ap-notice, .ap-hint { margin: 0 0 10px; font-size: 13px; line-height: 1.4; text-align: left; }
+.ap-notice { width: 100%; padding: 9px 12px; border-radius: 10px; color: #3c4257; background: #f1f4f9; }
+.ap-hint { margin: -2px 0 0; color: #b45309; }
+.ap-input[aria-invalid="true"] { border-color: #dc2626; }
+
+.ap-demo-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 18px; font-size: 12px; color: #8898aa; }
+.ap-demo-row .ap-demo { margin: 0; padding: 4px 10px; border: 1px solid #e3e8ee; border-radius: 999px; font-size: 12px; text-decoration: none; }
+.ap-demo-row .ap-demo:hover { border-color: #635bff; text-decoration: none; }
+
+.ap-foot { margin: 22px 0 0; font-size: 11.5px; line-height: 1.5; color: #8898aa; text-align: center; }
+.ap-submit:disabled { cursor: not-allowed; }
+html .auth-layout .ap .ap-error { color: #dc2626; font-weight: 500; }
+html[data-theme="dark"] .auth-layout .ap .ap-error { color: #ff6b6b; }
+
+html[data-theme="dark"] .ap-eye { color: #8e8e93; }
+html[data-theme="dark"] .ap-eye:hover { color: #f5f5f7; background: rgb(255 255 255 / 8%); }
+html[data-theme="dark"] .ap-notice { color: #d1d1d6; background: #2c2c2e; }
+html[data-theme="dark"] .ap-hint { color: #fbbf24; }
+html[data-theme="dark"] .ap-demo-row, html[data-theme="dark"] .ap-foot { color: #8e8e93; }
+html[data-theme="dark"] .ap-demo-row .ap-demo { border-color: #424245; }
+
+@media (max-width: 420px) { .ap-foot { font-size: 11px; } }
+html[data-theme="dark"] .auth-layout .ap .ap-sub { color: #a1a1a6; }

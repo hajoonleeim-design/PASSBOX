@@ -266,8 +266,11 @@ def _next_version(version: str) -> str:
     return f"{match.group(1)}{int(match.group(2)) + 1}"
 
 
+CURRENT_POLICY_ALIASES = {"current", "mock-current", "mock-history", "mock-old"}
+
+
 def _get_policy(db, policy_id: str, current_user: User, create_if_missing: bool = False):
-    if policy_id in {"current", "mock-current", "mock-history", "mock-old"}:
+    if policy_id in CURRENT_POLICY_ALIASES:
         policy = db.scalar(
             select(SecurityPolicy).where(SecurityPolicy.tenant_id == current_user.tenant_id)
         )
@@ -345,6 +348,10 @@ def get_policy_history(
     with session_factory() as db:
         policy = _get_policy(db, policy_id, current_user)
         if policy is None:
+            # 기관의 첫 방문에서는 정책 조회와 이력 조회가 동시에 오므로, 아직 만들어지지 않은
+            # 현재 정책의 이력은 오류가 아니라 빈 목록이다. (정책 조회가 기본 정책을 만든다)
+            if policy_id in CURRENT_POLICY_ALIASES:
+                return []
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="정책을 찾을 수 없습니다.")
         histories = db.scalars(
             select(SecurityPolicyHistory)

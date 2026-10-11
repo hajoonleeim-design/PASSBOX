@@ -30,3 +30,45 @@ class BuiltinDetectionPatternTests(unittest.TestCase):
         self.assertEqual(listed, {rule.category for rule in _RULES})
         self.assertTrue(all(p["enabled"] for p in BUILTIN_DETECTION_PATTERNS))
         self.assertTrue(all(p["description"] for p in BUILTIN_DETECTION_PATTERNS))
+
+
+class FirstVisitPolicyHistoryTests(unittest.TestCase):
+    """기관의 첫 방문에서는 정책 조회와 이력 조회가 동시에 오므로 이력은 빈 목록이어야 한다."""
+
+    def setUp(self):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        from app.db import Base
+        from app.models import Tenant, User
+
+        self.engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+        with self.Session() as db:
+            tenant = Tenant(name="First Visit Tenant")
+            db.add(tenant)
+            db.flush()
+            self.admin = User(
+                tenant_id=tenant.id, username="policy.admin", display_name="관리자",
+                password_hash="x", role="ADMIN",
+            )
+            db.add(self.admin)
+            db.commit()
+            db.refresh(self.admin)
+
+    def test_history_of_uncreated_current_policy_is_empty_not_404(self):
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        from app.api.policies import get_policy_history
+
+        with patch("app.api.policies.get_session_factory", return_value=self.Session):
+            self.assertEqual(get_policy_history("mock-current", self.admin), [])
+            with self.assertRaises(HTTPException) as caught:
+                get_policy_history("999", self.admin)
+        self.assertEqual(caught.exception.status_code, 404)

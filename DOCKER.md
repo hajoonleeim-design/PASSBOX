@@ -58,6 +58,15 @@ docker compose exec -it backend python seed_demo_user.py   # 시연용 계정 �
 - 새 DB는 비어 있어서 **계정을 먼저 만들어야** 로그인됩니다. `seed_demo_user.py`는 비밀번호를 직접 입력받으므로 `docker compose exec -it backend python seed_demo_user.py`로 실행하세요(기관 이름은 "PASSBOX 테스트 기관", 기관 ID 1).
 - ClamAV는 처음 기동할 때 바이러스 정의를 내려받느라 몇 분 걸립니다. 그동안 backend는 `healthy`가 되지 않습니다(의도된 동작).
 
+### 추가 확인 (2026-10-12): 장애 시 동작, 백업·복구, 컨테이너 보호
+- **백신(ClamAV)을 멈추고 검사 요청**: HTTP 503 "악성코드 검사 서버에 연결할 수 없습니다. 잠시 후 다시 검사해 주세요." 문서는 통과하지 못하고(검사 불가 상태에서 무검사 통과 없음), 백신 복구 후 같은 문서 재검사는 200.
+- **분류기를 멈추고 분석 요청**: 작업이 FAILED가 되고 사용자 메시지 "분류 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요."가 표시됨. 추천은 만들어지지 않았고(HTTP 404), 분류기 복구 후 재시도(`/jobs/{id}/retry`)로 정상 추천(O)이 생성됨.
+- **DB 백업·복구**: `pg_dump`로 백업(약 80KB)한 뒤 **별도 시험 DB**에 복원해 행 수를 비교함(users 4=4, documents 4=4, audit_log_entries 11=11, classification_recommendations 2=2). 시험 DB는 삭제했고 원본 DB는 건드리지 않음. 해시체인 검증을 복구본에서 다시 돌려 보지는 않았음.
+- **외부에 열린 포트**: 호스트에 게시되는 포트는 frontend 8080 하나. db(5432), backend(8000), classifier(8100), clamav(3310)는 컨테이너 내부 네트워크에서만 접근됨.
+- **이미지에 비밀값 없음**: 이미지 안에 `.env`가 없고(`.dockerignore`), 이미지 이력에서 비밀값 키워드 0건. 비밀값은 VM의 `.env`(권한 600)로만 주입됨(환경변수 방식, Docker secrets·KMS 아님).
+- **적용하지 않은 통제 (사실대로)**: HTTPS/TLS(nginx는 80번만 사용, 443 설정 없음), 비루트 실행(backend·classifier 모두 root), 읽기 전용 루트 파일시스템, `no-new-privileges`. 이 구성은 VM 1대의 다중 컨테이너이며 고가용성·다중 서버 확장을 검증한 것이 아님.
+- **남은 위험**: `DATA_ENCRYPTION_KEY`를 잃으면 암호화된 본문·질문·답변을 읽을 수 없음. 키는 VM의 `.env`에만 있고 별도 보관·복구 절차는 없음. DB 중단, 외부 AI 무응답 시 동작은 이번에 시험하지 않음.
+
 ## Docker 없이 미리 확인한 것 (2026-10-11, Windows 개발 PC)
 컨테이너 안에서 일어나는 일 중 Docker 없이도 재현할 수 있는 부분을 깨끗한 체크아웃(`feat/docker-compose`)에서 실제로 돌려 봤습니다.
 - [x] 프런트: `npm ci` 후 `VITE_API_BASE_URL=/api/v1 npm run build` 성공(`tsc -b` 포함). 상대 주소 `/api/v1`이 번들에 들어감

@@ -1,7 +1,7 @@
 # PASSBOX Docker 구성 (설치형 배포 1차)
 
-> **상태: 작성만 했고 아직 실제 Docker 환경에서 실행해 보지 않았습니다.**
-> 아래 "검증 체크리스트"를 한 번 통과한 뒤에만 발표 자료에 "컨테이너 배포 구현"이라고 쓰세요.
+> **상태: 2026-10-12에 실제 Docker 환경(우분투 24.04 VM)에서 빌드·기동·점검을 통과했습니다.**
+> 검증 환경과 결과는 아래 "검증 기록"에 있습니다. 운영 서버에 그대로 올린 것은 아니고, TLS·production 전환은 아직 남아 있습니다("알려진 한계").
 > 이 구성은 `feat/docker-compose` 브랜치에만 있고, 기존 실행 방식(venv + uvicorn + Vite)은 그대로입니다.
 
 ## 무엇이 뜨나
@@ -34,15 +34,29 @@ docker compose exec -it backend python seed_demo_user.py   # 시연용 계정 �
 (예: 무료 Gemini 키만. OpenAI·Anthropic 은 비워 두면 호출 자체가 불가능합니다).
 
 ## 검증 체크리스트 (결과를 아래에 적어 두세요)
-- [ ] `docker compose build` 가 5개 중 3개 이미지(backend, classifier, frontend) 모두 성공
-- [ ] `docker compose ps` 에서 db, clamav, classifier, backend 가 healthy/running
-- [ ] `curl http://localhost:8080/api/v1/health` 가 200
-- [ ] 브라우저에서 로그인 → 문서 업로드 → 분석 → 등급 추천까지 진행
-- [ ] 업로드한 문서가 분류 서비스(`docker compose logs classifier`)에서 처리됨(REMOTE 동작)
-- [ ] EICAR 시험 파일이 ClamAV 에서 차단됨
-- [ ] `docker compose down` 후 `up` 해도 데이터가 남아 있음(볼륨)
+- [x] `docker compose build` 가 5개 중 3개 이미지(backend, classifier, frontend) 모두 성공
+- [x] `docker compose ps` 에서 db, clamav, classifier, backend 가 healthy/running
+- [x] `curl http://localhost:8080/api/v1/health` 가 200
+- [x] 브라우저에서 로그인 → 문서 업로드 → 분석 → 등급 추천까지 진행
+- [x] 업로드한 문서가 분류 서비스(`docker compose logs classifier`)에서 처리됨(REMOTE 동작)
+- [x] EICAR 시험 파일이 ClamAV 에서 차단됨
+- [x] `docker compose down` 후 `up` 해도 데이터가 남아 있음(볼륨)
 
-검증일 / 환경 / 결과: (여기에 기록)
+검증일 / 환경 / 결과: 아래 "검증 기록"
+
+## 검증 기록 (2026-10-12)
+- **환경**: VMware Workstation 17.5.2 위의 Ubuntu 24.04.5 서버 VM(CPU 4, 메모리 8GB, 디스크 40GB, NAT). Docker 29.1.3, Compose 2.40.3. 모델은 v5(`classifier-service/model_out`)를 호스트 폴더로 읽기 전용 연결.
+- **빌드**: 이미지 3개 모두 성공(backend 2.66GB, classifier 1.74GB, frontend nginx). 처음 받을 때 PyTorch(CPU) 때문에 약 25분. 첫 시도에서 Docker 저장소 접속 `TLS handshake timeout`이 한 번 났고(일시적 네트워크), 같은 명령을 다시 실행하자 이어서 성공.
+- **기동**: db·clamav·backend `healthy`, classifier·frontend 실행. 호스트에는 8080 하나만 열림.
+- **브라우저와 같은 경로(8080 → nginx → /api)로 확인한 항목, 10/10 통과**
+  1. 화면 응답(HTTP 200), 2. `/api/v1/health`, 3. `/health/ready`(DB 연결), 4. 데모 계정 로그인 3종, 5. 문서 업로드, 6. 검사와 ClamAV 통과, 7. 분석 작업 생성, 8. 분류기 컨테이너가 S로 추천(`klue-roberta-base-model_out`, 확신도 1.0, 첫 요청 3초), 9. EICAR 차단(HTTP 422), 10. 관리자 정책 첫 접속(조회와 이력 모두 200).
+- **백신 컨테이너가 실제로 잡았음을 확인**: 감사 기록의 엔진이 `clamav`이고, clamd 로그에 `instream(...): Eicar-Test-Signature FOUND`가 남음(백엔드의 자체 EICAR 안전장치가 아님).
+- **데이터 보존**: `docker compose down` 후 `up -d`(볼륨 유지)하자 재로그인과 기존 문서의 추천 결과가 그대로 남음. 볼륨 3개(`db_data`, `clamav_db`, `storage`).
+- **확인하지 못한 것**: 브라우저 화면 조작(사람이 눌러 보기), 외부 AI 호출(MOCK 모드라 호출 없음), 승인·감사 PDF 같은 나머지 화면, 폐쇄망 설치(이미지 오프라인 이전), HTTPS, production 모드, 동시 부하.
+
+### 처음 설치할 때 알아 둘 점
+- 새 DB는 비어 있어서 **계정을 먼저 만들어야** 로그인됩니다. `seed_demo_user.py`는 비밀번호를 직접 입력받으므로 `docker compose exec -it backend python seed_demo_user.py`로 실행하세요(기관 이름은 "PASSBOX 테스트 기관", 기관 ID 1).
+- ClamAV는 처음 기동할 때 바이러스 정의를 내려받느라 몇 분 걸립니다. 그동안 backend는 `healthy`가 되지 않습니다(의도된 동작).
 
 ## Docker 없이 미리 확인한 것 (2026-10-11, Windows 개발 PC)
 컨테이너 안에서 일어나는 일 중 Docker 없이도 재현할 수 있는 부분을 깨끗한 체크아웃(`feat/docker-compose`)에서 실제로 돌려 봤습니다.
